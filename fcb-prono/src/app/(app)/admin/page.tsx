@@ -1,0 +1,242 @@
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import type { Team } from '@/lib/types'
+
+interface MatchRow {
+  id: number
+  speeldag: number | null
+  is_cup_final: boolean
+  match_datetime: string | null
+  home_team: Team
+  away_team: Team
+  results: { id: number; home_score: number; away_score: number }[]
+}
+
+export default function AdminPage() {
+  const supabase = createClient()
+  const router = useRouter()
+  const [matches, setMatches] = useState<MatchRow[]>([])
+  const [results, setResults] = useState<Record<number, { home: string; away: string }>>({})
+  const [locked, setLocked] = useState(false)
+  const [extraQuestions, setExtraQuestions] = useState<{ id: number; question_label: string }[]>([])
+  const [extraAnswers, setExtraAnswers] = useState<Record<number, string>>({})
+  const [saving, setSaving] = useState(false)
+  const [recalculating, setRecalculating] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  const loadData = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { router.push('/login'); return }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile?.is_admin) { router.push('/'); return }
+    setIsAdmin(true)
+
+    const [matchesRes, settingsRes, questionsRes, answersRes] = await Promise.all([
+      supabase
+        .from('matches')
+        .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*), results(*)')
+        .order('speeldag', { ascending: true })
+        .order('match_datetime', { ascending: true }),
+      supabase.from('settings').select('*').eq('key', 'predictions_locked').single(),
+      supabase.from('extra_questions').select('id, question_label').order('id'),
+      supabase.from('extra_question_answers').select('*'),
+    ])
+
+    setMatches(matchesRes.data || [])
+    setLocked(settingsRes.data?.value === 'true')
+
+    const resultMap: Record<number, { home: string; away: string }> = {}
+    for (const m of matchesRes.data || []) {
+      const r = m.results?.[0]
+      if (r) resultMap[m.id] = { home: String(r.home_score), away: String(r.away_score) }
+    }
+    setResults(resultMap)
+
+    setExtraQuestions(questionsRes.data || [])
+    const ansMap: Record<number, string> = {}
+    for (const a of answersRes.data || []) {
+      ansMap[a.question_id] = a.correct_answer
+    }
+    setExtraAnswers(ansMap)
+    setLoaded(true)
+  }, [supabase, router])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  const toggleLock = async () => {
+    await supabase
+      .from('settings')
+      .update({ value: locked ? 'false' : 'true' })
+      .eq('key', 'predictions_locked')
+    setLocked(!locked)
+  }
+
+  const saveResults = async () => {
+    setSaving(true)
+    for (const [matchId, score] of Object.entries(results)) {
+      const home = parseInt(score.home)
+      const away = parseInt(score.away)
+      if (isNaN(home) || isNaN(away)) continue
+
+      await supabase
+        .from('results')
+        .upsert(
+          { match_id: parseInt(matchId), home_score: home, away_score: away },
+          { onConflict: 'match_id' }
+        )
+    }
+    setSaving(false)
+  }
+
+  const saveExtraAnswers = async () => {
+    setSaving(true)
+    for (const [qId, answer] of Object.entries(extraAnswers)) {
+      if (!answer.trim()) continue
+      await supabase
+        .from('extra_question_answers')
+        .upsert(
+          { question_id: parseInt(qId), correct_answer: answer.trim() },
+          { onConflict: 'question_id,correct_answer' }
+        )
+    }
+    setSaving(false)
+  }
+
+  const recalculate = async () => {
+    setRecalculating(true)
+    try {
+      const res = await fetch('/api/recalculate', { method: 'POST' })
+      if (!res.ok) throw new Error('Recalculation failed')
+    } catch (err) {
+      console.error(err)
+    }
+    setRecalculating(false)
+  }
+
+  if (!loaded) {
+    return <div className="text-center py-12 text-gray-400">Laden...</div>
+  }
+  if (!isAdmin) return null
+
+  // Group matches
+  const grouped: Record<string, MatchRow[]> = {}
+  for (const m of matches) {
+    const key = m.is_cup_final ? 'Bekerfinale' : `Speeldag ${m.speeldag}`
+    if (!grouped[key]) grouped[key] = []
+    grouped[key].push(m)
+  }
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-6">ADMIN</h1>
+
+      {/* Controls */}
+      <div className="flex flex-wrap gap-3 mb-8">
+        <button
+          onClick={toggleLock}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${
+            locked
+              ? 'bg-red-900/50 text-red-300 hover:bg-red-900/70'
+              : 'bg-green-900/50 text-green-300 hover:bg-green-900/70'
+          }`}
+        >
+          {locked ? '🔒 Vergrendeld — Klik om te ontgrendelen' : '🔓 Open — Klik om te vergrendelen'}
+        </button>
+        <button
+          onClick={recalculate}
+          disabled={recalculating}
+          className="px-4 py-2 bg-cb-blue text-white rounded-lg text-sm font-medium hover:bg-cb-blue/90 disabled:opacity-50"
+        >
+          {recalculating ? 'Herberekenen...' : 'Herbereken scores'}
+        </button>
+      </div>
+
+      {/* Match results */}
+      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+        Uitslagen invoeren
+      </h2>
+      <div className="space-y-6 mb-8">
+        {Object.entries(grouped).map(([label, groupMatches]) => (
+          <div key={label}>
+            <h3 className="text-xs font-medium text-cb-gold mb-2">{label}</h3>
+            <div className="space-y-2">
+              {groupMatches.map((match) => {
+                const r = results[match.id] || { home: '', away: '' }
+                return (
+                  <div key={match.id} className="bg-card rounded-lg border border-border p-3 flex items-center gap-2">
+                    <span className="flex-1 text-right text-sm truncate">{match.home_team.name}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={r.home}
+                      onChange={(e) => setResults(prev => ({
+                        ...prev,
+                        [match.id]: { ...r, home: e.target.value }
+                      }))}
+                      className="w-10 h-10 text-center bg-cb-dark border border-border rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue"
+                    />
+                    <span className="text-gray-500 text-xs">-</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={r.away}
+                      onChange={(e) => setResults(prev => ({
+                        ...prev,
+                        [match.id]: { ...r, away: e.target.value }
+                      }))}
+                      className="w-10 h-10 text-center bg-cb-dark border border-border rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue"
+                    />
+                    <span className="flex-1 text-left text-sm truncate">{match.away_team.name}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={saveResults}
+        disabled={saving}
+        className="px-6 py-2.5 bg-cb-blue text-white font-medium rounded-lg hover:bg-cb-blue/90 disabled:opacity-50 mb-8"
+      >
+        {saving ? 'Opslaan...' : 'Uitslagen opslaan'}
+      </button>
+
+      {/* Extra question answers */}
+      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+        Juiste antwoorden extra vragen
+      </h2>
+      <div className="space-y-3 mb-6">
+        {extraQuestions.map((q) => (
+          <div key={q.id} className="bg-card rounded-lg border border-border p-3 flex items-center gap-3">
+            <span className="text-sm text-gray-400 flex-1">{q.question_label}</span>
+            <input
+              type="text"
+              value={extraAnswers[q.id] || ''}
+              onChange={(e) => setExtraAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+              placeholder="Juist antwoord..."
+              className="w-48 px-3 py-2 bg-cb-dark border border-border rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue"
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={saveExtraAnswers}
+        disabled={saving}
+        className="px-6 py-2.5 bg-cb-blue text-white font-medium rounded-lg hover:bg-cb-blue/90 disabled:opacity-50"
+      >
+        {saving ? 'Opslaan...' : 'Extra antwoorden opslaan'}
+      </button>
+    </div>
+  )
+}
