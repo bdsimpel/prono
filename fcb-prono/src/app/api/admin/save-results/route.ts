@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { recalculateScores } from '@/lib/recalculate'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -16,18 +17,23 @@ export async function POST(request: Request) {
   const { results } = await request.json()
   const serviceClient = await createServiceClient()
 
+  let saved = 0
   for (const [matchId, score] of Object.entries(results) as [string, { home: string; away: string }][]) {
     const home = parseInt(score.home)
     const away = parseInt(score.away)
     if (isNaN(home) || isNaN(away)) continue
 
-    await serviceClient
+    const { error } = await serviceClient
       .from('results')
       .upsert(
         { match_id: parseInt(matchId), home_score: home, away_score: away },
         { onConflict: 'match_id' }
       )
+    if (!error) saved++
   }
 
-  return NextResponse.json({ success: true })
+  // Recalculate scores immediately
+  const { playersUpdated } = await recalculateScores(serviceClient)
+
+  return NextResponse.json({ success: true, resultsSaved: saved, playersUpdated })
 }

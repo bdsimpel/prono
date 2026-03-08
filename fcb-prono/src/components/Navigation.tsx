@@ -22,6 +22,8 @@ export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
     router.push('/login')
   }
 
+  const filteredItems = isAdmin ? navItems.filter(item => item.href !== '/predictions') : navItems
+
   return (
     <>
       {/* Desktop header */}
@@ -31,7 +33,7 @@ export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
             FCB <span className="text-cb-gold">PRONO</span> 2025
           </Link>
           <nav className="hidden md:flex items-center gap-6">
-            {navItems.map((item) => (
+            {filteredItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -69,7 +71,7 @@ export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-cb-navy border-t border-border z-50">
         <div className="flex justify-around py-2">
-          {navItems.map((item) => (
+          {filteredItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { recalculateScores } from '@/lib/recalculate'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -26,5 +27,7 @@ export async function POST(request: Request) {
       )
   }
 
-  return NextResponse.json({ success: true })
+  const { playersUpdated } = await recalculateScores(serviceClient)
+
+  return NextResponse.json({ success: true, playersUpdated })
 }

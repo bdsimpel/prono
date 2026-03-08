@@ -94,32 +94,40 @@ export default function AdminPage() {
 
   const saveResults = async () => {
     setSaving(true)
-    const res = await fetch('/api/admin/save-results', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ results }),
-    })
-    if (res.ok) {
-      await fetch('/api/recalculate', { method: 'POST' })
-      showMessage('Uitslagen opgeslagen en scores herberekend!')
-    } else {
-      showMessage('Fout bij opslaan')
+    try {
+      const res = await fetch('/api/admin/save-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ results }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        showMessage(`${data.resultsSaved} uitslagen opgeslagen, ${data.playersUpdated} spelers herberekend!`)
+      } else {
+        showMessage(`Fout: ${data.error || 'Onbekende fout'}`)
+      }
+    } catch (err) {
+      showMessage(`Fout: ${err}`)
     }
     setSaving(false)
   }
 
   const saveExtraAnswers = async () => {
     setSavingExtra(true)
-    const res = await fetch('/api/admin/save-extra-answers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: extraAnswers }),
-    })
-    if (res.ok) {
-      await fetch('/api/recalculate', { method: 'POST' })
-      showMessage('Extra antwoorden opgeslagen en scores herberekend!')
-    } else {
-      showMessage('Fout bij opslaan')
+    try {
+      const res = await fetch('/api/admin/save-extra-answers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: extraAnswers }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        showMessage(`Extra antwoorden opgeslagen, ${data.playersUpdated} spelers herberekend!`)
+      } else {
+        showMessage(`Fout: ${data.error || 'Onbekende fout'}`)
+      }
+    } catch (err) {
+      showMessage(`Fout: ${err}`)
     }
     setSavingExtra(false)
   }

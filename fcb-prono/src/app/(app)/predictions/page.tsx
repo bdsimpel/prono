@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { Match, Team } from '@/lib/types'
 
@@ -12,6 +13,7 @@ interface MatchWithTeams extends Match {
 
 export default function PredictionsPage() {
   const supabase = createClient()
+  const router = useRouter()
   const [matches, setMatches] = useState<MatchWithTeams[]>([])
   const [predictions, setPredictions] = useState<Record<number, { home: string; away: string }>>({})
   const [locked, setLocked] = useState(false)
@@ -26,6 +28,13 @@ export default function PredictionsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     setUserId(user.id)
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single()
+    if (profile?.is_admin) { router.push('/'); return }
 
     const [matchesRes, predsRes, settingsRes] = await Promise.all([
       supabase
@@ -62,7 +71,7 @@ export default function PredictionsPage() {
     setLocked(lockedSetting?.value === 'true')
     setDeadline(deadlineSetting?.value || '')
     setLoaded(true)
-  }, [supabase])
+  }, [supabase, router])
 
   useEffect(() => { loadData() }, [loadData])
 

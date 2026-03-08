@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import type { ExtraQuestion, Team } from '@/lib/types'
 
 const TEAM_QUESTIONS = ['bekerwinnaar', 'beste_ploeg_poi', 'meeste_goals_poi', 'minste_goals_tegen_poi', 'kampioen']
 
 export default function ExtraPredictionsPage() {
   const supabase = createClient()
+  const router = useRouter()
   const [questions, setQuestions] = useState<ExtraQuestion[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [answers, setAnswers] = useState<Record<number, string>>({})
@@ -21,6 +23,13 @@ export default function ExtraPredictionsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     setUserId(user.id)
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single()
+    if (profile?.is_admin) { router.push('/'); return }
 
     const [questionsRes, teamsRes, predsRes, settingsRes] = await Promise.all([
       supabase.from('extra_questions').select('*').order('id'),
@@ -39,7 +48,7 @@ export default function ExtraPredictionsPage() {
     setAnswers(answerMap)
     setLocked(settingsRes.data?.value === 'true')
     setLoaded(true)
-  }, [supabase])
+  }, [supabase, router])
 
   useEffect(() => { loadData() }, [loadData])
 
