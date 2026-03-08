@@ -20,16 +20,17 @@ export default function AdminPage() {
   const router = useRouter()
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [results, setResults] = useState<Record<number, { home: string; away: string }>>({})
-  const [locked, setLocked] = useState(false)
+  const [savedResults, setSavedResults] = useState<Record<number, { home: string; away: string }>>({})
   const [extraQuestions, setExtraQuestions] = useState<{ id: number; question_label: string }[]>([])
   const [extraAnswers, setExtraAnswers] = useState<Record<number, string>>({})
   const [saving, setSaving] = useState(false)
   const [savingExtra, setSavingExtra] = useState(false)
-  const [recalculating, setRecalculating] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [message, setMessage] = useState('')
+  const [savingMatch, setSavingMatch] = useState<Record<number, boolean>>({})
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const saveTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -44,19 +45,17 @@ export default function AdminPage() {
     if (!profile?.is_admin) { router.push('/'); return }
     setIsAdmin(true)
 
-    const [matchesRes, settingsRes, questionsRes, answersRes] = await Promise.all([
+    const [matchesRes, questionsRes, answersRes] = await Promise.all([
       supabase
         .from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*), results(*)')
         .order('speeldag', { ascending: true })
         .order('match_datetime', { ascending: true }),
-      supabase.from('settings').select('*').eq('key', 'predictions_locked').single(),
       supabase.from('extra_questions').select('id, question_label').order('id'),
       supabase.from('extra_question_answers').select('*'),
     ])
 
     setMatches(matchesRes.data || [])
-    setLocked(settingsRes.data?.value === 'true')
 
     const resultMap: Record<number, { home: string; away: string }> = {}
     for (const m of matchesRes.data || []) {
@@ -64,6 +63,7 @@ export default function AdminPage() {
       if (r) resultMap[m.id] = { home: String(r.home_score), away: String(r.away_score) }
     }
     setResults(resultMap)
+    setSavedResults(resultMap)
 
     setExtraQuestions(questionsRes.data || [])
     const ansMap: Record<number, string> = {}
@@ -76,23 +76,59 @@ export default function AdminPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  const showMessage = (msg: string) => {
-    setMessage(msg)
+  const showMessage = (msg: string, isError = false) => {
+    setMessage(isError ? `Fout: ${msg}` : msg)
     setTimeout(() => setMessage(''), 3000)
   }
 
-  const toggleLock = async () => {
-    const newLocked = !locked
-    await fetch('/api/admin/toggle-lock', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locked: newLocked }),
-    })
-    setLocked(newLocked)
-    showMessage(newLocked ? 'Pronostieken vergrendeld' : 'Pronostieken ontgrendeld')
+  const saveMatchResult = useCallback(async (matchId: number, home: string, away: string) => {
+    const homeNum = parseInt(home)
+    const awayNum = parseInt(away)
+    if (isNaN(homeNum) || isNaN(awayNum)) return
+
+    setSavingMatch(prev => ({ ...prev, [matchId]: true }))
+    try {
+      const res = await fetch('/api/admin/save-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ results: { [matchId]: { home, away } } }),
+      })
+      if (res.ok) {
+        setSavedResults(prev => ({ ...prev, [matchId]: { home, away } }))
+      } else {
+        const data = await res.json()
+        showMessage(data.error || 'Opslaan mislukt', true)
+      }
+    } catch {
+      showMessage('Opslaan mislukt', true)
+    }
+    setSavingMatch(prev => ({ ...prev, [matchId]: false }))
+  }, [])
+
+  const handleScoreInput = (matchId: number, side: 'home' | 'away', value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1)
+    const current = results[matchId] || { home: '', away: '' }
+    const updated = { ...current, [side]: digit }
+    setResults(prev => ({ ...prev, [matchId]: updated }))
+
+    if (digit !== '') {
+      const nextKey = side === 'home' ? `admin-${matchId}-away` : null
+      if (nextKey && inputRefs.current[nextKey]) {
+        inputRefs.current[nextKey]?.focus()
+        inputRefs.current[nextKey]?.select()
+      }
+    }
+
+    // Auto-save when both scores are filled
+    if (updated.home !== '' && updated.away !== '') {
+      if (saveTimeouts.current[matchId]) clearTimeout(saveTimeouts.current[matchId])
+      saveTimeouts.current[matchId] = setTimeout(() => {
+        saveMatchResult(matchId, updated.home, updated.away)
+      }, 500)
+    }
   }
 
-  const saveResults = async () => {
+  const updateScores = async () => {
     setSaving(true)
     try {
       const res = await fetch('/api/admin/save-results', {
@@ -102,12 +138,13 @@ export default function AdminPage() {
       })
       const data = await res.json()
       if (res.ok) {
+        setSavedResults({ ...results })
         showMessage(`${data.resultsSaved} uitslagen opgeslagen, ${data.playersUpdated} spelers herberekend!`)
       } else {
-        showMessage(`Fout: ${data.error || 'Onbekende fout'}`)
+        showMessage(data.error || 'Onbekende fout', true)
       }
     } catch (err) {
-      showMessage(`Fout: ${err}`)
+      showMessage(`${err}`, true)
     }
     setSaving(false)
   }
@@ -124,36 +161,12 @@ export default function AdminPage() {
       if (res.ok) {
         showMessage(`Extra antwoorden opgeslagen, ${data.playersUpdated} spelers herberekend!`)
       } else {
-        showMessage(`Fout: ${data.error || 'Onbekende fout'}`)
+        showMessage(data.error || 'Onbekende fout', true)
       }
     } catch (err) {
-      showMessage(`Fout: ${err}`)
+      showMessage(`${err}`, true)
     }
     setSavingExtra(false)
-  }
-
-  const recalculate = async () => {
-    setRecalculating(true)
-    const res = await fetch('/api/recalculate', { method: 'POST' })
-    if (res.ok) {
-      const data = await res.json()
-      showMessage(`Scores herberekend voor ${data.players_updated} spelers`)
-    }
-    setRecalculating(false)
-  }
-
-  const handleScoreInput = (matchId: number, side: 'home' | 'away', value: string) => {
-    const digit = value.replace(/\D/g, '').slice(-1)
-    const current = results[matchId] || { home: '', away: '' }
-    setResults(prev => ({ ...prev, [matchId]: { ...current, [side]: digit } }))
-
-    if (digit !== '') {
-      const nextKey = side === 'home' ? `admin-${matchId}-away` : null
-      if (nextKey && inputRefs.current[nextKey]) {
-        inputRefs.current[nextKey]?.focus()
-        inputRefs.current[nextKey]?.select()
-      }
-    }
   }
 
   if (!loaded) return <div className="text-center py-12 text-gray-400">Laden...</div>
@@ -171,30 +184,12 @@ export default function AdminPage() {
       <h1 className="text-2xl font-bold mb-6">ADMIN</h1>
 
       {message && (
-        <div className="mb-4 px-4 py-2 rounded-lg text-sm bg-green-900/30 text-green-300">
+        <div className={`mb-4 px-4 py-2 rounded-lg text-sm ${
+          message.startsWith('Fout:') ? 'bg-red-900/30 text-red-300' : 'bg-green-900/30 text-green-300'
+        }`}>
           {message}
         </div>
       )}
-
-      <div className="flex flex-wrap gap-3 mb-8">
-        <button
-          onClick={toggleLock}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${
-            locked
-              ? 'bg-red-900/50 text-red-300 hover:bg-red-900/70'
-              : 'bg-green-900/50 text-green-300 hover:bg-green-900/70'
-          }`}
-        >
-          {locked ? '🔒 Vergrendeld — Ontgrendelen' : '🔓 Open — Vergrendelen'}
-        </button>
-        <button
-          onClick={recalculate}
-          disabled={recalculating}
-          className="px-4 py-2 bg-cb-blue text-white rounded-lg text-sm font-medium hover:bg-cb-blue/90 disabled:opacity-50"
-        >
-          {recalculating ? 'Herberekenen...' : 'Herbereken scores'}
-        </button>
-      </div>
 
       <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
         Uitslagen invoeren
@@ -206,6 +201,9 @@ export default function AdminPage() {
             <div className="space-y-2">
               {groupMatches.map((match) => {
                 const r = results[match.id] || { home: '', away: '' }
+                const saved = savedResults[match.id]
+                const isSaved = saved && saved.home === r.home && saved.away === r.away
+                const isSaving = savingMatch[match.id]
                 return (
                   <div key={match.id} className="bg-card rounded-lg border border-border p-3 flex items-center gap-2">
                     <span className="flex-1 text-right text-sm truncate">{match.home_team.name}</span>
@@ -216,7 +214,9 @@ export default function AdminPage() {
                       value={r.home}
                       onChange={(e) => handleScoreInput(match.id, 'home', e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className="w-10 h-10 text-center bg-cb-dark border border-border rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue"
+                      className={`w-10 h-10 text-center bg-cb-dark border rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue ${
+                        isSaving ? 'border-yellow-500' : isSaved && r.home !== '' ? 'border-green-600' : 'border-border'
+                      }`}
                     />
                     <span className="text-gray-500 text-xs">-</span>
                     <input
@@ -226,7 +226,9 @@ export default function AdminPage() {
                       value={r.away}
                       onChange={(e) => handleScoreInput(match.id, 'away', e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className="w-10 h-10 text-center bg-cb-dark border border-border rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue"
+                      className={`w-10 h-10 text-center bg-cb-dark border rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue ${
+                        isSaving ? 'border-yellow-500' : isSaved && r.away !== '' ? 'border-green-600' : 'border-border'
+                      }`}
                     />
                     <span className="flex-1 text-left text-sm truncate">{match.away_team.name}</span>
                   </div>
@@ -237,11 +239,11 @@ export default function AdminPage() {
         ))}
       </div>
       <button
-        onClick={saveResults}
+        onClick={updateScores}
         disabled={saving}
         className="px-6 py-2.5 bg-cb-blue text-white font-medium rounded-lg hover:bg-cb-blue/90 disabled:opacity-50 mb-8"
       >
-        {saving ? 'Opslaan & herberekenen...' : 'Uitslagen opslaan'}
+        {saving ? 'Opslaan & herberekenen...' : 'Update scores'}
       </button>
 
       <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
