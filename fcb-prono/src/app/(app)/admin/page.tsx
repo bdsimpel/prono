@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { Team } from '@/lib/types'
@@ -24,9 +24,12 @@ export default function AdminPage() {
   const [extraQuestions, setExtraQuestions] = useState<{ id: number; question_label: string }[]>([])
   const [extraAnswers, setExtraAnswers] = useState<Record<number, string>>({})
   const [saving, setSaving] = useState(false)
+  const [savingExtra, setSavingExtra] = useState(false)
   const [recalculating, setRecalculating] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [message, setMessage] = useState('')
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -73,66 +76,81 @@ export default function AdminPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
+  const showMessage = (msg: string) => {
+    setMessage(msg)
+    setTimeout(() => setMessage(''), 3000)
+  }
+
   const toggleLock = async () => {
-    await supabase
-      .from('settings')
-      .update({ value: locked ? 'false' : 'true' })
-      .eq('key', 'predictions_locked')
-    setLocked(!locked)
+    const newLocked = !locked
+    await fetch('/api/admin/toggle-lock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locked: newLocked }),
+    })
+    setLocked(newLocked)
+    showMessage(newLocked ? 'Pronostieken vergrendeld' : 'Pronostieken ontgrendeld')
   }
 
   const saveResults = async () => {
     setSaving(true)
-    for (const [matchId, score] of Object.entries(results)) {
-      const home = parseInt(score.home)
-      const away = parseInt(score.away)
-      if (isNaN(home) || isNaN(away)) continue
-
-      await supabase
-        .from('results')
-        .upsert(
-          { match_id: parseInt(matchId), home_score: home, away_score: away },
-          { onConflict: 'match_id' }
-        )
+    const res = await fetch('/api/admin/save-results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ results }),
+    })
+    if (res.ok) {
+      await fetch('/api/recalculate', { method: 'POST' })
+      showMessage('Uitslagen opgeslagen en scores herberekend!')
+    } else {
+      showMessage('Fout bij opslaan')
     }
-    // Auto-recalculate scores after saving results
-    await fetch('/api/recalculate', { method: 'POST' })
     setSaving(false)
   }
 
   const saveExtraAnswers = async () => {
-    setSaving(true)
-    for (const [qId, answer] of Object.entries(extraAnswers)) {
-      if (!answer.trim()) continue
-      await supabase
-        .from('extra_question_answers')
-        .upsert(
-          { question_id: parseInt(qId), correct_answer: answer.trim() },
-          { onConflict: 'question_id,correct_answer' }
-        )
+    setSavingExtra(true)
+    const res = await fetch('/api/admin/save-extra-answers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers: extraAnswers }),
+    })
+    if (res.ok) {
+      await fetch('/api/recalculate', { method: 'POST' })
+      showMessage('Extra antwoorden opgeslagen en scores herberekend!')
+    } else {
+      showMessage('Fout bij opslaan')
     }
-    // Auto-recalculate scores after saving extra answers
-    await fetch('/api/recalculate', { method: 'POST' })
-    setSaving(false)
+    setSavingExtra(false)
   }
 
   const recalculate = async () => {
     setRecalculating(true)
-    try {
-      const res = await fetch('/api/recalculate', { method: 'POST' })
-      if (!res.ok) throw new Error('Recalculation failed')
-    } catch (err) {
-      console.error(err)
+    const res = await fetch('/api/recalculate', { method: 'POST' })
+    if (res.ok) {
+      const data = await res.json()
+      showMessage(`Scores herberekend voor ${data.players_updated} spelers`)
     }
     setRecalculating(false)
   }
 
-  if (!loaded) {
-    return <div className="text-center py-12 text-gray-400">Laden...</div>
+  const handleScoreInput = (matchId: number, side: 'home' | 'away', value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1)
+    const current = results[matchId] || { home: '', away: '' }
+    setResults(prev => ({ ...prev, [matchId]: { ...current, [side]: digit } }))
+
+    if (digit !== '') {
+      const nextKey = side === 'home' ? `admin-${matchId}-away` : null
+      if (nextKey && inputRefs.current[nextKey]) {
+        inputRefs.current[nextKey]?.focus()
+        inputRefs.current[nextKey]?.select()
+      }
+    }
   }
+
+  if (!loaded) return <div className="text-center py-12 text-gray-400">Laden...</div>
   if (!isAdmin) return null
 
-  // Group matches
   const grouped: Record<string, MatchRow[]> = {}
   for (const m of matches) {
     const key = m.is_cup_final ? 'Bekerfinale' : `Speeldag ${m.speeldag}`
@@ -144,7 +162,12 @@ export default function AdminPage() {
     <div>
       <h1 className="text-2xl font-bold mb-6">ADMIN</h1>
 
-      {/* Controls */}
+      {message && (
+        <div className="mb-4 px-4 py-2 rounded-lg text-sm bg-green-900/30 text-green-300">
+          {message}
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-3 mb-8">
         <button
           onClick={toggleLock}
@@ -154,7 +177,7 @@ export default function AdminPage() {
               : 'bg-green-900/50 text-green-300 hover:bg-green-900/70'
           }`}
         >
-          {locked ? '🔒 Vergrendeld — Klik om te ontgrendelen' : '🔓 Open — Klik om te vergrendelen'}
+          {locked ? '🔒 Vergrendeld — Ontgrendelen' : '🔓 Open — Vergrendelen'}
         </button>
         <button
           onClick={recalculate}
@@ -165,11 +188,10 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {/* Match results */}
       <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
         Uitslagen invoeren
       </h2>
-      <div className="space-y-6 mb-8">
+      <div className="space-y-6 mb-4">
         {Object.entries(grouped).map(([label, groupMatches]) => (
           <div key={label}>
             <h3 className="text-xs font-medium text-cb-gold mb-2">{label}</h3>
@@ -180,24 +202,22 @@ export default function AdminPage() {
                   <div key={match.id} className="bg-card rounded-lg border border-border p-3 flex items-center gap-2">
                     <span className="flex-1 text-right text-sm truncate">{match.home_team.name}</span>
                     <input
-                      type="number"
-                      min="0"
+                      ref={el => { inputRefs.current[`admin-${match.id}-home`] = el }}
+                      type="text"
+                      inputMode="numeric"
                       value={r.home}
-                      onChange={(e) => setResults(prev => ({
-                        ...prev,
-                        [match.id]: { ...r, home: e.target.value }
-                      }))}
+                      onChange={(e) => handleScoreInput(match.id, 'home', e.target.value)}
+                      onFocus={(e) => e.target.select()}
                       className="w-10 h-10 text-center bg-cb-dark border border-border rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue"
                     />
                     <span className="text-gray-500 text-xs">-</span>
                     <input
-                      type="number"
-                      min="0"
+                      ref={el => { inputRefs.current[`admin-${match.id}-away`] = el }}
+                      type="text"
+                      inputMode="numeric"
                       value={r.away}
-                      onChange={(e) => setResults(prev => ({
-                        ...prev,
-                        [match.id]: { ...r, away: e.target.value }
-                      }))}
+                      onChange={(e) => handleScoreInput(match.id, 'away', e.target.value)}
+                      onFocus={(e) => e.target.select()}
                       className="w-10 h-10 text-center bg-cb-dark border border-border rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue"
                     />
                     <span className="flex-1 text-left text-sm truncate">{match.away_team.name}</span>
@@ -213,14 +233,13 @@ export default function AdminPage() {
         disabled={saving}
         className="px-6 py-2.5 bg-cb-blue text-white font-medium rounded-lg hover:bg-cb-blue/90 disabled:opacity-50 mb-8"
       >
-        {saving ? 'Opslaan...' : 'Uitslagen opslaan'}
+        {saving ? 'Opslaan & herberekenen...' : 'Uitslagen opslaan'}
       </button>
 
-      {/* Extra question answers */}
       <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
         Juiste antwoorden extra vragen
       </h2>
-      <div className="space-y-3 mb-6">
+      <div className="space-y-3 mb-4">
         {extraQuestions.map((q) => (
           <div key={q.id} className="bg-card rounded-lg border border-border p-3 flex items-center gap-3">
             <span className="text-sm text-gray-400 flex-1">{q.question_label}</span>
@@ -236,10 +255,10 @@ export default function AdminPage() {
       </div>
       <button
         onClick={saveExtraAnswers}
-        disabled={saving}
+        disabled={savingExtra}
         className="px-6 py-2.5 bg-cb-blue text-white font-medium rounded-lg hover:bg-cb-blue/90 disabled:opacity-50"
       >
-        {saving ? 'Opslaan...' : 'Extra antwoorden opslaan'}
+        {savingExtra ? 'Opslaan & herberekenen...' : 'Extra antwoorden opslaan'}
       </button>
     </div>
   )

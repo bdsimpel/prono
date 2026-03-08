@@ -7,26 +7,48 @@ export default async function KlassementPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Get all profiles
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, display_name, paid')
+    .neq('first_name', '')
+
+  // Get all scores
   const { data: scores } = await supabase
     .from('player_scores')
-    .select(`
-      *,
-      profiles!inner(display_name, paid)
-    `)
-    .order('total_score', { ascending: false })
+    .select('*')
 
-  // Build standings with rank
+  // Build scores map
+  const scoreMap: Record<string, typeof scores extends (infer T)[] | null ? T : never> = {}
+  for (const s of scores || []) {
+    scoreMap[s.user_id] = s
+  }
+
+  // Merge profiles with scores (show everyone, even 0)
+  const allPlayers = (profiles || []).map((p) => ({
+    user_id: p.id,
+    display_name: p.display_name,
+    paid: p.paid,
+    total_score: scoreMap[p.id]?.total_score ?? 0,
+    match_score: scoreMap[p.id]?.match_score ?? 0,
+    extra_score: scoreMap[p.id]?.extra_score ?? 0,
+    exact_matches: scoreMap[p.id]?.exact_matches ?? 0,
+    correct_goal_diffs: scoreMap[p.id]?.correct_goal_diffs ?? 0,
+    correct_results: scoreMap[p.id]?.correct_results ?? 0,
+  }))
+
+  // Sort by score desc, then name
+  allPlayers.sort((a, b) => b.total_score - a.total_score || a.display_name.localeCompare(b.display_name))
+
+  // Assign ranks
   let currentRank = 0
   let previousScore = -1
-  const standings = (scores || []).map((row, index) => {
+  const standings = allPlayers.map((row, index) => {
     if (row.total_score !== previousScore) {
       currentRank = index + 1
     }
     previousScore = row.total_score
-    return {
-      ...row,
-      rank: currentRank,
-    }
+    return { ...row, rank: currentRank }
   })
 
   return (
@@ -35,7 +57,7 @@ export default async function KlassementPage() {
 
       {standings.length === 0 ? (
         <div className="bg-card rounded-xl p-8 border border-border text-center text-gray-400">
-          Nog geen scores berekend. Wacht tot de admin de scores herberekent.
+          Nog geen spelers geregistreerd.
         </div>
       ) : (
         <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -56,7 +78,6 @@ export default async function KlassementPage() {
               </thead>
               <tbody>
                 {standings.map((row) => {
-                  const profile = row.profiles as { display_name: string; paid: boolean }
                   const isCurrentUser = row.user_id === user?.id
                   return (
                     <tr
@@ -73,8 +94,8 @@ export default async function KlassementPage() {
                           href={`/player/${row.user_id}`}
                           className="text-sm font-medium hover:text-cb-gold transition-colors"
                         >
-                          {profile.display_name}
-                          {!profile.paid && <span className="text-cb-gold ml-1">*</span>}
+                          {row.display_name}
+                          {!row.paid && <span className="text-cb-gold ml-1">*</span>}
                         </Link>
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-cb-gold">
@@ -105,7 +126,6 @@ export default async function KlassementPage() {
           {/* Mobile list */}
           <div className="md:hidden divide-y divide-border/50">
             {standings.map((row) => {
-              const profile = row.profiles as { display_name: string; paid: boolean }
               const isCurrentUser = row.user_id === user?.id
               return (
                 <Link
@@ -120,7 +140,7 @@ export default async function KlassementPage() {
                       {row.rank}
                     </span>
                     <span className="text-sm font-medium">
-                      {profile.display_name}
+                      {row.display_name}
                     </span>
                   </div>
                   <span className="text-sm font-bold text-cb-gold">

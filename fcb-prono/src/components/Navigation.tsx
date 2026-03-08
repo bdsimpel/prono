@@ -9,6 +9,7 @@ const navItems = [
   { href: '/', label: 'Klassement', icon: '🏆' },
   { href: '/matches', label: 'Wedstrijden', icon: '⚽' },
   { href: '/predictions', label: 'Prono', icon: '📝' },
+  { href: '/profile', label: 'Profiel', icon: '👤' },
 ]
 
 export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {

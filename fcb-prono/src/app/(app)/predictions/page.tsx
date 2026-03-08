@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import type { Match, Team, Prediction } from '@/lib/types'
+import type { Match, Team } from '@/lib/types'
 
 interface MatchWithTeams extends Match {
   home_team: Team
@@ -17,8 +17,10 @@ export default function PredictionsPage() {
   const [locked, setLocked] = useState(false)
   const [deadline, setDeadline] = useState('')
   const [saving, setSaving] = useState<Record<number, boolean>>({})
+  const [saved, setSaved] = useState<Record<number, boolean>>({})
   const [userId, setUserId] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -48,6 +50,12 @@ export default function PredictionsPage() {
     }
     setPredictions(predMap)
 
+    const savedMap: Record<number, boolean> = {}
+    for (const p of predsRes.data || []) {
+      savedMap[p.match_id] = true
+    }
+    setSaved(savedMap)
+
     const settings = settingsRes.data || []
     const lockedSetting = settings.find(s => s.key === 'predictions_locked')
     const deadlineSetting = settings.find(s => s.key === 'deadline')
@@ -76,18 +84,43 @@ export default function PredictionsPage() {
       )
 
     setSaving(prev => ({ ...prev, [matchId]: false }))
+    setSaved(prev => ({ ...prev, [matchId]: true }))
   }
 
-  const handleScoreChange = (matchId: number, side: 'home' | 'away', value: string) => {
+  const handleScoreInput = (matchId: number, side: 'home' | 'away', value: string) => {
     if (locked) return
+    // Only allow single digit
+    const digit = value.replace(/\D/g, '').slice(-1)
     const current = predictions[matchId] || { home: '', away: '' }
-    const updated = { ...current, [side]: value }
+    const updated = { ...current, [side]: digit }
     setPredictions(prev => ({ ...prev, [matchId]: updated }))
+
+    // Auto-advance: home -> away, away -> next match home
+    if (digit !== '') {
+      if (side === 'home') {
+        const nextKey = `${matchId}-away`
+        inputRefs.current[nextKey]?.focus()
+        inputRefs.current[nextKey]?.select()
+      } else {
+        // Save current match
+        savePrediction(matchId, updated.home, updated.away)
+        // Find next match and focus home input
+        const matchIndex = matches.findIndex(m => m.id === matchId)
+        if (matchIndex < matches.length - 1) {
+          const nextMatch = matches[matchIndex + 1]
+          const nextKey = `${nextMatch.id}-home`
+          setTimeout(() => {
+            inputRefs.current[nextKey]?.focus()
+            inputRefs.current[nextKey]?.select()
+          }, 50)
+        }
+      }
+    }
   }
 
   const handleBlur = (matchId: number) => {
     const pred = predictions[matchId]
-    if (pred) {
+    if (pred && pred.home !== '' && pred.away !== '') {
       savePrediction(matchId, pred.home, pred.away)
     }
   }
@@ -126,6 +159,12 @@ export default function PredictionsPage() {
         </div>
       )}
 
+      {!locked && (
+        <div className="mb-6 px-4 py-2 rounded-lg text-xs bg-cb-dark border border-border text-gray-400">
+          Tip: vul een cijfer in en het springt automatisch naar het volgende veld. Scores worden automatisch opgeslagen.
+        </div>
+      )}
+
       <div className="space-y-8">
         {Object.entries(grouped).map(([label, groupMatches]) => (
           <div key={label}>
@@ -136,6 +175,7 @@ export default function PredictionsPage() {
               {groupMatches.map((match) => {
                 const pred = predictions[match.id] || { home: '', away: '' }
                 const isSaving = saving[match.id]
+                const isSaved = saved[match.id]
                 return (
                   <div
                     key={match.id}
@@ -145,35 +185,40 @@ export default function PredictionsPage() {
                       {match.home_team.name}
                     </span>
                     <input
-                      type="number"
-                      min="0"
-                      max="20"
+                      ref={el => { inputRefs.current[`${match.id}-home`] = el }}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={pred.home}
-                      onChange={(e) => handleScoreChange(match.id, 'home', e.target.value)}
+                      onChange={(e) => handleScoreInput(match.id, 'home', e.target.value)}
                       onBlur={() => handleBlur(match.id)}
+                      onFocus={(e) => e.target.select()}
                       disabled={locked}
                       className="w-10 h-10 text-center bg-cb-dark border border-border rounded-lg text-white font-bold disabled:opacity-50 focus:outline-none focus:border-cb-blue"
                     />
                     <span className="text-gray-500 text-xs">-</span>
                     <input
-                      type="number"
-                      min="0"
-                      max="20"
+                      ref={el => { inputRefs.current[`${match.id}-away`] = el }}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={pred.away}
-                      onChange={(e) => handleScoreChange(match.id, 'away', e.target.value)}
+                      onChange={(e) => handleScoreInput(match.id, 'away', e.target.value)}
                       onBlur={() => handleBlur(match.id)}
+                      onFocus={(e) => e.target.select()}
                       disabled={locked}
                       className="w-10 h-10 text-center bg-cb-dark border border-border rounded-lg text-white font-bold disabled:opacity-50 focus:outline-none focus:border-cb-blue"
                     />
                     <span className="flex-1 text-left text-sm font-medium truncate">
                       {match.away_team.name}
                     </span>
-                    {isSaving && (
-                      <span className="text-xs text-cb-gold">...</span>
-                    )}
-                    {!isSaving && pred.home !== '' && pred.away !== '' && (
-                      <span className="text-xs text-green-400">✓</span>
-                    )}
+                    <span className="w-5 text-center">
+                      {isSaving ? (
+                        <span className="text-xs text-cb-gold">...</span>
+                      ) : isSaved ? (
+                        <span className="text-xs text-green-400">✓</span>
+                      ) : null}
+                    </span>
                   </div>
                 )
               })}
