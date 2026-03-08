@@ -95,6 +95,8 @@ export default function AdminPage() {
           { onConflict: 'match_id' }
         )
     }
+    // Auto-recalculate scores after saving results
+    await fetch('/api/recalculate', { method: 'POST' })
     setSaving(false)
   }
 
@@ -109,6 +111,8 @@ export default function AdminPage() {
           { onConflict: 'question_id,correct_answer' }
         )
     }
+    // Auto-recalculate scores after saving extra answers
+    await fetch('/api/recalculate', { method: 'POST' })
     setSaving(false)
   }
 

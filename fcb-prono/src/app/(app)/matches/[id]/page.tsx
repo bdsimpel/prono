@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { calculateMatchPoints } from '@/lib/scoring'
 import { notFound } from 'next/navigation'
 
+export const dynamic = 'force-dynamic'
+
 export default async function MatchDetailPage({
   params,
 }: {
