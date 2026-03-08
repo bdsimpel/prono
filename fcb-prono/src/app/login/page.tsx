@@ -22,20 +22,21 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({
+        // Use server-side API route to create user with auto-confirmed email
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, firstName, lastName }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error)
+
+        // Now sign in with the created account
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
-        if (signUpError) throw signUpError
-
-        // Update profile with name
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          await supabase
-            .from('profiles')
-            .update({ first_name: firstName, last_name: lastName })
-            .eq('id', user.id)
-        }
+        if (signInError) throw signInError
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
