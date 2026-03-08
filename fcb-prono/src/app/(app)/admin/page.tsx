@@ -43,22 +43,22 @@ export default function AdminPage() {
       if (!profile?.is_admin) { router.push('/'); return }
       setIsAdmin(true)
 
-      const [matchesRes, questionsRes, answersRes] = await Promise.all([
+      const [matchesRes, resultsRes, questionsRes, answersRes] = await Promise.all([
         supabase
           .from('matches')
-          .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*), results(*)')
+          .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
           .order('speeldag', { ascending: true })
           .order('match_datetime', { ascending: true }),
+        supabase.from('results').select('*'),
         supabase.from('extra_questions').select('id, question_label').order('id'),
         supabase.from('extra_question_answers').select('*'),
       ])
 
-      setMatches(matchesRes.data || [])
+      setMatches((matchesRes.data || []) as unknown as MatchRow[])
 
       const resultMap: Record<number, { home: string; away: string }> = {}
-      for (const m of matchesRes.data || []) {
-        const r = m.results?.[0]
-        if (r) resultMap[m.id] = { home: String(r.home_score), away: String(r.away_score) }
+      for (const r of resultsRes.data || []) {
+        resultMap[r.match_id] = { home: String(r.home_score), away: String(r.away_score) }
       }
       setResults(resultMap)
 
