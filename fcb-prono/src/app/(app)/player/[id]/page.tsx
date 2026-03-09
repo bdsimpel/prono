@@ -13,13 +13,13 @@ export default async function PlayerDetailPage({
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: profile } = await supabase
-    .from('profiles')
+  const { data: player } = await supabase
+    .from('players')
     .select('*')
     .eq('id', id)
     .single()
 
-  if (!profile) notFound()
+  if (!player) notFound()
 
   const { data: playerScore } = await supabase
     .from('player_scores')
@@ -89,7 +89,7 @@ export default async function PlayerDetailPage({
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">{profile.display_name}</h1>
+        <h1 className="text-2xl font-bold">{player.display_name}</h1>
         <div className="flex items-center gap-4 mt-1">
           {rank > 0 && (
             <span className="text-sm text-gray-400">Rank: #{rank}</span>

@@ -5,11 +5,10 @@ import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
-const navItems = [
+const publicNavItems = [
   { href: '/', label: 'Klassement', icon: '🏆' },
   { href: '/matches', label: 'Wedstrijden', icon: '⚽' },
-  { href: '/predictions', label: 'Prono', icon: '📝' },
-  { href: '/profile', label: 'Profiel', icon: '👤' },
+  { href: '/meedoen', label: 'Meedoen', icon: '📝' },
 ]
 
 export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
@@ -19,10 +18,9 @@ export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/login')
+    router.push('/')
+    router.refresh()
   }
-
-  const filteredItems = isAdmin ? navItems.filter(item => item.href !== '/predictions') : navItems
 
   return (
     <>
@@ -33,7 +31,7 @@ export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
             FCB <span className="text-cb-gold">PRONO</span> 2025
           </Link>
           <nav className="hidden md:flex items-center gap-6">
-            {filteredItems.map((item) => (
+            {publicNavItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -58,12 +56,14 @@ export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
                 Admin
               </Link>
             )}
-            <button
-              onClick={handleLogout}
-              className="text-sm text-gray-400 hover:text-white transition-colors"
-            >
-              Uitloggen
-            </button>
+            {isAdmin && (
+              <button
+                onClick={handleLogout}
+                className="text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Uitloggen
+              </button>
+            )}
           </nav>
         </div>
       </header>
@@ -71,7 +71,7 @@ export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-cb-navy border-t border-border z-50">
         <div className="flex justify-around py-2">
-          {filteredItems.map((item) => (
+          {publicNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

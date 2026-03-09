@@ -28,50 +28,50 @@ export default function AdminPage() {
   const [message, setMessage] = useState('')
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
-  useEffect(() => {
-    const loadData = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/login'); return }
+  const loadData = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { router.push('/login'); return }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single()
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single()
 
-      if (!profile?.is_admin) { router.push('/'); return }
-      setIsAdmin(true)
+    if (!profile?.is_admin) { router.push('/'); return }
+    setIsAdmin(true)
 
-      const [matchesRes, resultsRes, questionsRes, answersRes] = await Promise.all([
-        supabase
-          .from('matches')
-          .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
-          .order('speeldag', { ascending: true })
-          .order('match_datetime', { ascending: true }),
-        supabase.from('results').select('*'),
-        supabase.from('extra_questions').select('id, question_label').order('id'),
-        supabase.from('extra_question_answers').select('*'),
-      ])
+    const [matchesRes, resultsRes, questionsRes, answersRes] = await Promise.all([
+      supabase
+        .from('matches')
+        .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
+        .order('speeldag', { ascending: true })
+        .order('match_datetime', { ascending: true }),
+      supabase.from('results').select('*'),
+      supabase.from('extra_questions').select('id, question_label').order('id'),
+      supabase.from('extra_question_answers').select('*'),
+    ])
 
-      setMatches((matchesRes.data || []) as unknown as MatchRow[])
+    setMatches((matchesRes.data || []) as unknown as MatchRow[])
 
-      const resultMap: Record<number, { home: string; away: string }> = {}
-      for (const r of resultsRes.data || []) {
-        resultMap[r.match_id] = { home: String(r.home_score), away: String(r.away_score) }
-      }
-      setResults(resultMap)
-
-      setExtraQuestions(questionsRes.data || [])
-      const ansMap: Record<number, string> = {}
-      for (const a of answersRes.data || []) {
-        ansMap[a.question_id] = a.correct_answer
-      }
-      setExtraAnswers(ansMap)
-      setLoaded(true)
+    const resultMap: Record<number, { home: string; away: string }> = {}
+    for (const r of resultsRes.data || []) {
+      resultMap[r.match_id] = { home: String(r.home_score), away: String(r.away_score) }
     }
-    loadData()
-  }, [router])
+    setResults(resultMap)
+
+    setExtraQuestions(questionsRes.data || [])
+    const ansMap: Record<number, string> = {}
+    for (const a of answersRes.data || []) {
+      ansMap[a.question_id] = a.correct_answer
+    }
+    setExtraAnswers(ansMap)
+    setLoaded(true)
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadData() }, [])
 
   const showMessage = (msg: string, isError = false) => {
     setMessage(isError ? `Fout: ${msg}` : msg)
@@ -103,6 +103,7 @@ export default function AdminPage() {
       const data = await res.json()
       if (res.ok) {
         showMessage(`${data.resultsSaved} uitslagen opgeslagen, ${data.playersUpdated} spelers herberekend!`)
+        await loadData()
       } else {
         showMessage(data.error || 'Onbekende fout', true)
       }
@@ -123,6 +124,7 @@ export default function AdminPage() {
       const data = await res.json()
       if (res.ok) {
         showMessage(`Extra antwoorden opgeslagen, ${data.playersUpdated} spelers herberekend!`)
+        await loadData()
       } else {
         showMessage(data.error || 'Onbekende fout', true)
       }

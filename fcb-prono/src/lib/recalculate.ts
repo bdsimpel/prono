@@ -3,14 +3,14 @@ import { calculateMatchPoints, checkExtraAnswer } from './scoring'
 
 export async function recalculateScores(serviceClient: SupabaseClient) {
   const [
-    { data: allProfiles },
+    { data: allPlayers },
     { data: allResults },
     { data: allPredictions },
     { data: allExtraPredictions },
     { data: allExtraAnswers },
     { data: allExtraQuestions },
   ] = await Promise.all([
-    serviceClient.from('profiles').select('id'),
+    serviceClient.from('players').select('id'),
     serviceClient.from('results').select('*'),
     serviceClient.from('predictions').select('*'),
     serviceClient.from('extra_predictions').select('*'),
@@ -36,8 +36,8 @@ export async function recalculateScores(serviceClient: SupabaseClient) {
 
   let playersUpdated = 0
 
-  for (const profile of allProfiles || []) {
-    const userId = profile.id
+  for (const player of allPlayers || []) {
+    const userId = player.id
     let matchScore = 0
     let extraScore = 0
     let exactMatches = 0

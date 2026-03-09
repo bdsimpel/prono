@@ -30,14 +30,14 @@ export default async function MatchDetailPage({
   // Get all predictions for this match
   const { data: predictions } = await supabase
     .from('predictions')
-    .select('*, profiles!inner(display_name)')
+    .select('*, players!inner(display_name)')
     .eq('match_id', id)
 
   type Category = 'exact' | 'goal_diff' | 'result' | 'wrong' | 'pending'
 
   // Calculate points for each prediction
   const predWithPoints: { id: number; home_score: number; away_score: number; display_name: string; points: number; category: Category }[] = (predictions || []).map((pred) => {
-    const profile = pred.profiles as { display_name: string }
+    const profile = pred.players as { display_name: string }
     if (!result) {
       return {
         id: pred.id,
