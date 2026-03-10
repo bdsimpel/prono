@@ -14,17 +14,28 @@ export async function POST(request: Request) {
     .single()
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { answers } = await request.json()
+  const { answers } = await request.json() as { answers: Record<string, string[]> }
   const serviceClient = await createServiceClient()
 
-  for (const [qId, answer] of Object.entries(answers) as [string, string][]) {
-    if (!answer.trim()) continue
+  for (const [qId, answerList] of Object.entries(answers)) {
+    const questionId = parseInt(qId)
+
+    // Delete existing answers for this question
     await serviceClient
       .from('extra_question_answers')
-      .upsert(
-        { question_id: parseInt(qId), correct_answer: answer.trim() },
-        { onConflict: 'question_id,correct_answer' }
-      )
+      .delete()
+      .eq('question_id', questionId)
+
+    // Insert new answers
+    const rows = (answerList || [])
+      .filter(a => a.trim())
+      .map(a => ({ question_id: questionId, correct_answer: a.trim() }))
+
+    if (rows.length > 0) {
+      await serviceClient
+        .from('extra_question_answers')
+        .insert(rows)
+    }
   }
 
   const { playersUpdated } = await recalculateScores(serviceClient)

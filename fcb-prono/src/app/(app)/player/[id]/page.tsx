@@ -21,17 +21,31 @@ export default async function PlayerDetailPage({
 
   if (!player) notFound()
 
-  const { data: playerScore } = await supabase
-    .from('player_scores')
-    .select('*')
-    .eq('user_id', id)
-    .single()
+  const [
+    { data: playerScore },
+    { data: allScores },
+    { data: predictions },
+    { data: allResults },
+    { data: extraPredictions },
+    { data: extraAnswers },
+  ] = await Promise.all([
+    supabase.from('player_scores').select('*').eq('user_id', id).single(),
+    supabase.from('player_scores').select('user_id, total_score').order('total_score', { ascending: false }),
+    supabase
+      .from('predictions')
+      .select(`*, matches!inner(*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*))`)
+      .eq('user_id', id)
+      .order('match_id', { ascending: true }),
+    supabase.from('results').select('*'),
+    supabase.from('extra_predictions').select('*, extra_questions!inner(*)').eq('user_id', id).order('question_id', { ascending: true }),
+    supabase.from('extra_question_answers').select('*'),
+  ])
 
-  // Get all scores to calculate rank
-  const { data: allScores } = await supabase
-    .from('player_scores')
-    .select('user_id, total_score')
-    .order('total_score', { ascending: false })
+  // Build results map: match_id -> result
+  const resultMap: Record<number, { home_score: number; away_score: number }> = {}
+  for (const r of allResults || []) {
+    resultMap[r.match_id] = { home_score: r.home_score, away_score: r.away_score }
+  }
 
   let rank = 0
   if (allScores) {
@@ -43,33 +57,6 @@ export default async function PlayerDetailPage({
       prevScore = allScores[i].total_score
     }
   }
-
-  // Get predictions with match + result info
-  const { data: predictions } = await supabase
-    .from('predictions')
-    .select(`
-      *,
-      matches!inner(
-        *,
-        home_team:teams!matches_home_team_id_fkey(*),
-        away_team:teams!matches_away_team_id_fkey(*),
-        results(*)
-      )
-    `)
-    .eq('user_id', id)
-    .order('match_id', { ascending: true })
-
-  // Get extra predictions
-  const { data: extraPredictions } = await supabase
-    .from('extra_predictions')
-    .select('*, extra_questions!inner(*)')
-    .eq('user_id', id)
-    .order('question_id', { ascending: true })
-
-  // Get correct extra answers
-  const { data: extraAnswers } = await supabase
-    .from('extra_question_answers')
-    .select('*')
 
   // Build extra answers map: question_id -> correct_answer[]
   const correctAnswersMap: Record<number, string[]> = {}
@@ -132,9 +119,8 @@ export default async function PlayerDetailPage({
               is_cup_final: boolean
               home_team: { name: string; short_name: string }
               away_team: { name: string; short_name: string }
-              results: { home_score: number; away_score: number }[]
             }
-            const result = match.results?.[0]
+            const result = resultMap[pred.match_id]
             let points = 0
             let category: 'exact' | 'goal_diff' | 'result' | 'wrong' | 'pending' = 'pending'
 

@@ -6,16 +6,20 @@ export const dynamic = 'force-dynamic'
 export default async function MatchesPage() {
   const supabase = await createClient()
 
-  const { data: matches } = await supabase
-    .from('matches')
-    .select(`
-      *,
-      home_team:teams!matches_home_team_id_fkey(*),
-      away_team:teams!matches_away_team_id_fkey(*),
-      results(*)
-    `)
-    .order('speeldag', { ascending: true })
-    .order('match_datetime', { ascending: true })
+  const [{ data: matches }, { data: allResults }] = await Promise.all([
+    supabase
+      .from('matches')
+      .select(`*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)`)
+      .order('speeldag', { ascending: true })
+      .order('match_datetime', { ascending: true }),
+    supabase.from('results').select('*'),
+  ])
+
+  // Build results map
+  const resultMap: Record<number, { home_score: number; away_score: number }> = {}
+  for (const r of allResults || []) {
+    resultMap[r.match_id] = { home_score: r.home_score, away_score: r.away_score }
+  }
 
   // Group by speeldag
   const grouped: Record<string, typeof matches> = {}
@@ -50,7 +54,7 @@ export default async function MatchesPage() {
               )}
               <div className="space-y-2">
                 {groupMatches!.map((match) => {
-                  const result = match.results?.[0]
+                  const result = resultMap[match.id]
                   const hasResult = !!result
 
                   return (

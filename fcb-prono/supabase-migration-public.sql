@@ -14,6 +14,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS players_display_name_lower ON players (lower(d
 ALTER TABLE players ENABLE ROW LEVEL SECURITY;
 
 -- Public read access on players
+DROP POLICY IF EXISTS "Anyone can read players" ON players;
 CREATE POLICY "Anyone can read players" ON players
   FOR SELECT TO anon, authenticated USING (true);
 
@@ -33,14 +34,23 @@ ALTER TABLE extra_predictions DROP CONSTRAINT IF EXISTS extra_predictions_user_i
 ALTER TABLE player_scores DROP CONSTRAINT IF EXISTS player_scores_user_id_fkey;
 
 -- 4. Add new FK constraints pointing to players(id)
-ALTER TABLE predictions
-  ADD CONSTRAINT predictions_user_id_fkey FOREIGN KEY (user_id) REFERENCES players(id);
+DO $$ BEGIN
+  ALTER TABLE predictions
+    ADD CONSTRAINT predictions_user_id_fkey FOREIGN KEY (user_id) REFERENCES players(id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE extra_predictions
-  ADD CONSTRAINT extra_predictions_user_id_fkey FOREIGN KEY (user_id) REFERENCES players(id);
+DO $$ BEGIN
+  ALTER TABLE extra_predictions
+    ADD CONSTRAINT extra_predictions_user_id_fkey FOREIGN KEY (user_id) REFERENCES players(id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE player_scores
-  ADD CONSTRAINT player_scores_user_id_fkey FOREIGN KEY (user_id) REFERENCES players(id);
+DO $$ BEGIN
+  ALTER TABLE player_scores
+    ADD CONSTRAINT player_scores_user_id_fkey FOREIGN KEY (user_id) REFERENCES players(id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 5. Update RLS policies for public read access
 
@@ -109,3 +119,21 @@ CREATE POLICY "Anyone can read settings" ON settings
 -- 6. Drop the handle_new_user trigger (if it exists)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
+
+-- 7. Create football_players table for player combobox
+CREATE TABLE IF NOT EXISTS football_players (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  team TEXT NOT NULL,
+  position TEXT NOT NULL,
+  goals INTEGER NOT NULL DEFAULT 0,
+  assists INTEGER NOT NULL DEFAULT 0,
+  clean_sheets INTEGER,  -- NULL voor niet-keepers
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- RLS: iedereen mag lezen
+ALTER TABLE football_players ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can read football_players" ON football_players;
+CREATE POLICY "Anyone can read football_players" ON football_players
+  FOR SELECT TO anon, authenticated USING (true);

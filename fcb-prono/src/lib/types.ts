@@ -93,6 +93,16 @@ export interface MatchWithDetails extends Match {
   result?: Result | null
 }
 
+export interface FootballPlayer {
+  id: number
+  name: string
+  team: string
+  position: string
+  goals: number
+  assists: number
+  clean_sheets: number | null
+}
+
 export interface PredictionWithPoints extends Prediction {
   points: number
   category: 'exact' | 'goal_diff' | 'result' | 'wrong' | 'pending'

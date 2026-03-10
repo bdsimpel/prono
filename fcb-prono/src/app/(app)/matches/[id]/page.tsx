@@ -12,26 +12,26 @@ export default async function MatchDetailPage({
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: match } = await supabase
-    .from('matches')
-    .select(`
-      *,
-      home_team:teams!matches_home_team_id_fkey(*),
-      away_team:teams!matches_away_team_id_fkey(*),
-      results(*)
-    `)
-    .eq('id', id)
-    .single()
+  const [{ data: match }, { data: resultRow }, { data: predictions }] = await Promise.all([
+    supabase
+      .from('matches')
+      .select(`*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)`)
+      .eq('id', id)
+      .single(),
+    supabase
+      .from('results')
+      .select('*')
+      .eq('match_id', id)
+      .maybeSingle(),
+    supabase
+      .from('predictions')
+      .select('*, players!inner(display_name)')
+      .eq('match_id', id),
+  ])
 
   if (!match) notFound()
 
-  const result = match.results?.[0]
-
-  // Get all predictions for this match
-  const { data: predictions } = await supabase
-    .from('predictions')
-    .select('*, players!inner(display_name)')
-    .eq('match_id', id)
+  const result = resultRow
 
   type Category = 'exact' | 'goal_diff' | 'result' | 'wrong' | 'pending'
 

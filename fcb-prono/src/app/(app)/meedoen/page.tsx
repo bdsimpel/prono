@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import type { Match, Team, ExtraQuestion } from '@/lib/types'
+import PlayerCombobox from '@/components/PlayerCombobox'
+import type { Match, Team, ExtraQuestion, FootballPlayer } from '@/lib/types'
 
 interface MatchWithTeams extends Match {
   home_team: Team
@@ -11,6 +12,13 @@ interface MatchWithTeams extends Match {
 }
 
 const TEAM_QUESTIONS = ['bekerwinnaar', 'beste_ploeg_poi', 'meeste_goals_poi', 'minste_goals_tegen_poi', 'kampioen']
+const BEKER_TEAMS = ['Anderlecht', 'Union']
+
+const PLAYER_QUESTIONS: Record<string, { filterGk: boolean; sortBy: 'goals' | 'assists' | 'clean_sheets'; statLabel: string }> = {
+  topscorer_poi: { filterGk: false, sortBy: 'goals', statLabel: 'goals' },
+  assistenkoning_poi: { filterGk: false, sortBy: 'assists', statLabel: 'assists' },
+  meeste_clean_sheets_poi: { filterGk: true, sortBy: 'clean_sheets', statLabel: 'CS' },
+}
 
 type Step = 'regels' | 'naam' | 'voorspellingen' | 'extra' | 'bevestiging'
 
@@ -21,9 +29,12 @@ export default function MeedoenPage() {
   const [matches, setMatches] = useState<MatchWithTeams[]>([])
   const [questions, setQuestions] = useState<ExtraQuestion[]>([])
   const [teams, setTeams] = useState<Team[]>([])
+  const [footballPlayers, setFootballPlayers] = useState<FootballPlayer[]>([])
+  const [existingNames, setExistingNames] = useState<string[]>([])
 
   // Form state
-  const [displayName, setDisplayName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [predictions, setPredictions] = useState<Record<number, { home: string; away: string }>>({})
   const [extraAnswers, setExtraAnswers] = useState<Record<number, string>>({})
 
@@ -34,7 +45,7 @@ export default function MeedoenPage() {
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const loadData = useCallback(async () => {
-    const [matchesRes, questionsRes, teamsRes, deadlineRes] = await Promise.all([
+    const [matchesRes, questionsRes, teamsRes, deadlineRes, playersRes, existingRes] = await Promise.all([
       supabase
         .from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
@@ -43,11 +54,15 @@ export default function MeedoenPage() {
       supabase.from('extra_questions').select('*').order('id'),
       supabase.from('teams').select('*').order('name'),
       supabase.from('settings').select('value').eq('key', 'deadline').single(),
+      supabase.from('football_players').select('*'),
+      supabase.from('players').select('display_name'),
     ])
 
     setMatches(matchesRes.data || [])
     setQuestions(questionsRes.data || [])
     setTeams(teamsRes.data || [])
+    setFootballPlayers(playersRes.data || [])
+    setExistingNames((existingRes.data || []).map(p => p.display_name.toLowerCase()))
 
     // Auto-lock based on deadline setting
     const dl = deadlineRes.data?.value
@@ -60,6 +75,25 @@ export default function MeedoenPage() {
   }, [supabase])
 
   useEffect(() => { loadData() }, [loadData])
+
+  const playerOptionsBySort = useMemo(() => {
+    const makeSorted = (
+      sortBy: 'goals' | 'assists' | 'clean_sheets',
+      filterGk: boolean,
+    ) => {
+      const filtered = filterGk
+        ? footballPlayers.filter(p => p.position === 'GK')
+        : footballPlayers
+      return [...filtered]
+        .sort((a, b) => (b[sortBy] ?? 0) - (a[sortBy] ?? 0))
+        .map(p => ({ name: p.name, team: p.team, stat: p[sortBy] ?? 0 }))
+    }
+    return {
+      goals: makeSorted('goals', false),
+      assists: makeSorted('assists', false),
+      clean_sheets: makeSorted('clean_sheets', true),
+    }
+  }, [footballPlayers])
 
   const handleScoreInput = (matchId: number, side: 'home' | 'away', value: string) => {
     const digit = value.replace(/\D/g, '').slice(-1)
@@ -111,7 +145,7 @@ export default function MeedoenPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          displayName,
+          displayName: `${firstName.trim()} ${lastName.trim()}`,
           predictions: predArray,
           extraAnswers: extraArray,
         }),
@@ -221,14 +255,24 @@ export default function MeedoenPage() {
           <p className="text-sm text-gray-400 mb-4">
             Kies een naam die zichtbaar is in het klassement. Dit kan je achteraf niet meer wijzigen.
           </p>
-          <input
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Voornaam Achternaam"
-            maxLength={50}
-            className="w-full px-4 py-3 bg-cb-dark border border-border rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue"
-          />
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Voornaam"
+              maxLength={25}
+              className="flex-1 px-4 py-3 bg-cb-dark border border-border rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue"
+            />
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Achternaam"
+              maxLength={25}
+              className="flex-1 px-4 py-3 bg-cb-dark border border-border rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue"
+            />
+          </div>
           {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
           <div className="flex gap-3 mt-6">
             <button
@@ -239,8 +283,17 @@ export default function MeedoenPage() {
             </button>
             <button
               onClick={() => {
-                if (displayName.trim().length < 2) {
-                  setError('Naam moet minstens 2 tekens zijn')
+                if (!firstName.trim()) {
+                  setError('Voornaam is verplicht')
+                  return
+                }
+                if (!lastName.trim()) {
+                  setError('Achternaam is verplicht')
+                  return
+                }
+                const fullName = `${firstName.trim()} ${lastName.trim()}`
+                if (existingNames.includes(fullName.toLowerCase())) {
+                  setError('Deze naam is al in gebruik')
                   return
                 }
                 setError('')
@@ -354,6 +407,10 @@ export default function MeedoenPage() {
         <div className="space-y-4">
           {questions.map((q) => {
             const isTeamQuestion = TEAM_QUESTIONS.includes(q.question_key)
+            const playerConfig = PLAYER_QUESTIONS[q.question_key]
+            const teamOptions = q.question_key === 'bekerwinnaar'
+              ? teams.filter(t => BEKER_TEAMS.includes(t.name))
+              : teams
             return (
               <div key={q.id} className="bg-card rounded-lg border border-border p-4">
                 <label className="block text-sm font-medium mb-2">
@@ -374,12 +431,22 @@ export default function MeedoenPage() {
                     className="w-full px-3 py-2 bg-cb-dark border border-border rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue"
                   >
                     <option value="">Kies een ploeg...</option>
-                    {teams.map((t) => (
+                    {teamOptions.map((t) => (
                       <option key={t.id} value={t.name}>
                         {t.name}
                       </option>
                     ))}
                   </select>
+                ) : playerConfig ? (
+                  <PlayerCombobox
+                    options={playerOptionsBySort[playerConfig.sortBy]}
+                    value={extraAnswers[q.id] || ''}
+                    onChange={(val) =>
+                      setExtraAnswers((prev) => ({ ...prev, [q.id]: val }))
+                    }
+                    placeholder="Zoek een speler..."
+                    statLabel={playerConfig.statLabel}
+                  />
                 ) : (
                   <input
                     type="text"
@@ -432,7 +499,7 @@ export default function MeedoenPage() {
           <div className="text-4xl mb-4">🎉</div>
           <h1 className="text-2xl font-bold mb-2">Ingeschreven!</h1>
           <p className="text-gray-400 mb-6">
-            Bedankt <span className="text-white font-medium">{displayName}</span>! Je voorspellingen zijn opgeslagen.
+            Bedankt <span className="text-white font-medium">{firstName} {lastName}</span>! Je voorspellingen zijn opgeslagen.
           </p>
           <div className="flex flex-col gap-3">
             <Link
