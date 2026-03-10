@@ -22,9 +22,24 @@ const PLAYER_QUESTIONS: Record<string, { filterGk: boolean; sortBy: 'goals' | 'a
 
 type Step = 'regels' | 'naam' | 'voorspellingen' | 'extra' | 'bevestiging'
 
+const STORAGE_KEY = 'meedoen-form'
+
+function loadSavedForm(): { step?: Step; firstName?: string; lastName?: string; predictions?: Record<number, { home: string; away: string }>; extraAnswers?: Record<number, string> } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
 export default function MeedoenPage() {
   const supabase = createClient()
-  const [step, setStep] = useState<Step>('regels')
+  const [step, setStep] = useState<Step>(() => {
+    const saved = loadSavedForm()
+    return saved?.step && saved.step !== 'bevestiging' ? saved.step : 'regels'
+  })
   const [locked, setLocked] = useState<boolean | null>(null)
   const [matches, setMatches] = useState<MatchWithTeams[]>([])
   const [questions, setQuestions] = useState<ExtraQuestion[]>([])
@@ -32,11 +47,22 @@ export default function MeedoenPage() {
   const [footballPlayers, setFootballPlayers] = useState<FootballPlayer[]>([])
   const [existingNames, setExistingNames] = useState<string[]>([])
 
-  // Form state
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [predictions, setPredictions] = useState<Record<number, { home: string; away: string }>>({})
-  const [extraAnswers, setExtraAnswers] = useState<Record<number, string>>({})
+  // Form state (restored from localStorage)
+  const [firstName, setFirstName] = useState(() => loadSavedForm()?.firstName ?? '')
+  const [lastName, setLastName] = useState(() => loadSavedForm()?.lastName ?? '')
+  const [predictions, setPredictions] = useState<Record<number, { home: string; away: string }>>(() => loadSavedForm()?.predictions ?? {})
+  const [extraAnswers, setExtraAnswers] = useState<Record<number, string>>(() => loadSavedForm()?.extraAnswers ?? {})
+
+  // Persist form state to localStorage
+  useEffect(() => {
+    if (step === 'bevestiging') {
+      localStorage.removeItem(STORAGE_KEY)
+      return
+    }
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ step, firstName, lastName, predictions, extraAnswers }))
+    } catch { /* storage full or unavailable */ }
+  }, [step, firstName, lastName, predictions, extraAnswers])
 
   const [deadline, setDeadline] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -255,7 +281,7 @@ export default function MeedoenPage() {
           <p className="text-sm text-gray-400 mb-4">
             Kies een naam die zichtbaar is in het klassement. Dit kan je achteraf niet meer wijzigen.
           </p>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               value={firstName}

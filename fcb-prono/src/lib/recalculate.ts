@@ -9,6 +9,7 @@ export async function recalculateScores(serviceClient: SupabaseClient) {
     { data: allExtraPredictions },
     { data: allExtraAnswers },
     { data: allExtraQuestions },
+    { data: oldScores },
   ] = await Promise.all([
     serviceClient.from('players').select('id'),
     serviceClient.from('results').select('*'),
@@ -16,7 +17,21 @@ export async function recalculateScores(serviceClient: SupabaseClient) {
     serviceClient.from('extra_predictions').select('*'),
     serviceClient.from('extra_question_answers').select('*'),
     serviceClient.from('extra_questions').select('*'),
+    serviceClient.from('player_scores').select('user_id, total_score, previous_rank'),
   ])
+
+  // Compute old ranks from current scores
+  const oldRankMap: Record<string, number> = {}
+  const sortedOld = [...(oldScores || [])].sort((a, b) => b.total_score - a.total_score)
+  let oldRank = 0
+  let oldPrevScore = -1
+  sortedOld.forEach((row, index) => {
+    if (row.total_score !== oldPrevScore) {
+      oldRank = index + 1
+    }
+    oldPrevScore = row.total_score
+    oldRankMap[row.user_id] = oldRank
+  })
 
   const resultMap: Record<number, { home_score: number; away_score: number }> = {}
   for (const r of allResults || []) {
@@ -34,7 +49,16 @@ export async function recalculateScores(serviceClient: SupabaseClient) {
     questionPointsMap[q.id] = q.points
   }
 
-  let playersUpdated = 0
+  // Compute new scores for all players
+  const newScores: {
+    user_id: string
+    total_score: number
+    match_score: number
+    extra_score: number
+    exact_matches: number
+    correct_goal_diffs: number
+    correct_results: number
+  }[] = []
 
   for (const player of allPlayers || []) {
     const userId = player.id
@@ -70,17 +94,58 @@ export async function recalculateScores(serviceClient: SupabaseClient) {
       }
     }
 
+    newScores.push({
+      user_id: userId,
+      total_score: matchScore + extraScore,
+      match_score: matchScore,
+      extra_score: extraScore,
+      exact_matches: exactMatches,
+      correct_goal_diffs: correctGoalDiffs,
+      correct_results: correctResults,
+    })
+  }
+
+  // Compute new ranks
+  const newRankMap: Record<string, number> = {}
+  const sortedNew = [...newScores].sort((a, b) => b.total_score - a.total_score)
+  let newRank = 0
+  let newPrevScore = -1
+  sortedNew.forEach((row, index) => {
+    if (row.total_score !== newPrevScore) {
+      newRank = index + 1
+    }
+    newPrevScore = row.total_score
+    newRankMap[row.user_id] = newRank
+  })
+
+  // Detect if any player's score actually changed
+  const oldScoreMap: Record<string, number> = {}
+  const oldPreviousRankMap: Record<string, number | null> = {}
+  for (const row of oldScores || []) {
+    oldScoreMap[row.user_id] = row.total_score
+    oldPreviousRankMap[row.user_id] = row.previous_rank ?? null
+  }
+  const hasChanges = newScores.some(s => oldScoreMap[s.user_id] !== s.total_score)
+
+  // Upsert with rank_change and previous_rank
+  let playersUpdated = 0
+  for (const score of newScores) {
+    const newPlayerRank = newRankMap[score.user_id]
+
+    // Only advance the baseline when scores actually changed
+    const previousRank = hasChanges
+      ? (oldRankMap[score.user_id] ?? newPlayerRank)
+      : (oldPreviousRankMap[score.user_id] ?? null)
+
+    const rankChange = previousRank != null ? previousRank - newPlayerRank : 0
+
     const { error } = await serviceClient
       .from('player_scores')
       .upsert(
         {
-          user_id: userId,
-          total_score: matchScore + extraScore,
-          match_score: matchScore,
-          extra_score: extraScore,
-          exact_matches: exactMatches,
-          correct_goal_diffs: correctGoalDiffs,
-          correct_results: correctResults,
+          ...score,
+          previous_rank: previousRank,
+          rank_change: rankChange,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' }

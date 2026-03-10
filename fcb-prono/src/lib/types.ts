@@ -72,11 +72,14 @@ export interface PlayerScore {
   exact_matches: number
   correct_goal_diffs: number
   correct_results: number
+  previous_rank: number | null
+  rank_change: number
   updated_at: string
 }
 
 export interface StandingRow {
   rank: number
+  rank_change: number
   user_id: string
   display_name: string
   total_score: number

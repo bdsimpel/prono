@@ -32,6 +32,7 @@ export default async function KlassementPage() {
     exact_matches: scoreMap[p.id]?.exact_matches ?? 0,
     correct_goal_diffs: scoreMap[p.id]?.correct_goal_diffs ?? 0,
     correct_results: scoreMap[p.id]?.correct_results ?? 0,
+    rank_change: scoreMap[p.id]?.rank_change ?? 0,
   }))
 
   // Sort by score desc, then name
@@ -45,8 +46,18 @@ export default async function KlassementPage() {
       currentRank = index + 1
     }
     previousScore = row.total_score
-    return { ...row, rank: currentRank }
+    return { ...row, rank: currentRank, rank_change: row.rank_change }
   })
+
+  function RankChangeIndicator({ change }: { change: number }) {
+    if (change > 0) {
+      return <span className="text-green-500 text-xs font-medium">{`▲${change}`}</span>
+    }
+    if (change < 0) {
+      return <span className="text-red-500 text-xs font-medium">{`▼${Math.abs(change)}`}</span>
+    }
+    return <span className="text-gray-500 text-xs">{`–`}</span>
+  }
 
   return (
     <div>
@@ -64,6 +75,7 @@ export default async function KlassementPage() {
               <thead>
                 <tr className="border-b border-border text-xs text-gray-400 uppercase">
                   <th className="px-4 py-3 text-left w-12">#</th>
+                  <th className="px-2 py-3 text-center w-10"></th>
                   <th className="px-4 py-3 text-left">Naam</th>
                   <th className="px-4 py-3 text-right">Score</th>
                   <th className="px-4 py-3 text-right">E</th>
@@ -81,6 +93,9 @@ export default async function KlassementPage() {
                   >
                     <td className="px-4 py-3 text-sm font-medium text-gray-400">
                       {row.rank}
+                    </td>
+                    <td className="px-2 py-3 text-center">
+                      <RankChangeIndicator change={row.rank_change} />
                     </td>
                     <td className="px-4 py-3">
                       <Link
@@ -125,6 +140,9 @@ export default async function KlassementPage() {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-gray-500 w-6">
                     {row.rank}
+                  </span>
+                  <span className="w-6">
+                    <RankChangeIndicator change={row.rank_change} />
                   </span>
                   <span className="text-sm font-medium">
                     {row.display_name}
