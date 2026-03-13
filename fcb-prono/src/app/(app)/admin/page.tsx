@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import PlayerCombobox from '@/components/PlayerCombobox'
-import type { Team, FootballPlayer } from '@/lib/types'
+import type { Team, FootballPlayer, PaymentStatus, PaymentMethod } from '@/lib/types'
 
 const PLAYER_QUESTIONS: Record<string, { filterGk: boolean; sortBy: 'goals' | 'assists' | 'clean_sheets'; statLabel: string }> = {
   topscorer_poi: { filterGk: false, sortBy: 'goals', statLabel: 'goals' },
@@ -15,6 +15,14 @@ const PLAYER_QUESTIONS: Record<string, { filterGk: boolean; sortBy: 'goals' | 'a
 const TEAM_QUESTIONS = ['bekerwinnaar', 'beste_ploeg_poi', 'meeste_goals_poi', 'minste_goals_tegen_poi', 'kampioen']
 const SINGLE_ANSWER_QUESTIONS = ['kampioen', 'bekerwinnaar']
 const BEKER_TEAMS = ['Anderlecht', 'Union']
+
+interface PlayerPayment {
+  id: string
+  display_name: string
+  payment_status: PaymentStatus
+  payment_method: PaymentMethod | null
+  paid_at: string | null
+}
 
 interface MatchRow {
   id: number
@@ -34,6 +42,8 @@ export default function AdminPage() {
   const [footballPlayers, setFootballPlayers] = useState<FootballPlayer[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [extraAnswers, setExtraAnswers] = useState<Record<number, string[]>>({})
+  const [players, setPlayers] = useState<PlayerPayment[]>([])
+  const [paymentFilter, setPaymentFilter] = useState<'all' | PaymentStatus>('all')
   const [saving, setSaving] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -73,7 +83,7 @@ export default function AdminPage() {
     if (!profile?.is_admin) { router.push('/'); return }
     setIsAdmin(true)
 
-    const [matchesRes, resultsRes, questionsRes, answersRes, playersRes, teamsRes] = await Promise.all([
+    const [matchesRes, resultsRes, questionsRes, answersRes, playersRes, teamsRes, allPlayersRes] = await Promise.all([
       supabase
         .from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
@@ -84,6 +94,7 @@ export default function AdminPage() {
       supabase.from('extra_question_answers').select('*'),
       supabase.from('football_players').select('*'),
       supabase.from('teams').select('*').order('name'),
+      supabase.from('players').select('id, display_name, payment_status, payment_method, paid_at').order('display_name'),
     ])
 
     setMatches((matchesRes.data || []) as unknown as MatchRow[])
@@ -104,6 +115,7 @@ export default function AdminPage() {
       ansMap[a.question_id].push(a.correct_answer)
     }
     setExtraAnswers(ansMap)
+    setPlayers((allPlayersRes.data || []) as PlayerPayment[])
     setLoaded(true)
   }
 
@@ -148,6 +160,28 @@ export default function AdminPage() {
       showMessage(`${err}`, true)
     }
     setSaving(false)
+  }
+
+  const togglePayment = async (playerId: string, currentStatus: PaymentStatus) => {
+    const newStatus = currentStatus === 'paid' ? 'unpaid' : 'paid'
+    try {
+      const res = await fetch('/api/admin/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId, status: newStatus }),
+      })
+      if (res.ok) {
+        setPlayers(prev => prev.map(p =>
+          p.id === playerId
+            ? { ...p, payment_status: newStatus, paid_at: newStatus === 'paid' ? new Date().toISOString() : null }
+            : p
+        ))
+      } else {
+        showMessage('Kon betaalstatus niet wijzigen', true)
+      }
+    } catch {
+      showMessage('Kon betaalstatus niet wijzigen', true)
+    }
   }
 
   const addAnswer = (qId: number, value: string) => {
@@ -338,6 +372,98 @@ export default function AdminPage() {
           )
         })}
       </div>
+
+      {/* Betalingen sectie */}
+      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3 mt-8">
+        Betalingen
+      </h2>
+      {(() => {
+        const paidCount = players.filter(p => p.payment_status === 'paid').length
+        const totalCount = players.length
+        const filteredPlayers = paymentFilter === 'all'
+          ? players
+          : players.filter(p => p.payment_status === paymentFilter)
+
+        return (
+          <div className="space-y-4 mb-8">
+            {/* Summary */}
+            <div className="bg-card rounded-lg border border-border p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-400">
+                  {paidCount}/{totalCount} betaald
+                </span>
+                <span className="text-sm text-cb-gold font-mono">
+                  &euro;{(paidCount * 2).toFixed(2)} / &euro;{(totalCount * 2).toFixed(2)}
+                </span>
+              </div>
+              <div className="w-full bg-cb-dark rounded-full h-2">
+                <div
+                  className="bg-green-500 h-2 rounded-full transition-all"
+                  style={{ width: totalCount > 0 ? `${(paidCount / totalCount) * 100}%` : '0%' }}
+                />
+              </div>
+            </div>
+
+            {/* Filter */}
+            <div className="flex gap-2 flex-wrap">
+              {([['all', 'Alle'], ['unpaid', 'Niet betaald'], ['pending', 'In afwachting'], ['paid', 'Betaald']] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setPaymentFilter(value)}
+                  className={`px-3 py-1 text-xs rounded-lg border transition-colors ${
+                    paymentFilter === value
+                      ? 'bg-cb-blue text-white border-cb-blue'
+                      : 'bg-cb-dark text-gray-400 border-border hover:border-gray-600'
+                  }`}
+                >
+                  {label}
+                  <span className="ml-1 opacity-60">
+                    {value === 'all'
+                      ? players.length
+                      : players.filter(p => p.payment_status === value).length}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Player list */}
+            <div className="space-y-1">
+              {filteredPlayers.map(player => (
+                <div key={player.id} className="bg-card rounded-lg border border-border p-3 flex items-center gap-3">
+                  <span className="flex-1 text-sm font-medium truncate">{player.display_name}</span>
+                  {player.payment_method && (
+                    <span className="text-xs text-gray-500">
+                      {player.payment_method === 'wero' ? 'Payconiq' : player.payment_method === 'transfer' ? 'Overschrijving' : 'Cash'}
+                    </span>
+                  )}
+                  <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                    player.payment_status === 'paid'
+                      ? 'bg-green-900/30 text-green-400'
+                      : player.payment_status === 'pending'
+                      ? 'bg-yellow-900/30 text-yellow-400'
+                      : 'bg-red-900/30 text-red-400'
+                  }`}>
+                    {player.payment_status === 'paid' ? 'Betaald' : player.payment_status === 'pending' ? 'In afwachting' : 'Niet betaald'}
+                  </span>
+                  <button
+                    onClick={() => togglePayment(player.id, player.payment_status)}
+                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                      player.payment_status === 'paid'
+                        ? 'bg-red-900/20 text-red-400 hover:bg-red-900/40'
+                        : 'bg-green-900/20 text-green-400 hover:bg-green-900/40'
+                    }`}
+                  >
+                    {player.payment_status === 'paid' ? 'Ongedaan' : 'Betaald'}
+                  </button>
+                </div>
+              ))}
+              {filteredPlayers.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">Geen spelers gevonden</p>
+              )}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

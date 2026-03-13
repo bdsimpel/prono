@@ -9,6 +9,8 @@ Must haves:
 - [x] Friendly for mobile
 - [ ] Add own domain
 - [x] Add functionality to see progress over time of players
+- [ ] Improve UX
+- [ ] Add favorite team
 
 Should haves:
 

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { calculateMatchPoints } from '@/lib/scoring'
 import { checkExtraAnswer } from '@/lib/scoring'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -88,6 +89,18 @@ export default async function PlayerDetailPage({
           )}
         </div>
       </div>
+
+      {/* Payment banner */}
+      {player.payment_status !== 'paid' && (
+        <Link
+          href={`/betalen/${player.id}`}
+          className="block mb-6 px-4 py-3 bg-yellow-900/20 border border-yellow-800 rounded-lg text-sm text-yellow-300 hover:bg-yellow-900/30 transition-colors"
+        >
+          {player.payment_status === 'pending'
+            ? 'Betaling in afwachting — klik hier om opnieuw te betalen'
+            : 'Je hebt nog niet betaald — klik hier om te betalen'}
+        </Link>
+      )}
 
       {/* Score breakdown */}
       {playerScore && (

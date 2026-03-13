@@ -106,6 +106,17 @@ export interface FootballPlayer {
   clean_sheets: number | null
 }
 
+export type PaymentStatus = 'unpaid' | 'pending' | 'paid'
+export type PaymentMethod = 'wero' | 'transfer' | 'cash'
+
+export interface Player {
+  id: string
+  display_name: string
+  payment_status: PaymentStatus
+  payment_method: PaymentMethod | null
+  paid_at: string | null
+}
+
 export interface PredictionWithPoints extends Prediction {
   points: number
   category: 'exact' | 'goal_diff' | 'result' | 'wrong' | 'pending'

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import PlayerCombobox from '@/components/PlayerCombobox'
+import PaymentSection from '@/components/PaymentSection'
 import type { Match, Team, ExtraQuestion, FootballPlayer } from '@/lib/types'
 
 interface MatchWithTeams extends Match {
@@ -520,8 +521,8 @@ export default function MeedoenPage() {
   // Step 5: Bevestiging
   if (step === 'bevestiging') {
     return (
-      <div className="max-w-lg mx-auto text-center py-12">
-        <div className="bg-card rounded-xl p-8 border border-border">
+      <div className="max-w-lg mx-auto py-12 space-y-6">
+        <div className="bg-card rounded-xl p-8 border border-border text-center">
           <div className="text-4xl mb-4">🎉</div>
           <h1 className="text-2xl font-bold mb-2">Ingeschreven!</h1>
           <p className="text-gray-400 mb-6">
@@ -544,6 +545,13 @@ export default function MeedoenPage() {
             )}
           </div>
         </div>
+
+        {playerId && (
+          <PaymentSection
+            playerId={playerId}
+            playerName={`${firstName.trim()} ${lastName.trim()}`}
+          />
+        )}
       </div>
     )
   }
