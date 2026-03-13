@@ -33,6 +33,65 @@ function TeamLogo({ name, size = 18 }: { name: string; size?: number }) {
   return <Image src={logo} alt={name} width={size} height={size} className="inline-block" />
 }
 
+const STEPS: { key: Step; label: string }[] = [
+  { key: 'naam', label: 'Naam' },
+  { key: 'voorspellingen', label: 'Prono' },
+  { key: 'extra', label: 'Extra' },
+  { key: 'bevestiging', label: 'Betaling' },
+]
+
+function StepBar({ current }: { current: Step }) {
+  const currentIndex = STEPS.findIndex(s => s.key === current)
+  return (
+    <div className="w-full max-w-sm mx-auto mb-8">
+      <div className="flex items-start">
+        {STEPS.map((s, i) => {
+          const isDone = i < currentIndex
+          const isActive = i === currentIndex
+          return (
+            <div key={s.key} className="flex-1 flex flex-col items-center relative">
+              {/* Connecting line */}
+              {i > 0 && (
+                <div
+                  className={`absolute top-3.5 right-1/2 w-full h-px ${
+                    i <= currentIndex ? 'bg-cb-blue/40' : 'bg-white/[0.06]'
+                  }`}
+                />
+              )}
+              {/* Circle */}
+              <div
+                className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                  isActive
+                    ? 'bg-cb-blue text-white'
+                    : isDone
+                    ? 'bg-cb-blue/20 text-cb-blue'
+                    : 'bg-white/[0.04] text-gray-600'
+                }`}
+              >
+                {isDone ? (
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  i + 1
+                )}
+              </div>
+              {/* Label */}
+              <span
+                className={`text-[10px] heading-display tracking-wider mt-1.5 ${
+                  isActive ? 'text-white' : isDone ? 'text-gray-500' : 'text-gray-600'
+                }`}
+              >
+                {s.label}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function loadSavedForm(): { step?: Step; firstName?: string; lastName?: string; predictions?: Record<number, { home: string; away: string }>; extraAnswers?: Record<number, string> } | null {
   if (typeof window === 'undefined') return null
   try {
@@ -236,7 +295,7 @@ export default function MeedoenPage() {
   // Step 1: Regels / DOE MEE landing
   if (step === 'regels') {
     return (
-      <div className="max-w-lg mx-auto px-6 py-12 md:py-20">
+      <div className="max-w-lg mx-auto px-6 py-8 md:py-12">
         <div className="text-center mb-10">
           <h1 className="heading-display text-5xl md:text-6xl text-white leading-none">
             DOE <span className="text-cb-blue">MEE</span>
@@ -309,9 +368,9 @@ export default function MeedoenPage() {
   // Step 2: Naam
   if (step === 'naam') {
     return (
-      <div className="max-w-lg mx-auto px-6 py-12">
-        <span className="heading-display text-xs text-gray-500 tracking-[0.3em]">Stap 2 van 4</span>
-        <h1 className="heading-display text-3xl md:text-4xl text-white mt-2 mb-8">JOUW NAAM</h1>
+      <div className="max-w-lg mx-auto px-6 py-8">
+        <StepBar current="naam" />
+        <h1 className="heading-display text-3xl md:text-4xl text-white mb-8">JOUW NAAM</h1>
 
         <div className="glass-card-subtle p-6 md:p-8">
           <p className="text-sm text-gray-400 mb-6">
@@ -384,10 +443,10 @@ export default function MeedoenPage() {
   if (step === 'voorspellingen') {
     return (
       <div className="max-w-7xl mx-auto px-6 py-8">
+        <StepBar current="voorspellingen" />
         <div className="flex items-end justify-between mb-6">
           <div>
-            <span className="heading-display text-xs text-gray-500 tracking-[0.3em]">Stap 3 van 4</span>
-            <h1 className="heading-display text-3xl md:text-4xl text-white mt-2">VOORSPELLINGEN</h1>
+            <h1 className="heading-display text-3xl md:text-4xl text-white">VOORSPELLINGEN</h1>
           </div>
           <div className="flex items-center gap-1">
             <span className="heading-display text-2xl text-cb-blue font-bold">{filledPredictions}</span>
@@ -447,11 +506,9 @@ export default function MeedoenPage() {
                         <TeamLogo name={match.away_team.name} />
                         {match.away_team.name}
                       </span>
-                      {isFilled && (
-                        <svg className="w-4 h-4 text-cb-blue shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
+                      <svg className={`w-4 h-4 shrink-0 transition-colors ${isFilled ? 'text-cb-blue' : 'text-transparent'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
                     </div>
                   )
                 })}
@@ -492,8 +549,8 @@ export default function MeedoenPage() {
   if (step === 'extra') {
     return (
       <div className="max-w-2xl mx-auto px-6 py-8">
-        <span className="heading-display text-xs text-gray-500 tracking-[0.3em]">Stap 4 van 4</span>
-        <h1 className="heading-display text-3xl md:text-4xl text-white mt-2 mb-8">EXTRA VRAGEN</h1>
+        <StepBar current="extra" />
+        <h1 className="heading-display text-3xl md:text-4xl text-white mb-8">EXTRA VRAGEN</h1>
 
         <div className="space-y-4">
           {questions.map((q) => {
@@ -590,7 +647,8 @@ export default function MeedoenPage() {
   // Step 5: Bevestiging
   if (step === 'bevestiging') {
     return (
-      <div className="max-w-lg mx-auto py-12 px-6 space-y-8">
+      <div className="max-w-lg mx-auto py-8 px-6 space-y-8">
+        <StepBar current="bevestiging" />
         <div className="glass-card-subtle p-8 md:p-10 text-center">
           <svg className="w-16 h-16 text-cb-blue mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
