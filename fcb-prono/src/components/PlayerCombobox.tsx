@@ -58,12 +58,10 @@ export default function PlayerCombobox({
         return normalizedName.includes(normalizedQuery)
       })
 
-  // Reset highlight when filtered list changes
   useEffect(() => {
     setHighlightIndex(0)
   }, [debouncedQuery])
 
-  // Scroll highlighted item into view
   useEffect(() => {
     if (isOpen && listRef.current) {
       const item = listRef.current.children[highlightIndex] as HTMLElement | undefined
@@ -71,7 +69,6 @@ export default function PlayerCombobox({
     }
   }, [highlightIndex, isOpen])
 
-  // Close on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -123,7 +120,7 @@ export default function PlayerCombobox({
   return (
     <div ref={containerRef} className="relative">
       {value ? (
-        <div className="flex items-center gap-2 w-full px-3 py-2 bg-cb-dark border border-border rounded-lg text-white text-sm">
+        <div className="flex items-center gap-2 w-full px-4 py-2.5 bg-cb-dark border border-border-subtle rounded-lg text-white text-sm">
           <span className="flex-1 truncate">{value}</span>
           <button
             type="button"
@@ -132,7 +129,7 @@ export default function PlayerCombobox({
               setIsOpen(true)
               setTimeout(() => inputRef.current?.focus(), 0)
             }}
-            className="text-gray-400 hover:text-white shrink-0 px-1"
+            className="text-gray-500 hover:text-white shrink-0 px-1 transition-colors"
           >
             &times;
           </button>
@@ -149,17 +146,17 @@ export default function PlayerCombobox({
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="w-full px-3 py-2 bg-cb-dark border border-border rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue"
+          className="w-full px-4 py-2.5 bg-cb-dark border border-border-subtle rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
         />
       )}
 
       {isOpen && !value && (
         <ul
           ref={listRef}
-          className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto bg-cb-dark border border-border rounded-lg shadow-lg"
+          className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto bg-cb-card border border-border rounded-lg shadow-xl shadow-black/40"
         >
           {filtered.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-gray-500">Geen spelers gevonden</li>
+            <li className="px-4 py-3 text-sm text-gray-600">Geen spelers gevonden</li>
           ) : (
             filtered.map((option, idx) => (
               <li
@@ -169,15 +166,15 @@ export default function PlayerCombobox({
                   selectOption(option.name)
                 }}
                 onMouseEnter={() => setHighlightIndex(idx)}
-                className={`px-3 py-2 text-sm cursor-pointer ${
+                className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${
                   idx === highlightIndex
-                    ? 'bg-cb-blue/30 text-white'
-                    : 'text-gray-300 hover:bg-cb-blue/20'
+                    ? 'bg-cb-blue/20 text-white'
+                    : 'text-gray-300 hover:bg-white/[0.03]'
                 }`}
               >
                 <span className="font-medium">{option.name}</span>
-                <span className="text-gray-500"> — {option.team}</span>
-                <span className="text-gray-500 text-xs ml-1">({option.stat} {statLabel})</span>
+                <span className="text-gray-500 ml-1.5">{option.team}</span>
+                <span className="text-gray-600 text-xs ml-1.5">({option.stat} {statLabel})</span>
               </li>
             ))
           )}

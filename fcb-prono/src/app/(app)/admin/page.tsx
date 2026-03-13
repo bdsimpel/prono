@@ -3,7 +3,9 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import PlayerCombobox from '@/components/PlayerCombobox'
+import { getTeamLogo } from '@/lib/teamLogos'
 import type { Team, FootballPlayer, PaymentStatus, PaymentMethod } from '@/lib/types'
 
 const PLAYER_QUESTIONS: Record<string, { filterGk: boolean; sortBy: 'goals' | 'assists' | 'clean_sheets'; statLabel: string }> = {
@@ -15,6 +17,12 @@ const PLAYER_QUESTIONS: Record<string, { filterGk: boolean; sortBy: 'goals' | 'a
 const TEAM_QUESTIONS = ['bekerwinnaar', 'beste_ploeg_poi', 'meeste_goals_poi', 'minste_goals_tegen_poi', 'kampioen']
 const SINGLE_ANSWER_QUESTIONS = ['kampioen', 'bekerwinnaar']
 const BEKER_TEAMS = ['Anderlecht', 'Union']
+
+function TeamLogo({ name, size = 18 }: { name: string; size?: number }) {
+  const logo = getTeamLogo(name)
+  if (!logo) return null
+  return <Image src={logo} alt={name} width={size} height={size} className="inline-block" />
+}
 
 interface PlayerPayment {
   id: string
@@ -200,7 +208,11 @@ export default function AdminPage() {
     })
   }
 
-  if (!loaded) return <div className="text-center py-12 text-gray-400">Laden...</div>
+  if (!loaded) return (
+    <div className="flex items-center justify-center py-24">
+      <div className="w-6 h-6 border-2 border-cb-blue border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
   if (!isAdmin) return null
 
   const grouped: Record<string, MatchRow[]> = {}
@@ -210,13 +222,21 @@ export default function AdminPage() {
     grouped[key].push(m)
   }
 
+  const paidCount = players.filter(p => p.payment_status === 'paid').length
+  const totalCount = players.length
+  const filteredPlayers = paymentFilter === 'all'
+    ? players
+    : players.filter(p => p.payment_status === paymentFilter)
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">ADMIN</h1>
+    <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="mb-6">
+        <h1 className="heading-display text-3xl md:text-4xl text-white">ADMIN</h1>
+      </div>
 
       {message && (
-        <div className={`mb-4 px-4 py-2 rounded-lg text-sm ${
-          message.startsWith('Fout:') ? 'bg-red-900/30 text-red-300' : 'bg-green-900/30 text-green-300'
+        <div className={`mb-6 px-4 py-3 rounded-lg text-sm ${
+          message.startsWith('Fout:') ? 'bg-red-900/20 text-red-400 border border-red-900/30' : 'bg-green-900/20 text-green-400 border border-green-900/30'
         }`}>
           {message}
         </div>
@@ -225,24 +245,34 @@ export default function AdminPage() {
       <button
         onClick={saveAll}
         disabled={saving}
-        className="px-6 py-2.5 bg-cb-blue text-white font-medium rounded-lg hover:bg-cb-blue/90 disabled:opacity-50 mb-6"
+        className="btn-primary py-3 px-8 mb-8 disabled:opacity-40"
       >
-        {saving ? 'Opslaan & herberekenen...' : 'Alles opslaan & herberekenen'}
+        {saving ? (
+          <span className="flex items-center gap-2">
+            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Opslaan & herberekenen...
+          </span>
+        ) : 'Alles opslaan & herberekenen'}
       </button>
 
-      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
-        Uitslagen invoeren
-      </h2>
-      <div className="space-y-6 mb-8">
+      {/* Match results */}
+      <h2 className="heading-display text-xl text-gray-400 mb-3">UITSLAGEN INVOEREN</h2>
+      <div className="space-y-8 mb-12">
         {Object.entries(grouped).map(([label, groupMatches]) => (
           <div key={label}>
-            <h3 className="text-xs font-medium text-cb-gold mb-2">{label}</h3>
+            <h3 className="heading-display text-sm text-gray-500 mb-3 flex items-center gap-2">
+              <span className="w-1 h-4 bg-cb-blue rounded-full" />
+              {label}
+            </h3>
             <div className="space-y-2">
               {groupMatches.map((match) => {
                 const r = results[match.id] || { home: '', away: '' }
                 return (
-                  <div key={match.id} className="bg-card rounded-lg border border-border p-3 flex items-center gap-2">
-                    <span className="flex-1 text-right text-sm truncate">{match.home_team.name}</span>
+                  <div key={match.id} className="glass-card-subtle p-3 flex items-center gap-2">
+                    <span className="flex-1 text-right text-sm truncate flex items-center justify-end gap-1.5 text-gray-300">
+                      {match.home_team.name}
+                      <TeamLogo name={match.home_team.name} />
+                    </span>
                     <input
                       ref={el => { inputRefs.current[`admin-${match.id}-home`] = el }}
                       type="text"
@@ -250,9 +280,9 @@ export default function AdminPage() {
                       value={r.home}
                       onChange={(e) => handleScoreInput(match.id, 'home', e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className="w-10 h-10 text-center bg-cb-dark border border-border rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue"
+                      className="w-10 h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue transition-colors"
                     />
-                    <span className="text-gray-500 text-xs">-</span>
+                    <span className="text-gray-600 text-xs">-</span>
                     <input
                       ref={el => { inputRefs.current[`admin-${match.id}-away`] = el }}
                       type="text"
@@ -260,9 +290,12 @@ export default function AdminPage() {
                       value={r.away}
                       onChange={(e) => handleScoreInput(match.id, 'away', e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className="w-10 h-10 text-center bg-cb-dark border border-border rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue"
+                      className="w-10 h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue transition-colors"
                     />
-                    <span className="flex-1 text-left text-sm truncate">{match.away_team.name}</span>
+                    <span className="flex-1 text-left text-sm truncate flex items-center gap-1.5 text-gray-300">
+                      <TeamLogo name={match.away_team.name} />
+                      {match.away_team.name}
+                    </span>
                   </div>
                 )
               })}
@@ -271,10 +304,9 @@ export default function AdminPage() {
         ))}
       </div>
 
-      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
-        Juiste antwoorden extra vragen
-      </h2>
-      <div className="space-y-3 mb-4">
+      {/* Extra answers */}
+      <h2 className="heading-display text-xl text-gray-400 mb-3">EXTRA VRAGEN</h2>
+      <div className="space-y-3 mb-12">
         {extraQuestions.map((q) => {
           const playerConfig = PLAYER_QUESTIONS[q.question_key]
           const isTeamQuestion = TEAM_QUESTIONS.includes(q.question_key)
@@ -285,14 +317,13 @@ export default function AdminPage() {
             : teams
 
           return (
-            <div key={q.id} className="bg-card rounded-lg border border-border p-3 space-y-2">
-              <span className="text-sm text-gray-400">{q.question_label}</span>
+            <div key={q.id} className="glass-card-subtle p-4 space-y-3">
+              <span className="text-sm text-gray-300">{q.question_label}</span>
 
-              {/* Show selected answers as chips (multi-answer questions) */}
               {!isSingle && answers.length > 0 && (
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {answers.map(a => (
-                    <span key={a} className="inline-flex items-center gap-1 px-2 py-0.5 bg-cb-blue/20 text-white text-xs rounded-md">
+                    <span key={a} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-cb-blue/15 text-white text-xs rounded-lg border border-cb-blue/20">
                       {a}
                       <button
                         type="button"
@@ -306,10 +337,9 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* Input for adding answers */}
               {playerConfig ? (
                 isSingle ? (
-                  <div className="w-64">
+                  <div className="w-72">
                     <PlayerCombobox
                       options={playerOptionsBySort[playerConfig.sortBy]}
                       value={answers[0] || ''}
@@ -319,7 +349,7 @@ export default function AdminPage() {
                     />
                   </div>
                 ) : (
-                  <div className="w-64">
+                  <div className="w-72">
                     <PlayerCombobox
                       options={playerOptionsBySort[playerConfig.sortBy].filter(o => !answers.includes(o.name))}
                       value=""
@@ -334,7 +364,7 @@ export default function AdminPage() {
                   <select
                     value={answers[0] || ''}
                     onChange={(e) => setExtraAnswers(prev => ({ ...prev, [q.id]: e.target.value ? [e.target.value] : [] }))}
-                    className="w-48 px-3 py-2 bg-cb-dark border border-border rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue"
+                    className="w-56 px-4 py-2.5 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
                   >
                     <option value="">Kies een ploeg...</option>
                     {teamOptions.map((t) => (
@@ -342,9 +372,9 @@ export default function AdminPage() {
                     ))}
                   </select>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-3">
                     {teamOptions.map((t) => (
-                      <label key={t.id} className="flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer">
+                      <label key={t.id} className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={answers.includes(t.name)}
@@ -365,7 +395,7 @@ export default function AdminPage() {
                   value={answers[0] || ''}
                   onChange={(e) => setExtraAnswers(prev => ({ ...prev, [q.id]: e.target.value ? [e.target.value] : [] }))}
                   placeholder="Juist antwoord..."
-                  className="w-48 px-3 py-2 bg-cb-dark border border-border rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue"
+                  className="w-56 px-4 py-2.5 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
                 />
               )}
             </div>
@@ -373,97 +403,96 @@ export default function AdminPage() {
         })}
       </div>
 
-      {/* Betalingen sectie */}
-      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3 mt-8">
-        Betalingen
-      </h2>
-      {(() => {
-        const paidCount = players.filter(p => p.payment_status === 'paid').length
-        const totalCount = players.length
-        const filteredPlayers = paymentFilter === 'all'
-          ? players
-          : players.filter(p => p.payment_status === paymentFilter)
+      {/* Payments */}
+      <h2 className="heading-display text-xl text-gray-400 mb-3">BETALINGEN</h2>
 
-        return (
-          <div className="space-y-4 mb-8">
-            {/* Summary */}
-            <div className="bg-card rounded-lg border border-border p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-400">
-                  {paidCount}/{totalCount} betaald
-                </span>
-                <span className="text-sm text-cb-gold font-mono">
-                  &euro;{(paidCount * 2).toFixed(2)} / &euro;{(totalCount * 2).toFixed(2)}
-                </span>
-              </div>
-              <div className="w-full bg-cb-dark rounded-full h-2">
-                <div
-                  className="bg-green-500 h-2 rounded-full transition-all"
-                  style={{ width: totalCount > 0 ? `${(paidCount / totalCount) * 100}%` : '0%' }}
-                />
-              </div>
-            </div>
-
-            {/* Filter */}
-            <div className="flex gap-2 flex-wrap">
-              {([['all', 'Alle'], ['unpaid', 'Niet betaald'], ['pending', 'In afwachting'], ['paid', 'Betaald']] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  onClick={() => setPaymentFilter(value)}
-                  className={`px-3 py-1 text-xs rounded-lg border transition-colors ${
-                    paymentFilter === value
-                      ? 'bg-cb-blue text-white border-cb-blue'
-                      : 'bg-cb-dark text-gray-400 border-border hover:border-gray-600'
-                  }`}
-                >
-                  {label}
-                  <span className="ml-1 opacity-60">
-                    {value === 'all'
-                      ? players.length
-                      : players.filter(p => p.payment_status === value).length}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Player list */}
-            <div className="space-y-1">
-              {filteredPlayers.map(player => (
-                <div key={player.id} className="bg-card rounded-lg border border-border p-3 flex items-center gap-3">
-                  <span className="flex-1 text-sm font-medium truncate">{player.display_name}</span>
-                  {player.payment_method && (
-                    <span className="text-xs text-gray-500">
-                      {player.payment_method === 'wero' ? 'Payconiq' : player.payment_method === 'transfer' ? 'Overschrijving' : 'Cash'}
-                    </span>
-                  )}
-                  <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                    player.payment_status === 'paid'
-                      ? 'bg-green-900/30 text-green-400'
-                      : player.payment_status === 'pending'
-                      ? 'bg-yellow-900/30 text-yellow-400'
-                      : 'bg-red-900/30 text-red-400'
-                  }`}>
-                    {player.payment_status === 'paid' ? 'Betaald' : player.payment_status === 'pending' ? 'In afwachting' : 'Niet betaald'}
-                  </span>
-                  <button
-                    onClick={() => togglePayment(player.id, player.payment_status)}
-                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                      player.payment_status === 'paid'
-                        ? 'bg-red-900/20 text-red-400 hover:bg-red-900/40'
-                        : 'bg-green-900/20 text-green-400 hover:bg-green-900/40'
-                    }`}
-                  >
-                    {player.payment_status === 'paid' ? 'Ongedaan' : 'Betaald'}
-                  </button>
-                </div>
-              ))}
-              {filteredPlayers.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-4">Geen spelers gevonden</p>
-              )}
-            </div>
+      {/* Stats row */}
+      <div className="flex items-center gap-6 md:gap-10 mb-6 px-2">
+        <div className="text-center">
+          <div className="heading-display text-3xl text-cb-blue font-bold">
+            {paidCount}/{totalCount}
           </div>
-        )
-      })()}
+          <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+            Betaald
+          </div>
+        </div>
+        <div className="stat-divider" />
+        <div className="text-center">
+          <div className="heading-display text-3xl text-white font-bold">
+            &euro;{(paidCount * 2).toFixed(0)}
+          </div>
+          <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+            Ontvangen
+          </div>
+        </div>
+        <div className="stat-divider" />
+        <div className="text-center">
+          <div className="heading-display text-3xl text-white font-bold">
+            &euro;{(totalCount * 2).toFixed(0)}
+          </div>
+          <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+            Totaal
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-2 flex-wrap mb-4">
+        {([['all', 'Alle'], ['unpaid', 'Niet betaald'], ['pending', 'In afwachting'], ['paid', 'Betaald']] as const).map(([value, label]) => (
+          <button
+            key={value}
+            onClick={() => setPaymentFilter(value)}
+            className={`px-4 py-1.5 text-xs rounded-lg border transition-colors ${
+              paymentFilter === value
+                ? 'bg-cb-blue text-white border-cb-blue'
+                : 'bg-transparent text-gray-400 border-white/[0.06] hover:border-gray-600'
+            }`}
+          >
+            {label}
+            <span className="ml-1.5 opacity-60">
+              {value === 'all'
+                ? players.length
+                : players.filter(p => p.payment_status === value).length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-2 mb-8">
+        {filteredPlayers.map(player => (
+          <div key={player.id} className="glass-card-subtle p-3 flex items-center gap-3">
+            <span className="flex-1 text-sm font-medium truncate text-gray-200">{player.display_name}</span>
+            {player.payment_method && (
+              <span className="text-xs text-gray-500">
+                {player.payment_method === 'wero' ? 'Payconiq' : player.payment_method === 'transfer' ? 'Overschrijving' : 'Cash'}
+              </span>
+            )}
+            <span className={`text-xs px-2.5 py-1 rounded border ${
+              player.payment_status === 'paid'
+                ? 'border-cb-blue/40 text-cb-blue'
+                : player.payment_status === 'pending'
+                ? 'border-cb-gold/30 text-cb-gold'
+                : 'border-white/10 text-gray-500'
+            }`}>
+              {player.payment_status === 'paid' ? 'Betaald' : player.payment_status === 'pending' ? 'In afwachting' : 'Niet betaald'}
+            </span>
+            <button
+              onClick={() => togglePayment(player.id, player.payment_status)}
+              className={`px-3 py-1.5 text-xs rounded-lg transition-colors font-medium ${
+                player.payment_status === 'paid'
+                  ? 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] border border-white/[0.06]'
+                  : 'bg-cb-blue/15 text-cb-blue hover:bg-cb-blue/25 border border-cb-blue/20'
+              }`}
+            >
+              {player.payment_status === 'paid' ? 'Ongedaan' : 'Betaald'}
+            </button>
+          </div>
+        ))}
+        {filteredPlayers.length === 0 && (
+          <div className="glass-card-subtle p-12 text-center text-gray-600 text-sm">
+            Geen spelers gevonden
+          </div>
+        )}
+      </div>
     </div>
   )
 }

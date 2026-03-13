@@ -1,28 +1,38 @@
-import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
+import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
+
+function getRankColor(rank: number): string {
+  if (rank === 1) return "text-cb-gold";
+  if (rank === 2) return "text-cb-silver";
+  if (rank === 3) return "text-cb-bronze";
+  return "text-gray-500";
+}
 
 export default async function KlassementPage() {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
-  // Get all players
-  const { data: players } = await supabase
-    .from('players')
-    .select('id, display_name')
+  const [
+    { data: players },
+    { data: scores },
+    { count: matchCount },
+    { count: predictionCount },
+  ] = await Promise.all([
+    supabase.from("players").select("id, display_name"),
+    supabase.from("player_scores").select("*"),
+    supabase.from("matches").select("*", { count: "exact", head: true }),
+    supabase.from("predictions").select("*", { count: "exact", head: true }),
+  ]);
 
-  // Get all scores
-  const { data: scores } = await supabase
-    .from('player_scores')
-    .select('*')
-
-  // Build scores map
-  const scoreMap: Record<string, typeof scores extends (infer T)[] | null ? T : never> = {}
+  const scoreMap: Record<
+    string,
+    typeof scores extends (infer T)[] | null ? T : never
+  > = {};
   for (const s of scores || []) {
-    scoreMap[s.user_id] = s
+    scoreMap[s.user_id] = s;
   }
 
-  // Merge players with scores (show everyone, even 0)
   const allPlayers = (players || []).map((p) => ({
     user_id: p.id,
     display_name: p.display_name,
@@ -32,134 +42,208 @@ export default async function KlassementPage() {
     exact_matches: scoreMap[p.id]?.exact_matches ?? 0,
     correct_goal_diffs: scoreMap[p.id]?.correct_goal_diffs ?? 0,
     correct_results: scoreMap[p.id]?.correct_results ?? 0,
-    rank_change: scoreMap[p.id]?.rank_change ?? 0,
-  }))
+  }));
 
-  // Sort by score desc, then name
-  allPlayers.sort((a, b) => b.total_score - a.total_score || a.display_name.localeCompare(b.display_name))
+  allPlayers.sort(
+    (a, b) =>
+      b.total_score - a.total_score ||
+      a.display_name.localeCompare(b.display_name),
+  );
 
-  // Assign ranks
-  let currentRank = 0
-  let previousScore = -1
+  let currentRank = 0;
+  let previousScore = -1;
   const standings = allPlayers.map((row, index) => {
     if (row.total_score !== previousScore) {
-      currentRank = index + 1
+      currentRank = index + 1;
     }
-    previousScore = row.total_score
-    return { ...row, rank: currentRank, rank_change: row.rank_change }
-  })
+    previousScore = row.total_score;
+    return { ...row, rank: currentRank };
+  });
 
-  function RankChangeIndicator({ change }: { change: number }) {
-    if (change > 0) {
-      return <span className="text-green-500 text-xs font-medium">{`▲${change}`}</span>
-    }
-    if (change < 0) {
-      return <span className="text-red-500 text-xs font-medium">{`▼${Math.abs(change)}`}</span>
-    }
-    return <span className="text-gray-500 text-xs">{`–`}</span>
-  }
+  const playerCount = players?.length ?? 0;
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">KLASSEMENT</h1>
-
-      {standings.length === 0 ? (
-        <div className="bg-card rounded-xl p-8 border border-border text-center text-gray-400">
-          Nog geen spelers geregistreerd.
+      {/* Hero Section */}
+      <section className="relative overflow-hidden py-10 md:py-16">
+        {/* Watermark */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+          <span className="heading-display text-[8rem] md:text-[14rem] lg:text-[18rem] text-white/[0.02] leading-none tracking-wider">
+            LAATSTE EDITIE
+          </span>
         </div>
-      ) : (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
-          {/* Desktop table */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full">
+
+        <div className="relative z-10 max-w-7xl mx-auto px-6 text-center">
+          <span className="heading-display text-xs md:text-sm text-gray-500 tracking-[0.3em]">
+            Seizoen 2025-2026
+          </span>
+          <h1 className="heading-display text-6xl md:text-8xl lg:text-9xl leading-none mt-4">
+            <span className="block text-white">PRONO</span>
+            <span className="block text-cb-blue">PLAY-OFFS</span>
+          </h1>
+          <p className="mt-6 text-gray-400 max-w-2xl mx-auto text-sm md:text-base">
+            De allerlaatste editie van de play-offs prono, de prono van
+            Klein-Brabant. Voorspel de uitslagen, strijd tegen vrienden en
+            familie, en bewijs dat jij de echte voetbal kenner bent.
+          </p>
+
+          {/* Stats */}
+          <div className="flex items-center justify-center gap-6 md:gap-12 mt-8">
+            <div className="text-center">
+              <div className="heading-display text-3xl md:text-4xl text-white font-bold">
+                {playerCount}
+              </div>
+              <div className="text-[10px] md:text-xs text-gray-500 uppercase tracking-[0.2em] mt-1">
+                Spelers
+              </div>
+            </div>
+            <div className="stat-divider" />
+            <div className="text-center">
+              <div className="heading-display text-3xl md:text-4xl text-white font-bold">
+                {matchCount ?? 0}
+              </div>
+              <div className="text-[10px] md:text-xs text-gray-500 uppercase tracking-[0.2em] mt-1">
+                Wedstrijden
+              </div>
+            </div>
+            <div className="stat-divider" />
+            <div className="text-center">
+              <div className="heading-display text-3xl md:text-4xl text-white font-bold">
+                {predictionCount ?? 0}
+              </div>
+              <div className="text-[10px] md:text-xs text-gray-500 uppercase tracking-[0.2em] mt-1">
+                Voorspellingen
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Rankings Section */}
+      <section className="max-w-7xl mx-auto px-6 pb-16">
+        <div className="flex items-end justify-between mb-6">
+          <div>
+            <h2 className="heading-display text-3xl md:text-4xl text-white">
+              RANKINGS
+            </h2>
+          </div>
+          <span className="text-sm text-gray-500">Play-Offs 2026</span>
+        </div>
+
+        {standings.length === 0 ? (
+          <div className="glass-card p-12 text-center text-gray-500">
+            Nog geen spelers geregistreerd.
+          </div>
+        ) : (
+          <div className="glass-card-subtle overflow-hidden">
+            {/* Desktop table */}
+            <table className="hidden md:table w-full">
               <thead>
-                <tr className="border-b border-border text-xs text-gray-400 uppercase">
-                  <th className="px-4 py-3 text-left w-12">#</th>
-                  <th className="px-2 py-3 text-center w-10"></th>
-                  <th className="px-4 py-3 text-left">Naam</th>
-                  <th className="px-4 py-3 text-right">Score</th>
-                  <th className="px-4 py-3 text-right">E</th>
-                  <th className="px-4 py-3 text-right">GD</th>
-                  <th className="px-4 py-3 text-right">JR</th>
-                  <th className="px-4 py-3 text-right">Match</th>
-                  <th className="px-4 py-3 text-right">Extra</th>
+                <tr className="text-[11px] text-gray-500 uppercase tracking-wider border-b border-white/[0.06]">
+                  <th className="text-left font-normal px-5 py-3 w-12">#</th>
+                  <th className="text-left font-normal py-3">Naam</th>
+                  <th className="text-right font-normal px-2 py-3 w-16">
+                    Score
+                  </th>
+                  <th className="text-right font-normal px-2 py-3 w-12">E</th>
+                  <th className="text-right font-normal px-2 py-3 w-12">GD</th>
+                  <th className="text-right font-normal px-2 py-3 w-12">JR</th>
+                  <th className="text-right font-normal px-2 py-3 w-16">
+                    Match
+                  </th>
+                  <th className="text-right font-normal px-2 py-3 w-16 pr-5">
+                    Extra
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {standings.map((row) => (
-                  <tr
-                    key={row.user_id}
-                    className="border-b border-border/50 hover:bg-card-hover transition-colors"
-                  >
-                    <td className="px-4 py-3 text-sm font-medium text-gray-400">
-                      {row.rank}
+                  <tr key={row.user_id} className="table-row group">
+                    <td className="px-5 py-3">
+                      <Link href={`/player/${row.user_id}`} className="block">
+                        <span
+                          className={`heading-display text-lg ${getRankColor(row.rank)}`}
+                        >
+                          {row.rank}
+                        </span>
+                      </Link>
                     </td>
-                    <td className="px-2 py-3 text-center">
-                      <RankChangeIndicator change={row.rank_change} />
-                    </td>
-                    <td className="px-4 py-3">
+                    <td className="py-3">
                       <Link
                         href={`/player/${row.user_id}`}
-                        className="text-sm font-medium hover:text-cb-gold transition-colors"
+                        className="block text-sm font-medium text-gray-200 group-hover:text-white transition-colors"
                       >
                         {row.display_name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-right text-sm font-bold text-cb-gold">
-                      {row.total_score}
+                    <td className="text-right px-2 py-3 text-sm font-bold text-cb-blue">
+                      <Link href={`/player/${row.user_id}`} className="block">
+                        {row.total_score}
+                      </Link>
                     </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-400">
-                      {row.exact_matches}
+                    <td className="text-right px-2 py-3 text-sm text-gray-500">
+                      <Link href={`/player/${row.user_id}`} className="block">
+                        {row.exact_matches}
+                      </Link>
                     </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-400">
-                      {row.correct_goal_diffs}
+                    <td className="text-right px-2 py-3 text-sm text-gray-500">
+                      <Link href={`/player/${row.user_id}`} className="block">
+                        {row.correct_goal_diffs}
+                      </Link>
                     </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-400">
-                      {row.correct_results}
+                    <td className="text-right px-2 py-3 text-sm text-gray-500">
+                      <Link href={`/player/${row.user_id}`} className="block">
+                        {row.correct_results}
+                      </Link>
                     </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-400">
-                      {row.match_score}
+                    <td className="text-right px-2 py-3 text-sm text-gray-500">
+                      <Link href={`/player/${row.user_id}`} className="block">
+                        {row.match_score}
+                      </Link>
                     </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-400">
-                      {row.extra_score}
+                    <td className="text-right px-2 py-3 pr-5 text-sm text-gray-500">
+                      <Link href={`/player/${row.user_id}`} className="block">
+                        {row.extra_score}
+                      </Link>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
 
-          {/* Mobile list */}
-          <div className="md:hidden divide-y divide-border/50">
-            {standings.map((row) => (
-              <Link
-                key={row.user_id}
-                href={`/player/${row.user_id}`}
-                className="flex items-center justify-between px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-gray-500 w-6">
-                    {row.rank}
+            {/* Mobile list */}
+            <div className="md:hidden">
+              {standings.map((row) => (
+                <Link
+                  key={row.user_id}
+                  href={`/player/${row.user_id}`}
+                  className="table-row flex items-center justify-between px-4 py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`heading-display text-lg w-6 ${getRankColor(row.rank)}`}
+                    >
+                      {row.rank}
+                    </span>
+                    <span className="text-sm font-medium text-gray-200">
+                      {row.display_name}
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold text-cb-blue">
+                    {row.total_score}
                   </span>
-                  <span className="w-6">
-                    <RankChangeIndicator change={row.rank_change} />
-                  </span>
-                  <span className="text-sm font-medium">
-                    {row.display_name}
-                  </span>
-                </div>
-                <span className="text-sm font-bold text-cb-gold">
-                  {row.total_score}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+                </Link>
+              ))}
+            </div>
 
-      <div className="mt-4 text-xs text-gray-500">
-        E = Exact | GD = Juist doelpuntenverschil | JR = Juist resultaat
-      </div>
+            {/* Legend */}
+            <div className="px-5 py-3 text-xs text-gray-600 border-t border-white/[0.04]">
+              E = Exact &middot; GD = Juist doelpuntenverschil &middot; JR =
+              Juist resultaat
+            </div>
+          </div>
+        )}
+      </section>
     </div>
-  )
+  );
 }

@@ -3,8 +3,10 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import Image from 'next/image'
 import PlayerCombobox from '@/components/PlayerCombobox'
 import PaymentSection from '@/components/PaymentSection'
+import { getTeamLogo } from '@/lib/teamLogos'
 import type { Match, Team, ExtraQuestion, FootballPlayer } from '@/lib/types'
 
 interface MatchWithTeams extends Match {
@@ -24,6 +26,12 @@ const PLAYER_QUESTIONS: Record<string, { filterGk: boolean; sortBy: 'goals' | 'a
 type Step = 'regels' | 'naam' | 'voorspellingen' | 'extra' | 'bevestiging'
 
 const STORAGE_KEY = 'meedoen-form'
+
+function TeamLogo({ name, size = 18 }: { name: string; size?: number }) {
+  const logo = getTeamLogo(name)
+  if (!logo) return null
+  return <Image src={logo} alt={name} width={size} height={size} className="inline-block" />
+}
 
 function loadSavedForm(): { step?: Step; firstName?: string; lastName?: string; predictions?: Record<number, { home: string; away: string }>; extraAnswers?: Record<number, string> } | null {
   if (typeof window === 'undefined') return null
@@ -48,13 +56,11 @@ export default function MeedoenPage() {
   const [footballPlayers, setFootballPlayers] = useState<FootballPlayer[]>([])
   const [existingNames, setExistingNames] = useState<string[]>([])
 
-  // Form state (restored from localStorage)
   const [firstName, setFirstName] = useState(() => loadSavedForm()?.firstName ?? '')
   const [lastName, setLastName] = useState(() => loadSavedForm()?.lastName ?? '')
   const [predictions, setPredictions] = useState<Record<number, { home: string; away: string }>>(() => loadSavedForm()?.predictions ?? {})
   const [extraAnswers, setExtraAnswers] = useState<Record<number, string>>(() => loadSavedForm()?.extraAnswers ?? {})
 
-  // Persist form state to localStorage
   useEffect(() => {
     if (step === 'bevestiging') {
       localStorage.removeItem(STORAGE_KEY)
@@ -91,7 +97,6 @@ export default function MeedoenPage() {
     setFootballPlayers(playersRes.data || [])
     setExistingNames((existingRes.data || []).map(p => p.display_name.toLowerCase()))
 
-    // Auto-lock based on deadline setting
     const dl = deadlineRes.data?.value
     if (dl) {
       setDeadline(dl)
@@ -194,7 +199,6 @@ export default function MeedoenPage() {
     }
   }
 
-  // Group matches by speeldag
   const grouped = matches.reduce<Record<string, MatchWithTeams[]>>((acc, m) => {
     const key = m.is_cup_final ? 'Bekerfinale' : `Speeldag ${m.speeldag}`
     if (!acc[key]) acc[key] = []
@@ -203,19 +207,25 @@ export default function MeedoenPage() {
   }, {})
 
   if (locked === null) {
-    return <div className="text-center py-12 text-gray-400">Laden...</div>
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="w-6 h-6 border-2 border-cb-blue border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   if (locked) {
     return (
-      <div className="max-w-lg mx-auto text-center py-12">
-        <div className="bg-card rounded-xl p-8 border border-border">
-          <div className="text-4xl mb-4">🔒</div>
-          <h1 className="text-2xl font-bold mb-2">Inschrijvingen gesloten</h1>
-          <p className="text-gray-400">
+      <div className="max-w-lg mx-auto text-center py-24 px-6">
+        <div className="glass-card-subtle p-10">
+          <svg className="w-12 h-12 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+          </svg>
+          <h1 className="heading-display text-3xl mb-3">Inschrijvingen gesloten</h1>
+          <p className="text-gray-500 text-sm">
             De pronostieken zijn vergrendeld. Je kan niet meer meedoen.
           </p>
-          <Link href="/" className="inline-block mt-6 text-cb-gold hover:underline text-sm">
+          <Link href="/" className="inline-block mt-8 btn-primary">
             Bekijk het klassement
           </Link>
         </div>
@@ -223,52 +233,75 @@ export default function MeedoenPage() {
     )
   }
 
-  // Step 1: Regels
+  // Step 1: Regels / DOE MEE landing
   if (step === 'regels') {
     return (
-      <div className="max-w-lg mx-auto">
-        <h1 className="text-2xl font-bold mb-6">MEEDOEN</h1>
-        <div className="bg-card rounded-xl border border-border p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-cb-gold">Spelregels</h2>
+      <div className="max-w-lg mx-auto px-6 py-12 md:py-20">
+        <div className="text-center mb-10">
+          <h1 className="heading-display text-5xl md:text-6xl text-white leading-none">
+            DOE <span className="text-cb-blue">MEE</span>
+          </h1>
+          <p className="mt-4 text-gray-400 text-sm md:text-base">
+            Voorspel de play-off uitslagen, strijd tegen vrienden en familie,
+            en bewijs dat jij de echte voetbal kenner bent.
+          </p>
+        </div>
 
-          <div className="space-y-3 text-sm text-gray-300">
+        {/* How it works */}
+        <div className="space-y-3 mb-8">
+          <div className="glass-card-subtle p-4 flex items-start gap-4">
+            <span className="heading-display text-lg text-cb-blue mt-0.5">1</span>
             <div>
-              <h3 className="font-medium text-white mb-1">Wedstrijdvoorspellingen</h3>
-              <p>Voorspel de exacte score van 31 wedstrijden (30 competitie + 1 bekerfinale).</p>
-              <ul className="mt-2 space-y-1 text-gray-400">
-                <li><span className="text-green-400 font-bold">Exacte score</span> = 10 punten + totaal aantal goals</li>
-                <li><span className="text-green-400">Juist doelpuntenverschil</span> = 7 punten</li>
-                <li><span className="text-yellow-400">Juist resultaat</span> (winst/gelijk/verlies) = 5 punten</li>
-                <li><span className="text-red-400">Fout</span> = 0 punten</li>
-              </ul>
-              <p className="mt-2 text-xs text-gray-500">
-                Voorbeeld: je voorspelt 2-1 en het wordt 2-1 → 5 + 2 + 3 + 3 = 13 punten
-              </p>
-            </div>
-
-            <div>
-              <h3 className="font-medium text-white mb-1">Extra vragen</h3>
-              <p>Beantwoord 8 extra vragen over het seizoen.</p>
-              <ul className="mt-2 space-y-1 text-gray-400">
-                <li>Standaardvragen: <span className="text-gray-300">10 punten</span></li>
-                <li>Bonusvragen: <span className="text-cb-gold font-bold">20 punten</span></li>
-              </ul>
+              <div className="text-sm text-white font-medium">Voorspel alle wedstrijden</div>
+              <div className="text-xs text-gray-500 mt-0.5">Vul de exacte score in voor elke match</div>
             </div>
           </div>
-
-          {deadline && (
-            <div className="px-4 py-2 rounded-lg text-sm bg-cb-blue/20 text-cb-gold">
-              Deadline: {new Date(deadline).toLocaleString('nl-BE', { dateStyle: 'long', timeStyle: 'short' })}
+          <div className="glass-card-subtle p-4 flex items-start gap-4">
+            <span className="heading-display text-lg text-cb-blue mt-0.5">2</span>
+            <div>
+              <div className="text-sm text-white font-medium">Beantwoord de bonusvragen</div>
+              <div className="text-xs text-gray-500 mt-0.5">Topscorer, kampioen, bekerwinnaar...</div>
             </div>
-          )}
-
-          <button
-            onClick={() => setStep('naam')}
-            className="w-full py-3 bg-cb-blue text-white font-medium rounded-lg hover:bg-cb-blue/90 transition-colors"
-          >
-            Ik doe mee!
-          </button>
+          </div>
+          <div className="glass-card-subtle p-4 flex items-start gap-4">
+            <span className="heading-display text-lg text-cb-blue mt-0.5">3</span>
+            <div>
+              <div className="text-sm text-white font-medium">Volg het klassement</div>
+              <div className="text-xs text-gray-500 mt-0.5">Bekijk na elke speeldag wie er bovenaan staat</div>
+            </div>
+          </div>
         </div>
+
+        {/* Scoring - collapsed */}
+        <div className="glass-card-subtle p-4 mb-8">
+          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Puntentelling</div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-gray-400">
+            <span>Exacte score</span>
+            <span className="text-right text-gray-300">10 + goals</span>
+            <span>Juist doelpuntenverschil</span>
+            <span className="text-right text-gray-300">7 punten</span>
+            <span>Juist resultaat</span>
+            <span className="text-right text-gray-300">5 punten</span>
+            <span>Fout</span>
+            <span className="text-right text-gray-300">0 punten</span>
+          </div>
+        </div>
+
+        {deadline && (
+          <div className="mb-6 px-4 py-3 rounded-lg text-xs text-gray-400 border border-white/[0.06] text-center">
+            Deadline: {new Date(deadline).toLocaleString('nl-BE', { dateStyle: 'long', timeStyle: 'short' })}
+          </div>
+        )}
+
+        <button
+          onClick={() => setStep('naam')}
+          className="w-full btn-primary py-3.5 heading-display tracking-wider text-base"
+        >
+          SCHRIJF JE IN &rarr;
+        </button>
+        <p className="text-center text-xs text-gray-600 mt-3">
+          Duurt maar 2 minuten
+        </p>
       </div>
     )
   }
@@ -276,35 +309,46 @@ export default function MeedoenPage() {
   // Step 2: Naam
   if (step === 'naam') {
     return (
-      <div className="max-w-lg mx-auto">
-        <h1 className="text-2xl font-bold mb-6">JOUW NAAM</h1>
-        <div className="bg-card rounded-xl border border-border p-6">
-          <p className="text-sm text-gray-400 mb-4">
+      <div className="max-w-lg mx-auto px-6 py-12">
+        <span className="heading-display text-xs text-gray-500 tracking-[0.3em]">Stap 2 van 4</span>
+        <h1 className="heading-display text-3xl md:text-4xl text-white mt-2 mb-8">JOUW NAAM</h1>
+
+        <div className="glass-card-subtle p-6 md:p-8">
+          <p className="text-sm text-gray-400 mb-6">
             Kies een naam die zichtbaar is in het klassement. Dit kan je achteraf niet meer wijzigen.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              placeholder="Voornaam"
-              maxLength={25}
-              className="flex-1 px-4 py-3 bg-cb-dark border border-border rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue"
-            />
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              placeholder="Achternaam"
-              maxLength={25}
-              className="flex-1 px-4 py-3 bg-cb-dark border border-border rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue"
-            />
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">Voornaam</label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Je voornaam"
+                maxLength={25}
+                className="w-full px-4 py-3 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">Achternaam</label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Je achternaam"
+                maxLength={25}
+                className="w-full px-4 py-3 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
+              />
+            </div>
           </div>
-          {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-          <div className="flex gap-3 mt-6">
+
+          {error && <p className="text-red-400 text-xs mt-3">{error}</p>}
+
+          <div className="flex gap-3 mt-8">
             <button
               onClick={() => { setError(''); setStep('regels') }}
-              className="px-6 py-3 bg-cb-dark text-gray-300 font-medium rounded-lg border border-border hover:bg-cb-dark/80 transition-colors"
+              className="btn-secondary py-3 px-6"
             >
               Terug
             </button>
@@ -326,7 +370,7 @@ export default function MeedoenPage() {
                 setError('')
                 setStep('voorspellingen')
               }}
-              className="flex-1 py-3 bg-cb-blue text-white font-medium rounded-lg hover:bg-cb-blue/90 transition-colors"
+              className="flex-1 btn-primary py-3"
             >
               Volgende
             </button>
@@ -339,32 +383,44 @@ export default function MeedoenPage() {
   // Step 3: Voorspellingen
   if (step === 'voorspellingen') {
     return (
-      <div>
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">VOORSPELLINGEN</h1>
-          <span className="text-sm text-gray-400">{filledPredictions}/{matches.length} ingevuld</span>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="flex items-end justify-between mb-6">
+          <div>
+            <span className="heading-display text-xs text-gray-500 tracking-[0.3em]">Stap 3 van 4</span>
+            <h1 className="heading-display text-3xl md:text-4xl text-white mt-2">VOORSPELLINGEN</h1>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="heading-display text-2xl text-cb-blue font-bold">{filledPredictions}</span>
+            <span className="text-sm text-gray-500">/{matches.length}</span>
+          </div>
         </div>
 
-        <div className="mb-6 px-4 py-2 rounded-lg text-xs bg-cb-dark border border-border text-gray-400">
+        <div className="mb-6 glass-card-subtle px-4 py-3 text-xs text-gray-500 flex items-center gap-2">
+          <svg className="w-4 h-4 shrink-0 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
           Vul een cijfer in en het springt automatisch naar het volgende veld.
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-10">
           {Object.entries(grouped).map(([label, groupMatches]) => (
             <div key={label}>
-              <h2 className="text-sm font-semibold text-cb-gold uppercase tracking-wide mb-3">
+              <h2 className="heading-display text-sm text-gray-500 mb-3 flex items-center gap-2">
+                <span className="w-1 h-5 bg-cb-blue rounded-full" />
                 {label}
               </h2>
               <div className="space-y-2">
                 {groupMatches.map((match) => {
                   const pred = predictions[match.id] || { home: '', away: '' }
+                  const isFilled = pred.home !== '' && pred.away !== ''
                   return (
                     <div
                       key={match.id}
-                      className="bg-card rounded-lg border border-border p-3 flex items-center gap-2"
+                      className={`glass-card-subtle p-3 md:p-4 flex items-center gap-2 md:gap-3 ${isFilled ? 'border-cb-blue/20' : ''}`}
                     >
-                      <span className="flex-1 text-right text-sm font-medium truncate">
+                      <span className="flex-1 text-right text-xs md:text-sm font-medium truncate flex items-center justify-end gap-1.5 text-gray-300">
                         {match.home_team.name}
+                        <TeamLogo name={match.home_team.name} />
                       </span>
                       <input
                         ref={el => { inputRefs.current[`${match.id}-home`] = el }}
@@ -374,9 +430,9 @@ export default function MeedoenPage() {
                         value={pred.home}
                         onChange={(e) => handleScoreInput(match.id, 'home', e.target.value)}
                         onFocus={(e) => e.target.select()}
-                        className="w-10 h-10 text-center bg-cb-dark border border-border rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue"
+                        className="w-10 h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue transition-colors"
                       />
-                      <span className="text-gray-500 text-xs">-</span>
+                      <span className="text-gray-600 text-xs">-</span>
                       <input
                         ref={el => { inputRefs.current[`${match.id}-away`] = el }}
                         type="text"
@@ -385,11 +441,17 @@ export default function MeedoenPage() {
                         value={pred.away}
                         onChange={(e) => handleScoreInput(match.id, 'away', e.target.value)}
                         onFocus={(e) => e.target.select()}
-                        className="w-10 h-10 text-center bg-cb-dark border border-border rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue"
+                        className="w-10 h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue transition-colors"
                       />
-                      <span className="flex-1 text-left text-sm font-medium truncate">
+                      <span className="flex-1 text-left text-xs md:text-sm font-medium truncate flex items-center gap-1.5 text-gray-300">
+                        <TeamLogo name={match.away_team.name} />
                         {match.away_team.name}
                       </span>
+                      {isFilled && (
+                        <svg className="w-4 h-4 text-cb-blue shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
                     </div>
                   )
                 })}
@@ -398,10 +460,12 @@ export default function MeedoenPage() {
           ))}
         </div>
 
-        <div className="flex gap-3 mt-8">
+        {error && <p className="text-red-400 text-xs mt-4">{error}</p>}
+
+        <div className="flex gap-3 mt-10">
           <button
             onClick={() => setStep('naam')}
-            className="px-6 py-3 bg-cb-dark text-gray-300 font-medium rounded-lg border border-border hover:bg-cb-dark/80 transition-colors"
+            className="btn-secondary py-3 px-6"
           >
             Terug
           </button>
@@ -415,12 +479,11 @@ export default function MeedoenPage() {
               setStep('extra')
             }}
             disabled={!allPredictionsFilled}
-            className="flex-1 py-3 bg-cb-blue text-white font-medium rounded-lg hover:bg-cb-blue/90 transition-colors disabled:opacity-50"
+            className="flex-1 btn-primary py-3 disabled:opacity-40"
           >
             Volgende
           </button>
         </div>
-        {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
       </div>
     )
   }
@@ -428,8 +491,9 @@ export default function MeedoenPage() {
   // Step 4: Extra vragen
   if (step === 'extra') {
     return (
-      <div>
-        <h1 className="text-2xl font-bold mb-6">EXTRA VRAGEN</h1>
+      <div className="max-w-2xl mx-auto px-6 py-8">
+        <span className="heading-display text-xs text-gray-500 tracking-[0.3em]">Stap 4 van 4</span>
+        <h1 className="heading-display text-3xl md:text-4xl text-white mt-2 mb-8">EXTRA VRAGEN</h1>
 
         <div className="space-y-4">
           {questions.map((q) => {
@@ -439,11 +503,11 @@ export default function MeedoenPage() {
               ? teams.filter(t => BEKER_TEAMS.includes(t.name))
               : teams
             return (
-              <div key={q.id} className="bg-card rounded-lg border border-border p-4">
-                <label className="block text-sm font-medium mb-2">
+              <div key={q.id} className="glass-card-subtle p-4 md:p-5">
+                <label className="block text-sm font-medium mb-3 text-gray-200">
                   {q.question_label}
                   {q.points === 20 && (
-                    <span className="ml-2 text-xs text-cb-gold font-bold">20 pts</span>
+                    <span className="ml-2 text-xs text-cb-blue font-bold px-1.5 py-0.5 bg-cb-blue/10 rounded">20 pts</span>
                   )}
                   {q.points === 10 && (
                     <span className="ml-2 text-xs text-gray-500">10 pts</span>
@@ -455,7 +519,7 @@ export default function MeedoenPage() {
                     onChange={(e) =>
                       setExtraAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
                     }
-                    className="w-full px-3 py-2 bg-cb-dark border border-border rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue"
+                    className="w-full px-4 py-3 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors [&>option]:bg-cb-dark [&>option]:text-white"
                   >
                     <option value="">Kies een ploeg...</option>
                     {teamOptions.map((t) => (
@@ -482,7 +546,7 @@ export default function MeedoenPage() {
                       setExtraAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
                     }
                     placeholder="Typ je antwoord..."
-                    className="w-full px-3 py-2 bg-cb-dark border border-border rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue"
+                    className="w-full px-4 py-3 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
                   />
                 )}
               </div>
@@ -492,10 +556,10 @@ export default function MeedoenPage() {
 
         {error && <p className="text-red-400 text-xs mt-4">{error}</p>}
 
-        <div className="flex gap-3 mt-8">
+        <div className="flex gap-3 mt-10">
           <button
             onClick={() => { setError(''); setStep('voorspellingen') }}
-            className="px-6 py-3 bg-cb-dark text-gray-300 font-medium rounded-lg border border-border hover:bg-cb-dark/80 transition-colors"
+            className="btn-secondary py-3 px-6"
           >
             Terug
           </button>
@@ -509,9 +573,14 @@ export default function MeedoenPage() {
               handleSubmit()
             }}
             disabled={!allExtraFilled || submitting}
-            className="flex-1 py-3 bg-cb-blue text-white font-medium rounded-lg hover:bg-cb-blue/90 transition-colors disabled:opacity-50"
+            className="flex-1 btn-primary py-3 disabled:opacity-40"
           >
-            {submitting ? 'Versturen...' : 'Verstuur'}
+            {submitting ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Versturen...
+              </span>
+            ) : 'Verstuur'}
           </button>
         </div>
       </div>
@@ -521,24 +590,26 @@ export default function MeedoenPage() {
   // Step 5: Bevestiging
   if (step === 'bevestiging') {
     return (
-      <div className="max-w-lg mx-auto py-12 space-y-6">
-        <div className="bg-card rounded-xl p-8 border border-border text-center">
-          <div className="text-4xl mb-4">🎉</div>
-          <h1 className="text-2xl font-bold mb-2">Ingeschreven!</h1>
-          <p className="text-gray-400 mb-6">
+      <div className="max-w-lg mx-auto py-12 px-6 space-y-8">
+        <div className="glass-card-subtle p-8 md:p-10 text-center">
+          <svg className="w-16 h-16 text-cb-blue mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+          </svg>
+          <h1 className="heading-display text-3xl mb-3">INGESCHREVEN!</h1>
+          <p className="text-gray-400 mb-8">
             Bedankt <span className="text-white font-medium">{firstName} {lastName}</span>! Je voorspellingen zijn opgeslagen.
           </p>
           <div className="flex flex-col gap-3">
             <Link
               href="/"
-              className="px-6 py-3 bg-cb-blue text-white font-medium rounded-lg hover:bg-cb-blue/90 transition-colors"
+              className="btn-primary py-3 text-center"
             >
               Bekijk het klassement
             </Link>
             {playerId && (
               <Link
                 href={`/player/${playerId}`}
-                className="px-6 py-3 bg-cb-dark text-gray-300 font-medium rounded-lg border border-border hover:bg-cb-dark/80 transition-colors"
+                className="btn-secondary py-3 text-center"
               >
                 Bekijk je voorspellingen
               </Link>

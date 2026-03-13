@@ -1,17 +1,22 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-cb-blue: #005BA6;
-  --color-cb-dark: #0D0D0D;
-  --color-cb-gold: #C5A44E;
-  --color-cb-navy: #002B4E;
-  --color-background: #0D0D0D;
+  --color-cb-blue: #005a94;
+  --color-cb-dark: #0a0e14;
+  --color-cb-gold: #C9A84C;
+  --color-cb-silver: #C0C0C0;
+  --color-cb-bronze: #CD7F32;
+  --color-cb-navy: #0d1b2a;
+  --color-cb-card: #111827;
+  --color-cb-card-hover: #1a2332;
+  --color-background: #0a0e14;
   --color-foreground: #f5f5f5;
-  --color-card: #1a1a2e;
-  --color-card-hover: #222240;
-  --color-border: #2a2a4a;
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: #111827;
+  --color-card-hover: #1a2332;
+  --color-border: rgba(201, 168, 76, 0.15);
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-bebas);
 }
 
 body {
@@ -28,4 +33,150 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+/* Glass card */
+.glass-card {
+  background: var(--color-cb-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+}
+
+.glass-card-subtle {
+  background: rgba(8, 11, 18, 0.8);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.75rem;
+}
+
+/* Top 3 glow effects */
+.glow-gold {
+  box-shadow: 0 0 20px rgba(201, 168, 76, 0.3), 0 0 40px rgba(201, 168, 76, 0.1);
+  border-color: rgba(201, 168, 76, 0.5);
+}
+
+.glow-silver {
+  box-shadow: 0 0 20px rgba(192, 192, 192, 0.25), 0 0 40px rgba(192, 192, 192, 0.08);
+  border-color: rgba(192, 192, 192, 0.4);
+}
+
+.glow-bronze {
+  box-shadow: 0 0 20px rgba(205, 127, 50, 0.25), 0 0 40px rgba(205, 127, 50, 0.08);
+  border-color: rgba(205, 127, 50, 0.4);
+}
+
+/* Display heading */
+.heading-display {
+  font-family: var(--font-display), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Section label */
+.section-label {
+  font-family: var(--font-display), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.75rem;
+  color: var(--color-cb-gold);
+}
+
+/* Hero watermark text */
+.watermark-text {
+  font-family: var(--font-display), sans-serif;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.02);
+  font-size: clamp(8rem, 18vw, 20rem);
+  letter-spacing: 0.08em;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Table row hover */
+.table-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background-color 0.15s ease;
+}
+.table-row:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Match card */
+.match-card {
+  background: var(--color-cb-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.match-card:hover {
+  border-color: rgba(201, 168, 76, 0.3);
+  background-color: var(--color-cb-card-hover);
+}
+
+/* Stat card */
+.stat-divider {
+  width: 1px;
+  height: 2.5rem;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Nav active indicator */
+.nav-active {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+}
+
+/* CTA button */
+.btn-primary {
+  background: var(--color-cb-blue);
+  color: white;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1.5rem;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-primary:hover {
+  background: #006aaa;
+  box-shadow: 0 4px 12px rgba(0, 120, 191, 0.3);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #9ca3af;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.625rem 1.5rem;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+}
+
+/* Feature card */
+.feature-card {
+  background: transparent;
+  border: 1px solid rgba(201, 168, 76, 0.15);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  transition: border-color 0.2s ease;
+}
+.feature-card:hover {
+  border-color: rgba(201, 168, 76, 0.3);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

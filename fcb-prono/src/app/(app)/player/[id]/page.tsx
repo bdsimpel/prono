@@ -1,26 +1,101 @@
-import { createClient } from '@/lib/supabase/server'
-import { calculateMatchPoints } from '@/lib/scoring'
-import { checkExtraAnswer } from '@/lib/scoring'
-import { notFound } from 'next/navigation'
-import Link from 'next/link'
+import { createClient } from "@/lib/supabase/server";
+import { calculateMatchPoints } from "@/lib/scoring";
+import { checkExtraAnswer } from "@/lib/scoring";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import { getTeamLogo } from "@/lib/teamLogos";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
+
+function TeamLogo({ name, size = 16 }: { name: string; size?: number }) {
+  const logo = getTeamLogo(name);
+  if (!logo) return null;
+  return (
+    <Image
+      src={logo}
+      alt={name}
+      width={size}
+      height={size}
+      className="inline-block"
+    />
+  );
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function getCategoryBadge(category: string) {
+  switch (category) {
+    case "exact":
+      return (
+        <span className="text-xs px-2.5 py-1 rounded border border-cb-blue/40 text-cb-blue">
+          Exact
+        </span>
+      );
+    case "goal_diff":
+      return (
+        <span className="text-xs px-2.5 py-1 rounded border border-cb-blue/25 text-cb-blue/80">
+          Doelpuntenverschil
+        </span>
+      );
+    case "result":
+      return (
+        <span className="text-xs px-2.5 py-1 rounded border border-cb-gold/30 text-cb-gold">
+          Juist resultaat
+        </span>
+      );
+    case "wrong":
+      return (
+        <span className="text-xs px-2.5 py-1 rounded border border-white/10 text-gray-500">
+          Fout
+        </span>
+      );
+    default:
+      return (
+        <span className="text-xs px-2.5 py-1 rounded border border-white/10 text-gray-600">
+          Afwachting
+        </span>
+      );
+  }
+}
+
+function getCategoryPointColor(category: string) {
+  switch (category) {
+    case "exact":
+      return "text-cb-blue";
+    case "goal_diff":
+      return "text-cb-blue/80";
+    case "result":
+      return "text-cb-gold";
+    case "wrong":
+      return "text-gray-500";
+    default:
+      return "text-gray-600";
+  }
+}
 
 export default async function PlayerDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = await params
-  const supabase = await createClient()
+  const { id } = await params;
+  const supabase = await createClient();
 
   const { data: player } = await supabase
-    .from('players')
-    .select('*')
-    .eq('id', id)
-    .single()
+    .from("players")
+    .select("*")
+    .eq("id", id)
+    .single();
 
-  if (!player) notFound()
+  if (!player) notFound();
 
   const [
     { data: playerScore },
@@ -30,197 +105,345 @@ export default async function PlayerDetailPage({
     { data: extraPredictions },
     { data: extraAnswers },
   ] = await Promise.all([
-    supabase.from('player_scores').select('*').eq('user_id', id).single(),
-    supabase.from('player_scores').select('user_id, total_score').order('total_score', { ascending: false }),
+    supabase.from("player_scores").select("*").eq("user_id", id).single(),
     supabase
-      .from('predictions')
-      .select(`*, matches!inner(*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*))`)
-      .eq('user_id', id)
-      .order('match_id', { ascending: true }),
-    supabase.from('results').select('*'),
-    supabase.from('extra_predictions').select('*, extra_questions!inner(*)').eq('user_id', id).order('question_id', { ascending: true }),
-    supabase.from('extra_question_answers').select('*'),
-  ])
+      .from("player_scores")
+      .select("user_id, total_score")
+      .order("total_score", { ascending: false }),
+    supabase
+      .from("predictions")
+      .select(
+        `*, matches!inner(*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*))`,
+      )
+      .eq("user_id", id)
+      .order("match_id", { ascending: true }),
+    supabase.from("results").select("*"),
+    supabase
+      .from("extra_predictions")
+      .select("*, extra_questions!inner(*)")
+      .eq("user_id", id)
+      .order("question_id", { ascending: true }),
+    supabase.from("extra_question_answers").select("*"),
+  ]);
 
-  // Build results map: match_id -> result
-  const resultMap: Record<number, { home_score: number; away_score: number }> = {}
+  const resultMap: Record<
+    number,
+    { home_score: number; away_score: number }
+  > = {};
   for (const r of allResults || []) {
-    resultMap[r.match_id] = { home_score: r.home_score, away_score: r.away_score }
+    resultMap[r.match_id] = {
+      home_score: r.home_score,
+      away_score: r.away_score,
+    };
   }
 
-  let rank = 0
+  let rank = 0;
   if (allScores) {
-    let currentRank = 0
-    let prevScore = -1
+    let currentRank = 0;
+    let prevScore = -1;
     for (let i = 0; i < allScores.length; i++) {
-      if (allScores[i].total_score !== prevScore) currentRank = i + 1
-      if (allScores[i].user_id === id) { rank = currentRank; break }
-      prevScore = allScores[i].total_score
+      if (allScores[i].total_score !== prevScore) currentRank = i + 1;
+      if (allScores[i].user_id === id) {
+        rank = currentRank;
+        break;
+      }
+      prevScore = allScores[i].total_score;
     }
   }
 
-  // Build extra answers map: question_id -> correct_answer[]
-  const correctAnswersMap: Record<number, string[]> = {}
+  const correctAnswersMap: Record<number, string[]> = {};
   for (const a of extraAnswers || []) {
-    if (!correctAnswersMap[a.question_id]) correctAnswersMap[a.question_id] = []
-    correctAnswersMap[a.question_id].push(a.correct_answer)
+    if (!correctAnswersMap[a.question_id]) correctAnswersMap[a.question_id] = [];
+    correctAnswersMap[a.question_id].push(a.correct_answer);
   }
 
-  const categoryColors = {
-    exact: 'bg-green-400/10',
-    goal_diff: 'bg-green-400/5',
-    result: 'bg-yellow-400/5',
-    wrong: 'bg-red-400/5',
-    pending: '',
-  }
+  const gamesPlayed = (predictions || []).filter(
+    (p) => resultMap[p.match_id],
+  ).length;
+
+  const memberSince = player.created_at
+    ? new Date(player.created_at).toLocaleDateString("nl-BE", {
+        month: "short",
+        year: "numeric",
+      })
+    : null;
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">{player.display_name}</h1>
-        <div className="flex items-center gap-4 mt-1">
-          {rank > 0 && (
-            <span className="text-sm text-gray-400">Rank: #{rank}</span>
-          )}
-          {playerScore && (
-            <span className="text-sm text-cb-gold font-bold">
-              {playerScore.total_score} punten
+    <div className="max-w-7xl mx-auto px-6 py-8">
+      {/* Back + close */}
+      <div className="flex items-center justify-between mb-6">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-white transition-colors"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          Klassement
+        </Link>
+        <Link
+          href="/"
+          className="text-gray-500 hover:text-white transition-colors"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </Link>
+      </div>
+
+      {/* Player header */}
+      <div className="glass-card-subtle p-6 mb-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0">
+            <span className="heading-display text-lg text-cb-blue">
+              {getInitials(player.display_name)}
             </span>
-          )}
+          </div>
+          <div>
+            <h1 className="heading-display text-2xl md:text-3xl text-white">
+              {player.display_name}
+            </h1>
+            <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
+              <span>#{rank}</span>
+              {memberSince && <span>Lid sinds {memberSince}</span>}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Payment banner */}
-      {player.payment_status !== 'paid' && (
+      {player.payment_status !== "paid" && (
         <Link
           href={`/betalen/${player.id}`}
-          className="block mb-6 px-4 py-3 bg-yellow-900/20 border border-yellow-800 rounded-lg text-sm text-yellow-300 hover:bg-yellow-900/30 transition-colors"
+          className="block mb-6 px-5 py-4 glass-card-subtle border-yellow-900/50 text-sm text-yellow-300 hover:border-yellow-800 transition-colors"
         >
-          {player.payment_status === 'pending'
-            ? 'Betaling in afwachting — klik hier om opnieuw te betalen'
-            : 'Je hebt nog niet betaald — klik hier om te betalen'}
+          <div className="flex items-center gap-3">
+            <svg
+              className="w-5 h-5 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
+            </svg>
+            {player.payment_status === "pending"
+              ? "Betaling in afwachting — klik hier om opnieuw te betalen"
+              : "Je hebt nog niet betaald — klik hier om te betalen"}
+          </div>
         </Link>
       )}
 
-      {/* Score breakdown */}
+      {/* Stats row */}
       {playerScore && (
-        <div className="grid grid-cols-3 gap-3 mb-8">
-          <div className="bg-card rounded-lg border border-border p-3 text-center">
-            <div className="text-lg font-bold text-white">{playerScore.match_score}</div>
-            <div className="text-xs text-gray-400">Match</div>
+        <div className="flex items-center justify-start gap-6 md:gap-10 mb-10 px-2">
+          <div className="text-center">
+            <div className="heading-display text-3xl text-cb-blue font-bold">
+              {playerScore.total_score}
+            </div>
+            <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+              Score
+            </div>
           </div>
-          <div className="bg-card rounded-lg border border-border p-3 text-center">
-            <div className="text-lg font-bold text-white">{playerScore.extra_score}</div>
-            <div className="text-xs text-gray-400">Extra</div>
+          <div className="stat-divider" />
+          <div className="text-center">
+            <div className="heading-display text-3xl text-white font-bold">
+              {gamesPlayed}
+            </div>
+            <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+              Gespeeld
+            </div>
           </div>
-          <div className="bg-card rounded-lg border border-border p-3 text-center">
-            <div className="text-lg font-bold text-white">{playerScore.exact_matches}</div>
-            <div className="text-xs text-gray-400">Exact</div>
+          <div className="stat-divider" />
+          <div className="text-center">
+            <div className="heading-display text-3xl text-white font-bold">
+              {playerScore.exact_matches}
+            </div>
+            <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+              Exact
+            </div>
+          </div>
+          <div className="stat-divider" />
+          <div className="text-center">
+            <div className="heading-display text-3xl text-white font-bold">
+              {playerScore.correct_results}
+            </div>
+            <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+              Correct
+            </div>
           </div>
         </div>
       )}
 
       {/* Match predictions */}
-      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
-        Wedstrijden
-      </h2>
-      <div className="bg-card rounded-xl border border-border overflow-hidden mb-8">
-        <div className="divide-y divide-border/50">
-          {(predictions || []).map((pred) => {
-            const match = pred.matches as {
-              speeldag: number | null
-              is_cup_final: boolean
-              home_team: { name: string; short_name: string }
-              away_team: { name: string; short_name: string }
-            }
-            const result = resultMap[pred.match_id]
-            let points = 0
-            let category: 'exact' | 'goal_diff' | 'result' | 'wrong' | 'pending' = 'pending'
+      <div className="mb-4">
+        <h2 className="heading-display text-xl text-gray-400">
+          VOORSPELLINGEN
+        </h2>
+      </div>
+      <div className="space-y-2 mb-10">
+        {(predictions || []).map((pred) => {
+          const match = pred.matches as {
+            speeldag: number | null;
+            is_cup_final: boolean;
+            home_team: { name: string; short_name: string };
+            away_team: { name: string; short_name: string };
+          };
+          const result = resultMap[pred.match_id];
+          let points = 0;
+          let category: "exact" | "goal_diff" | "result" | "wrong" | "pending" =
+            "pending";
 
-            if (result) {
-              const calc = calculateMatchPoints(
-                pred.home_score,
-                pred.away_score,
-                result.home_score,
-                result.away_score
-              )
-              points = calc.points
-              category = calc.category
-            }
+          if (result) {
+            const calc = calculateMatchPoints(
+              pred.home_score,
+              pred.away_score,
+              result.home_score,
+              result.away_score,
+            );
+            points = calc.points;
+            category = calc.category;
+          }
 
-            return (
-              <div
-                key={pred.id}
-                className={`flex items-center px-4 py-2.5 text-sm ${categoryColors[category]}`}
-              >
-                <span className="w-24 truncate text-gray-400 text-xs">
-                  {match.is_cup_final
-                    ? 'Beker'
-                    : `SD${match.speeldag}`}
-                  {' '}
-                  {match.home_team.short_name}-{match.away_team.short_name}
-                </span>
-                <span className="w-16 text-center text-gray-300">
-                  {pred.home_score} - {pred.away_score}
-                </span>
-                <span className="w-16 text-center text-gray-500">
-                  {result ? `${result.home_score} - ${result.away_score}` : '—'}
-                </span>
-                <span className={`w-10 text-right font-bold ${
-                  category === 'exact' || category === 'goal_diff'
-                    ? 'text-green-400'
-                    : category === 'result'
-                    ? 'text-yellow-400'
-                    : category === 'wrong'
-                    ? 'text-red-400'
-                    : 'text-gray-500'
-                }`}>
-                  {result ? points : '—'}
-                </span>
+          return (
+            <div key={pred.id} className="glass-card-subtle p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-gray-200 font-medium flex items-center gap-1.5">
+                    <TeamLogo name={match.home_team.name} />
+                    {match.home_team.name} vs {match.away_team.name}
+                    <TeamLogo name={match.away_team.name} />
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-500">
+                    <span>
+                      Prono:{" "}
+                      <span className="text-gray-300 font-bold">
+                        {pred.home_score}-{pred.away_score}
+                      </span>
+                    </span>
+                    {result && (
+                      <>
+                        <span className="text-gray-600">&rarr;</span>
+                        <span>
+                          Uitslag:{" "}
+                          <span className="text-gray-300 font-bold">
+                            {result.home_score}-{result.away_score}
+                          </span>
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {getCategoryBadge(category)}
+                  <span
+                    className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}
+                  >
+                    {result ? `+${points}` : "—"}
+                  </span>
+                </div>
               </div>
-            )
-          })}
-          {(!predictions || predictions.length === 0) && (
-            <div className="px-4 py-8 text-center text-gray-500 text-sm">
-              Geen voorspellingen
             </div>
-          )}
-        </div>
+          );
+        })}
+        {(!predictions || predictions.length === 0) && (
+          <div className="glass-card-subtle p-12 text-center text-gray-600 text-sm">
+            Geen voorspellingen
+          </div>
+        )}
       </div>
 
       {/* Extra questions */}
-      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
-        Extra vragen
-      </h2>
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <div className="divide-y divide-border/50">
-          {(extraPredictions || []).map((ep) => {
-            const question = ep.extra_questions as { question_label: string; points: number }
-            const correctAnswers = correctAnswersMap[ep.question_id] || []
-            const isCorrect = correctAnswers.length > 0 && checkExtraAnswer(ep.answer, correctAnswers)
-            const hasAnswer = correctAnswers.length > 0
+      <div className="mb-4">
+        <h2 className="heading-display text-xl text-gray-400">EXTRA VRAGEN</h2>
+      </div>
+      <div className="space-y-2">
+        {(extraPredictions || []).map((ep) => {
+          const question = ep.extra_questions as {
+            question_label: string;
+            points: number;
+          };
+          const correctAnswersList = correctAnswersMap[ep.question_id] || [];
+          const isCorrect =
+            correctAnswersList.length > 0 &&
+            checkExtraAnswer(ep.answer, correctAnswersList);
+          const hasAnswer = correctAnswersList.length > 0;
 
-            return (
-              <div key={ep.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                <span className="text-gray-400 flex-1 truncate">{question.question_label}</span>
-                <span className="text-gray-300 mx-3">{ep.answer}</span>
-                {hasAnswer ? (
-                  <span className={`font-bold w-10 text-right ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
-                    {isCorrect ? question.points : 0}
+          return (
+            <div key={ep.id} className="glass-card-subtle p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-gray-400">
+                    {question.question_label}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-500">
+                    <span>
+                      Antwoord:{" "}
+                      <span className="text-gray-300 font-bold">
+                        {ep.answer}
+                      </span>
+                    </span>
+                    {hasAnswer && (
+                      <>
+                        <span className="text-gray-600">&rarr;</span>
+                        <span>
+                          Uitslag:{" "}
+                          <span className="text-gray-300 font-bold">
+                            {correctAnswersList.join(", ")}
+                          </span>
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {hasAnswer && (
+                    <span
+                      className={`text-xs px-2.5 py-1 rounded border ${isCorrect ? "border-cb-blue/40 text-cb-blue" : "border-white/10 text-gray-500"}`}
+                    >
+                      {isCorrect ? "Correct" : "Fout"}
+                    </span>
+                  )}
+                  <span
+                    className={`heading-display text-lg w-8 text-right ${hasAnswer ? (isCorrect ? "text-cb-blue" : "text-gray-500") : "text-gray-600"}`}
+                  >
+                    {hasAnswer ? (isCorrect ? `+${question.points}` : "0") : "—"}
                   </span>
-                ) : (
-                  <span className="text-gray-500 w-10 text-right">—</span>
-                )}
+                </div>
               </div>
-            )
-          })}
-          {(!extraPredictions || extraPredictions.length === 0) && (
-            <div className="px-4 py-8 text-center text-gray-500 text-sm">
-              Geen extra voorspellingen
             </div>
-          )}
-        </div>
+          );
+        })}
+        {(!extraPredictions || extraPredictions.length === 0) && (
+          <div className="glass-card-subtle p-12 text-center text-gray-600 text-sm">
+            Geen extra voorspellingen
+          </div>
+        )}
       </div>
     </div>
-  )
+  );
 }

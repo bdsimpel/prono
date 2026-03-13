@@ -11,6 +11,8 @@ Must haves:
 - [x] Add functionality to see progress over time of players
 - [ ] Improve UX
 - [ ] Add favorite team
+- [ ] Community feeling with activity log
+- [ ] Add history of users as well: number of years presense, ere lijst
 
 Should haves:
 

@@ -600,7 +600,7 @@ class PronostiekVisualizer:
         # Update layout
         print("Updating layout...")
         fig.update_layout(
-            title="Pronostiek 2025 - Player Performance",
+            title="Pronostiek 2026 - Player Performance",
             showlegend=True,
             legend=dict(
                 title="Players",
