@@ -65,6 +65,80 @@ function getCategoryPointColor(category: string) {
   }
 }
 
+function PredictionCard({ pred, match, result, points, category }: {
+  pred: { id: number; home_score: number; away_score: number };
+  match: { home_team: { name: string; short_name: string }; away_team: { name: string; short_name: string } };
+  result: { home_score: number; away_score: number } | undefined;
+  points: number;
+  category: string;
+}) {
+  return (
+    <div className="glass-card-subtle p-3 md:p-4">
+      {/* Mobile layout */}
+      <div className="md:hidden">
+        <div className="flex items-center">
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <TeamLogo name={match.home_team.name} />
+            <span className="text-sm text-gray-200 truncate">{match.home_team.name}</span>
+          </div>
+          {result ? (
+            <span className="heading-display text-xl text-white shrink-0 px-2">
+              {result.home_score}<span className="text-gray-600 mx-0.5">-</span>{result.away_score}
+            </span>
+          ) : (
+            <span className="text-sm text-gray-600 shrink-0 px-2">vs</span>
+          )}
+          <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+            <span className="text-sm text-gray-200 truncate">{match.away_team.name}</span>
+            <TeamLogo name={match.away_team.name} />
+          </div>
+        </div>
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/[0.06]">
+          <span className="text-xs text-gray-500">
+            Prono <span className="text-gray-300 font-bold ml-1">{pred.home_score} - {pred.away_score}</span>
+          </span>
+          <div className="flex items-center gap-1.5">
+            {getCategoryBadge(category)}
+            <span className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}>
+              {result ? `+${points}` : "—"}
+            </span>
+          </div>
+        </div>
+      </div>
+      {/* Desktop layout */}
+      <div className="hidden md:flex items-center justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="text-sm text-gray-200 font-medium flex items-center gap-1 truncate">
+            <TeamLogo name={match.home_team.name} />
+            <span className="truncate">{match.home_team.name}</span>
+            <span className="text-gray-600 shrink-0">-</span>
+            <span className="truncate">{match.away_team.name}</span>
+            <TeamLogo name={match.away_team.name} />
+          </div>
+          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+            <span>
+              <span className="text-gray-500">Prono: </span>
+              <span className="text-gray-300 font-bold">{pred.home_score}-{pred.away_score}</span>
+            </span>
+            {result && (
+              <span>
+                <span className="text-gray-500">Uitslag: </span>
+                <span className="text-gray-300 font-bold">{result.home_score}-{result.away_score}</span>
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {getCategoryBadge(category)}
+          <span className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}>
+            {result ? `+${points}` : "—"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default async function PlayerDetailPage({
   params,
 }: {
@@ -143,6 +217,45 @@ export default async function PlayerDetailPage({
   const gamesPlayed = (predictions || []).filter(
     (p) => resultMap[p.match_id],
   ).length;
+
+  // Group predictions by round (same logic as matches page)
+  type PredWithMatch = NonNullable<typeof predictions>[number];
+  type PredRound = { label: string; key: string; predictions: PredWithMatch[]; firstDatetime: number };
+  const roundsMap = new Map<string, PredRound>();
+  for (const pred of predictions || []) {
+    const match = pred.matches as { speeldag: number | null; is_cup_final: boolean; match_datetime: string | null; home_team: { name: string; short_name: string }; away_team: { name: string; short_name: string } };
+    const key = match.is_cup_final ? 'beker' : `sd-${match.speeldag}`;
+    const label = match.is_cup_final ? 'Bekerfinale' : `Speeldag ${match.speeldag}`;
+    if (!roundsMap.has(key)) {
+      roundsMap.set(key, { label, key, predictions: [], firstDatetime: match.match_datetime ? new Date(match.match_datetime).getTime() : Infinity });
+    }
+    roundsMap.get(key)!.predictions.push(pred);
+    if (match.match_datetime) {
+      const t = new Date(match.match_datetime).getTime();
+      if (t < roundsMap.get(key)!.firstDatetime) roundsMap.get(key)!.firstDatetime = t;
+    }
+  }
+  const rounds = Array.from(roundsMap.values()).sort((a, b) => a.firstDatetime - b.firstDatetime);
+
+  // Find current round (activates 2 days before first match)
+  const now = Date.now();
+  const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
+  let currentRound: PredRound | null = rounds[0] ?? null;
+  for (let i = 0; i < rounds.length; i++) {
+    const activatesAt = rounds[i].firstDatetime - TWO_DAYS;
+    if (now >= activatesAt) {
+      currentRound = rounds[i];
+    }
+  }
+
+  const currentRoundKeys = new Set(currentRound ? [currentRound.key] : []);
+  const currentPredictions = currentRound?.predictions ?? [];
+  const upcomingPredictions = rounds
+    .filter(r => !currentRoundKeys.has(r.key) && r.predictions.some(p => !resultMap[p.match_id]))
+    .flatMap(r => r.predictions);
+  const playedPredictions = rounds
+    .filter(r => !currentRoundKeys.has(r.key) && r.predictions.every(p => resultMap[p.match_id]))
+    .flatMap(r => r.predictions);
 
   const memberSince = player.created_at
     ? new Date(player.created_at).toLocaleDateString("nl-BE", {
@@ -313,122 +426,66 @@ export default async function PlayerDetailPage({
           VOORSPELLINGEN
         </h2>
       </div>
-      <div className="space-y-2 mb-10">
-        {(predictions || []).map((pred) => {
-          const match = pred.matches as {
-            speeldag: number | null;
-            is_cup_final: boolean;
-            home_team: { name: string; short_name: string };
-            away_team: { name: string; short_name: string };
-          };
-          const result = resultMap[pred.match_id];
-          let points = 0;
-          let category: "exact" | "goal_diff" | "result" | "wrong" | "pending" =
-            "pending";
 
-          if (result) {
-            const calc = calculateMatchPoints(
-              pred.home_score,
-              pred.away_score,
-              result.home_score,
-              result.away_score,
-            );
-            points = calc.points;
-            category = calc.category;
-          }
-
-          return (
-            <div key={pred.id} className="glass-card-subtle p-3 md:p-4">
-              {/* Mobile layout */}
-              <div className="md:hidden">
-                {/* Row 1: [logo] Home   score - score   Away [logo] */}
-                <div className="flex items-center">
-                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                    <TeamLogo name={match.home_team.name} />
-                    <span className="text-sm text-gray-200 truncate">
-                      {match.home_team.name}
-                    </span>
-                  </div>
-                  {result ? (
-                    <span className="heading-display text-xl text-white shrink-0 px-2">
-                      {result.home_score}
-                      <span className="text-gray-600 mx-0.5">-</span>
-                      {result.away_score}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-gray-600 shrink-0 px-2">vs</span>
-                  )}
-                  <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-                    <span className="text-sm text-gray-200 truncate">
-                      {match.away_team.name}
-                    </span>
-                    <TeamLogo name={match.away_team.name} />
-                  </div>
-                </div>
-                {/* Row 2: Prono + badge */}
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/[0.06]">
-                  <span className="text-xs text-gray-500">
-                    Prono{" "}
-                    <span className="text-gray-300 font-bold ml-1">
-                      {pred.home_score} - {pred.away_score}
-                    </span>
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    {getCategoryBadge(category)}
-                    <span
-                      className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}
-                    >
-                      {result ? `+${points}` : "—"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Desktop layout */}
-              <div className="hidden md:flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-gray-200 font-medium flex items-center gap-1 truncate">
-                    <TeamLogo name={match.home_team.name} />
-                    <span className="truncate">{match.home_team.name}</span>
-                    <span className="text-gray-600 shrink-0">-</span>
-                    <span className="truncate">{match.away_team.name}</span>
-                    <TeamLogo name={match.away_team.name} />
-                  </div>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                    <span>
-                      <span className="text-gray-500">Prono: </span>
-                      <span className="text-gray-300 font-bold">
-                        {pred.home_score}-{pred.away_score}
-                      </span>
-                    </span>
-                    {result && (
-                      <span>
-                        <span className="text-gray-500">Uitslag: </span>
-                        <span className="text-gray-300 font-bold">
-                          {result.home_score}-{result.away_score}
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {getCategoryBadge(category)}
-                  <span
-                    className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}
-                  >
-                    {result ? `+${points}` : "—"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        {(!predictions || predictions.length === 0) && (
-          <div className="glass-card-subtle p-12 text-center text-gray-600 text-sm">
-            Geen voorspellingen
+      {/* Current round */}
+      {currentRound && currentPredictions.length > 0 && (
+        <div className="mb-8">
+          <h3 className="heading-display text-lg text-white mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-5 bg-cb-blue rounded-full" />
+            {currentRound.label}
+          </h3>
+          <div className="space-y-2">
+            {currentPredictions.map((pred) => {
+              const match = pred.matches as { speeldag: number | null; is_cup_final: boolean; match_datetime: string | null; home_team: { name: string; short_name: string }; away_team: { name: string; short_name: string } };
+              const result = resultMap[pred.match_id];
+              let points = 0;
+              let category: "exact" | "goal_diff" | "result" | "wrong" | "pending" = "pending";
+              if (result) { const calc = calculateMatchPoints(pred.home_score, pred.away_score, result.home_score, result.away_score); points = calc.points; category = calc.category; }
+              return <PredictionCard key={pred.id} pred={pred} match={match} result={result} points={points} category={category} />;
+            })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Upcoming predictions */}
+      {upcomingPredictions.length > 0 && (
+        <div className="mb-8">
+          <h3 className="heading-display text-lg text-gray-400 mb-3">
+            KOMENDE WEDSTRIJDEN
+          </h3>
+          <div className="space-y-2">
+            {upcomingPredictions.map((pred) => {
+              const match = pred.matches as { speeldag: number | null; is_cup_final: boolean; match_datetime: string | null; home_team: { name: string; short_name: string }; away_team: { name: string; short_name: string } };
+              return <PredictionCard key={pred.id} pred={pred} match={match} result={undefined} points={0} category="pending" />;
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Played predictions */}
+      {playedPredictions.length > 0 && (
+        <div className="mb-10">
+          <h3 className="heading-display text-lg text-gray-400 mb-3">
+            GESPEELD
+          </h3>
+          <div className="space-y-2">
+            {playedPredictions.map((pred) => {
+              const match = pred.matches as { speeldag: number | null; is_cup_final: boolean; match_datetime: string | null; home_team: { name: string; short_name: string }; away_team: { name: string; short_name: string } };
+              const result = resultMap[pred.match_id];
+              let points = 0;
+              let category: "exact" | "goal_diff" | "result" | "wrong" | "pending" = "pending";
+              if (result) { const calc = calculateMatchPoints(pred.home_score, pred.away_score, result.home_score, result.away_score); points = calc.points; category = calc.category; }
+              return <PredictionCard key={pred.id} pred={pred} match={match} result={result} points={points} category={category} />;
+            })}
+          </div>
+        </div>
+      )}
+
+      {(!predictions || predictions.length === 0) && (
+        <div className="glass-card-subtle p-12 text-center text-gray-600 text-sm mb-10">
+          Geen voorspellingen
+        </div>
+      )}
 
       {/* Extra questions */}
       <div className="mb-4">
