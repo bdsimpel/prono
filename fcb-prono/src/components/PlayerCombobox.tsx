@@ -119,11 +119,12 @@ export default function PlayerCombobox({
 
   return (
     <div ref={containerRef} className="relative">
-      {value ? (
+      {value && !isOpen ? (
         <button
           type="button"
           onClick={() => {
-            setIsOpen(!isOpen)
+            setIsOpen(true)
+            setTimeout(() => inputRef.current?.focus(), 0)
           }}
           className="flex items-center gap-2 w-full px-4 py-2.5 bg-cb-dark border border-border-subtle rounded-lg text-white text-sm text-left cursor-pointer hover:border-cb-blue/40 transition-colors"
         >
@@ -143,7 +144,7 @@ export default function PlayerCombobox({
           }}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={value ? `${value} — typ om te wijzigen...` : placeholder}
           className="w-full px-4 py-2.5 bg-cb-dark border border-border-subtle rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
         />
       )}

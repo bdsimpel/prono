@@ -130,46 +130,51 @@ export default async function MatchesPage() {
                 <Link
                   key={match.id}
                   href={`/matches/${match.id}`}
-                  className="glass-card-subtle p-3 md:p-4 flex items-center gap-3 md:gap-4 hover:bg-white/[0.03] transition-colors"
+                  className="glass-card-subtle p-3 md:p-4 hover:bg-white/[0.03] transition-colors block"
                 >
-                  <div className="text-center min-w-[50px] md:min-w-[60px]">
-                    <div className="text-[10px] md:text-xs text-gray-400 capitalize">
-                      {day} {date}
+                  {/* Mobile stacked layout */}
+                  <div className="md:hidden flex items-center gap-3">
+                    <div className="text-[10px] text-gray-500 w-[48px] text-right shrink-0 leading-tight">
+                      <div className="capitalize">{day} {date}</div>
+                      <div>{time}</div>
                     </div>
-                    <div className="text-[10px] md:text-xs text-gray-500 mt-0.5">{time}</div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <TeamLogo name={match.home_team.name} />
+                        <span className="text-sm text-gray-200 truncate">{match.home_team.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <TeamLogo name={match.away_team.name} />
+                        <span className="text-sm text-gray-200 truncate">{match.away_team.name}</span>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-gray-600 shrink-0 text-right">
+                      {match.is_cup_final ? "Beker" : `SD ${match.speeldag}`} &rsaquo;
+                    </div>
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <TeamLogo name={match.home_team.name} />
-                      <span className="truncate md:hidden">{match.home_team.short_name || match.home_team.name}</span>
-                      <span className="truncate hidden md:inline">{match.home_team.name}</span>
-                      <span className="text-gray-600 text-xs shrink-0">-</span>
-                      <span className="truncate md:hidden">{match.away_team.short_name || match.away_team.name}</span>
-                      <span className="truncate hidden md:inline">{match.away_team.name}</span>
-                      <TeamLogo name={match.away_team.name} />
+                  {/* Desktop horizontal layout */}
+                  <div className="hidden md:flex items-center gap-4">
+                    <div className="text-center min-w-[60px]">
+                      <div className="text-xs text-gray-400 capitalize">{day} {date}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{time}</div>
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <TeamLogo name={match.home_team.name} />
+                        <span className="truncate">{match.home_team.name}</span>
+                        <span className="text-gray-600 text-xs shrink-0">-</span>
+                        <span className="truncate">{match.away_team.name}</span>
+                        <TeamLogo name={match.away_team.name} />
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-600 shrink-0">
+                      {match.is_cup_final ? "Beker" : `SD ${match.speeldag}`}
+                    </span>
+                    <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
                   </div>
-
-                  <span className="text-[10px] md:text-xs text-gray-600 shrink-0">
-                    {match.is_cup_final
-                      ? "Beker"
-                      : `SD ${match.speeldag}`}
-                  </span>
-
-                  <svg
-                    className="w-4 h-4 text-gray-600 shrink-0 hidden md:block"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
                 </Link>
               );
             })}
@@ -194,47 +199,54 @@ export default async function MatchesPage() {
                 <Link
                   key={match.id}
                   href={`/matches/${match.id}`}
-                  className="glass-card-subtle p-3 md:p-4 flex items-center gap-3 md:gap-4 hover:bg-white/[0.03] transition-colors"
+                  scroll={true}
+                  className="glass-card-subtle p-3 md:p-4 hover:bg-white/[0.03] transition-colors block"
                 >
-                  <div className="text-center min-w-[50px] md:min-w-[60px]">
-                    <div className="text-[10px] md:text-xs text-gray-500 capitalize">
+                  {/* Mobile stacked layout */}
+                  <div className="md:hidden flex items-center gap-3">
+                    <div className="text-[10px] text-gray-500 w-[48px] text-right shrink-0 capitalize">
                       {day} {date}
                     </div>
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <TeamLogo name={match.home_team.name} />
-                      <span className="truncate md:hidden">{match.home_team.short_name || match.home_team.name}</span>
-                      <span className="truncate hidden md:inline">{match.home_team.name}</span>
-                      <span className="bg-white/[0.06] px-2 py-0.5 rounded text-white font-bold text-xs shrink-0">
-                        {result.home_score}-{result.away_score}
-                      </span>
-                      <span className="truncate md:hidden">{match.away_team.short_name || match.away_team.name}</span>
-                      <span className="truncate hidden md:inline">{match.away_team.name}</span>
-                      <TeamLogo name={match.away_team.name} />
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <TeamLogo name={match.home_team.name} />
+                        <span className="text-sm text-gray-200 truncate flex-1">{match.home_team.name}</span>
+                        <span className="text-white font-bold text-sm tabular-nums shrink-0">{result.home_score}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <TeamLogo name={match.away_team.name} />
+                        <span className="text-sm text-gray-200 truncate flex-1">{match.away_team.name}</span>
+                        <span className="text-white font-bold text-sm tabular-nums shrink-0">{result.away_score}</span>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-gray-600 shrink-0 text-right">
+                      {match.is_cup_final ? "Beker" : `SD ${match.speeldag}`} &rsaquo;
                     </div>
                   </div>
 
-                  <span className="text-[10px] md:text-xs text-gray-600 shrink-0">
-                    {match.is_cup_final
-                      ? "Beker"
-                      : `SD ${match.speeldag}`}
-                  </span>
-
-                  <svg
-                    className="w-4 h-4 text-gray-600 shrink-0 hidden md:block"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
+                  {/* Desktop horizontal layout */}
+                  <div className="hidden md:flex items-center gap-4">
+                    <div className="text-center min-w-[60px]">
+                      <div className="text-xs text-gray-500 capitalize">{day} {date}</div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <TeamLogo name={match.home_team.name} />
+                        <span className="truncate">{match.home_team.name}</span>
+                        <span className="bg-white/[0.06] px-2 py-0.5 rounded text-white font-bold text-xs shrink-0">
+                          {result.home_score}-{result.away_score}
+                        </span>
+                        <span className="truncate">{match.away_team.name}</span>
+                        <TeamLogo name={match.away_team.name} />
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-600 shrink-0">
+                      {match.is_cup_final ? "Beker" : `SD ${match.speeldag}`}
+                    </span>
+                    <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
                 </Link>
               );
             })}

@@ -193,15 +193,17 @@ export default function MeedoenPage() {
     setPredictions(prev => ({ ...prev, [matchId]: updated }))
 
     if (digit !== '') {
+      const isDesktop = window.matchMedia('(min-width: 768px)').matches
+      const prefix = isDesktop ? 'desktop-' : ''
       if (side === 'home') {
-        const nextKey = `${matchId}-away`
+        const nextKey = `${prefix}${matchId}-away`
         inputRefs.current[nextKey]?.focus()
         inputRefs.current[nextKey]?.select()
       } else {
         const matchIndex = matches.findIndex(m => m.id === matchId)
         if (matchIndex < matches.length - 1) {
           const nextMatch = matches[matchIndex + 1]
-          const nextKey = `${nextMatch.id}-home`
+          const nextKey = `${prefix}${nextMatch.id}-home`
           setTimeout(() => {
             inputRefs.current[nextKey]?.focus()
             inputRefs.current[nextKey]?.select()
@@ -475,40 +477,84 @@ export default function MeedoenPage() {
                   return (
                     <div
                       key={match.id}
-                      className={`glass-card-subtle p-3 md:p-4 flex items-center gap-2 md:gap-3 ${isFilled ? 'border-cb-blue/20' : ''}`}
+                      className={`glass-card-subtle p-3 md:p-4 ${isFilled ? 'border-cb-blue/20' : ''}`}
                     >
-                      <span className="flex-1 text-right text-xs md:text-sm font-medium truncate flex items-center justify-end gap-1.5 text-gray-300">
-                        {match.home_team.name}
-                        <TeamLogo name={match.home_team.name} />
-                      </span>
-                      <input
-                        ref={el => { inputRefs.current[`${match.id}-home`] = el }}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={pred.home}
-                        onChange={(e) => handleScoreInput(match.id, 'home', e.target.value)}
-                        onFocus={(e) => e.target.select()}
-                        className="w-10 h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue transition-colors"
-                      />
-                      <span className="text-gray-600 text-xs">-</span>
-                      <input
-                        ref={el => { inputRefs.current[`${match.id}-away`] = el }}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={pred.away}
-                        onChange={(e) => handleScoreInput(match.id, 'away', e.target.value)}
-                        onFocus={(e) => e.target.select()}
-                        className="w-10 h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue transition-colors"
-                      />
-                      <span className="flex-1 text-left text-xs md:text-sm font-medium truncate flex items-center gap-1.5 text-gray-300">
-                        <TeamLogo name={match.away_team.name} />
-                        {match.away_team.name}
-                      </span>
-                      <svg className={`w-4 h-4 shrink-0 transition-colors ${isFilled ? 'text-cb-blue' : 'text-transparent'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
+                      {/* Mobile: logo above team name */}
+                      <div className="flex items-center gap-2 md:hidden">
+                        <div className="flex flex-col items-center w-14 shrink-0">
+                          <TeamLogo name={match.home_team.name} />
+                          <span className="text-[10px] font-medium text-gray-300 text-center leading-tight mt-0.5">
+                            {match.home_team.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 flex-1 justify-center">
+                          <input
+                            ref={el => { inputRefs.current[`${match.id}-home`] = el }}
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={pred.home}
+                            onChange={(e) => handleScoreInput(match.id, 'home', e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            className="w-10 h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue transition-colors"
+                          />
+                          <span className="text-gray-600 text-xs">-</span>
+                          <input
+                            ref={el => { inputRefs.current[`${match.id}-away`] = el }}
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={pred.away}
+                            onChange={(e) => handleScoreInput(match.id, 'away', e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            className="w-10 h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue transition-colors"
+                          />
+                        </div>
+                        <div className="flex flex-col items-center w-14 shrink-0">
+                          <TeamLogo name={match.away_team.name} />
+                          <span className="text-[10px] font-medium text-gray-300 text-center leading-tight mt-0.5">
+                            {match.away_team.name}
+                          </span>
+                        </div>
+                        <svg className={`w-4 h-4 shrink-0 transition-colors ${isFilled ? 'text-cb-blue' : 'text-transparent'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      {/* Desktop: inline like before */}
+                      <div className="hidden md:flex items-center gap-3">
+                        <span className="flex-1 text-right text-sm font-medium truncate flex items-center justify-end gap-1.5 text-gray-300">
+                          {match.home_team.name}
+                          <TeamLogo name={match.home_team.name} />
+                        </span>
+                        <input
+                          ref={el => { inputRefs.current[`desktop-${match.id}-home`] = el }}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={pred.home}
+                          onChange={(e) => handleScoreInput(match.id, 'home', e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          className="w-10 h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue transition-colors"
+                        />
+                        <span className="text-gray-600 text-xs">-</span>
+                        <input
+                          ref={el => { inputRefs.current[`desktop-${match.id}-away`] = el }}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={pred.away}
+                          onChange={(e) => handleScoreInput(match.id, 'away', e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          className="w-10 h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue transition-colors"
+                        />
+                        <span className="flex-1 text-left text-sm font-medium truncate flex items-center gap-1.5 text-gray-300">
+                          <TeamLogo name={match.away_team.name} />
+                          {match.away_team.name}
+                        </span>
+                        <svg className={`w-4 h-4 shrink-0 transition-colors ${isFilled ? 'text-cb-blue' : 'text-transparent'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
                     </div>
                   )
                 })}

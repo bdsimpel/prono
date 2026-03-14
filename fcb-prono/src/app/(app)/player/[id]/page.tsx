@@ -35,19 +35,19 @@ function getCategoryBadge(category: string) {
   switch (category) {
     case "exact":
       return (
-        <span className="text-xs px-2.5 py-1 rounded border border-cb-blue/40 text-cb-blue">
+        <span className="text-xs px-2.5 py-1 rounded border border-cb-gold/40 text-cb-gold">
           Exact
         </span>
       );
     case "goal_diff":
       return (
-        <span className="text-xs px-2.5 py-1 rounded border border-cb-blue/25 text-cb-blue/80">
+        <span className="text-xs px-2.5 py-1 rounded border border-cb-blue/30 text-cb-blue">
           Goal verschil
         </span>
       );
     case "result":
       return (
-        <span className="text-xs px-2.5 py-1 rounded border border-cb-gold/30 text-cb-gold">
+        <span className="text-xs px-2.5 py-1 rounded border border-cb-blue/25 text-cb-blue/80">
           Juist resultaat
         </span>
       );
@@ -69,11 +69,11 @@ function getCategoryBadge(category: string) {
 function getCategoryPointColor(category: string) {
   switch (category) {
     case "exact":
-      return "text-cb-blue";
-    case "goal_diff":
-      return "text-cb-blue/80";
-    case "result":
       return "text-cb-gold";
+    case "goal_diff":
+      return "text-cb-blue";
+    case "result":
+      return "text-cb-blue/80";
     case "wrong":
       return "text-gray-500";
     default:
@@ -331,38 +331,80 @@ export default async function PlayerDetailPage({
 
           return (
             <div key={pred.id} className="glass-card-subtle p-3 md:p-4">
-              <div className="flex items-center justify-between gap-2 md:gap-4">
+              {/* Mobile stacked layout */}
+              <div className="md:hidden">
+                <div className="flex">
+                  {/* Teams + uitslag */}
+                  <div className="flex-1 min-w-0">
+                    {/* Header */}
+                    <div className="flex items-center mb-1">
+                      <span className="flex-1" />
+                      {result && (
+                        <span className="text-[8px] text-gray-600 uppercase tracking-wider w-10 text-center shrink-0">Uitslag</span>
+                      )}
+                    </div>
+                    {/* Home */}
+                    <div className="flex items-center text-sm">
+                      <TeamLogo name={match.home_team.name} />
+                      <span className="text-gray-200 truncate flex-1 ml-1.5">{match.home_team.name}</span>
+                      {result && (
+                        <span className="text-white font-bold text-sm w-10 text-center shrink-0">{result.home_score}</span>
+                      )}
+                    </div>
+                    {/* Away */}
+                    <div className="flex items-center text-sm mt-1">
+                      <TeamLogo name={match.away_team.name} />
+                      <span className="text-gray-200 truncate flex-1 ml-1.5">{match.away_team.name}</span>
+                      {result && (
+                        <span className="text-white font-bold text-sm w-10 text-center shrink-0">{result.away_score}</span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Prono column with left border */}
+                  <div className={`shrink-0 ml-2 pl-2 flex flex-col items-center ${result ? "border-l border-white/[0.06]" : ""}`}>
+                    <span className="text-[8px] text-gray-600 uppercase tracking-wider mb-1">Prono</span>
+                    <span className="text-gray-500 text-sm">{pred.home_score}</span>
+                    <span className="text-gray-500 text-sm mt-1">{pred.away_score}</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-1.5 mt-1.5">
+                  {getCategoryBadge(category)}
+                  <span className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}>
+                    {result ? `+${points}` : "—"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Desktop horizontal layout */}
+              <div className="hidden md:flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-gray-200 font-medium flex items-center gap-1 truncate">
                     <TeamLogo name={match.home_team.name} />
-                    <span className="truncate md:hidden">{match.home_team.short_name || match.home_team.name}</span>
-                    <span className="truncate hidden md:inline">{match.home_team.name}</span>
+                    <span className="truncate">{match.home_team.name}</span>
                     <span className="text-gray-600 shrink-0">-</span>
-                    <span className="truncate md:hidden">{match.away_team.short_name || match.away_team.name}</span>
-                    <span className="truncate hidden md:inline">{match.away_team.name}</span>
+                    <span className="truncate">{match.away_team.name}</span>
                     <TeamLogo name={match.away_team.name} />
                   </div>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                  <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                     <span>
+                      <span className="text-gray-500">Prono: </span>
                       <span className="text-gray-300 font-bold">
                         {pred.home_score}-{pred.away_score}
                       </span>
                     </span>
                     {result && (
-                      <>
-                        <span className="text-gray-600">&rarr;</span>
+                      <span>
+                        <span className="text-gray-500">Uitslag: </span>
                         <span className="text-gray-300 font-bold">
                           {result.home_score}-{result.away_score}
                         </span>
-                      </>
+                      </span>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-                  <span className="hidden md:inline-flex">{getCategoryBadge(category)}</span>
-                  <span
-                    className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}
-                  >
+                <div className="flex items-center gap-2 shrink-0">
+                  {getCategoryBadge(category)}
+                  <span className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}>
                     {result ? `+${points}` : "—"}
                   </span>
                 </div>

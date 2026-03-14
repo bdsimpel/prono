@@ -158,7 +158,7 @@ export default async function KlassementPage() {
               </thead>
               <tbody>
                 {standings.map((row) => (
-                  <tr key={row.user_id} className="table-row group">
+                  <tr key={row.user_id} className="group border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
                     <td className="px-5 py-3">
                       <Link href={`/player/${row.user_id}`} className="block">
                         <span
@@ -212,47 +212,35 @@ export default async function KlassementPage() {
             </table>
 
             {/* Mobile list */}
-            <div className="md:hidden">
-              <div className="flex items-center text-[10px] text-gray-600 uppercase tracking-wider px-3 py-2 border-b border-white/[0.06]">
-                <span className="w-7">#</span>
+            <div className="md:hidden divide-y divide-white/[0.04]">
+              <div className="flex items-center px-4 py-2 gap-3 text-[11px] text-gray-500 uppercase tracking-wider">
+                <span className="w-7 text-right shrink-0">#</span>
                 <span className="flex-1">Naam</span>
-                <span className="w-8 text-right">E</span>
-                <span className="w-8 text-right">GV</span>
-                <span className="w-8 text-right">JR</span>
-                <span className="w-12 text-right">Score</span>
+                <span className="shrink-0">Score</span>
               </div>
               {standings.map((row) => (
                 <Link
                   key={row.user_id}
                   href={`/player/${row.user_id}`}
-                  className="table-row flex items-center px-3 py-2.5"
+                  className="flex items-center px-4 py-3 gap-3 hover:bg-white/[0.02] transition-colors"
                 >
                   <span
-                    className={`heading-display text-base w-7 ${getRankColor(row.rank)}`}
+                    className={`heading-display text-base w-7 text-right shrink-0 ${getRankColor(row.rank)}`}
                   >
                     {row.rank}
                   </span>
-                  <span className="flex-1 text-sm font-medium text-gray-200 truncate pr-2">
+                  <span className="flex-1 text-sm font-medium text-gray-200 truncate">
                     {row.display_name}
                   </span>
-                  <span className="w-8 text-right text-xs text-gray-500">
-                    {row.exact_matches}
-                  </span>
-                  <span className="w-8 text-right text-xs text-gray-500">
-                    {row.correct_goal_diffs}
-                  </span>
-                  <span className="w-8 text-right text-xs text-gray-500">
-                    {row.correct_results}
-                  </span>
-                  <span className="w-12 text-right text-sm font-bold text-cb-blue">
+                  <span className="text-sm font-bold text-cb-blue shrink-0">
                     {row.total_score}
                   </span>
                 </Link>
               ))}
             </div>
 
-            {/* Legend */}
-            <div className="px-5 py-3 text-xs text-gray-600 border-t border-white/[0.04]">
+            {/* Legend (desktop only) */}
+            <div className="hidden md:block px-5 py-3 text-xs text-gray-600 border-t border-white/[0.04]">
               E = Exact &middot; GV = Goal verschil &middot; JR =
               Juist resultaat
             </div>

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { getTeamLogo } from "@/lib/teamLogos";
+import ForceScrollTop from "@/components/ForceScrollTop";
 
 export const dynamic = "force-dynamic";
 
@@ -25,19 +26,19 @@ function getCategoryBadge(category: string) {
   switch (category) {
     case "exact":
       return (
-        <span className="text-xs px-2.5 py-1 rounded border border-cb-blue/40 text-cb-blue">
+        <span className="text-xs px-2.5 py-1 rounded border border-cb-gold/40 text-cb-gold">
           Exact
         </span>
       );
     case "goal_diff":
       return (
-        <span className="text-xs px-2.5 py-1 rounded border border-cb-blue/25 text-cb-blue/80">
+        <span className="text-xs px-2.5 py-1 rounded border border-cb-blue/30 text-cb-blue">
           Goal verschil
         </span>
       );
     case "result":
       return (
-        <span className="text-xs px-2.5 py-1 rounded border border-cb-gold/30 text-cb-gold">
+        <span className="text-xs px-2.5 py-1 rounded border border-cb-blue/25 text-cb-blue/80">
           Juist resultaat
         </span>
       );
@@ -59,11 +60,11 @@ function getCategoryBadge(category: string) {
 function getCategoryPointColor(category: string) {
   switch (category) {
     case "exact":
-      return "text-cb-blue";
-    case "goal_diff":
-      return "text-cb-blue/80";
-    case "result":
       return "text-cb-gold";
+    case "goal_diff":
+      return "text-cb-blue";
+    case "result":
+      return "text-cb-blue/80";
     case "wrong":
       return "text-gray-500";
     default:
@@ -150,6 +151,7 @@ export default async function MatchDetailPage({
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
+      <ForceScrollTop />
       {/* Back + close */}
       <div className="flex items-center justify-between mb-6">
         <Link
@@ -192,38 +194,67 @@ export default async function MatchDetailPage({
       </div>
 
       {/* Match header */}
-      <div className="glass-card-subtle p-4 md:p-6 mb-6">
-        <div className="flex items-center justify-center gap-3 md:gap-8">
-          <div className="flex items-center gap-2 md:gap-3 flex-1 justify-end">
-            <TeamLogo name={match.home_team.name} size={28} />
-            <span className="heading-display text-lg md:text-3xl text-white text-right md:hidden">
-              {match.home_team.short_name || match.home_team.name}
-            </span>
-            <span className="heading-display text-lg md:text-3xl text-white text-right hidden md:inline">
-              {match.home_team.name}
-            </span>
-          </div>
-          {result ? (
-            <span className="heading-display text-2xl md:text-3xl text-cb-blue shrink-0">
-              {result.home_score} - {result.away_score}
-            </span>
-          ) : (
-            <span className="text-lg md:text-xl text-gray-600 heading-display shrink-0">VS</span>
-          )}
-          <div className="flex items-center gap-2 md:gap-3 flex-1">
-            <span className="heading-display text-lg md:text-3xl text-white md:hidden">
-              {match.away_team.short_name || match.away_team.name}
-            </span>
-            <span className="heading-display text-lg md:text-3xl text-white hidden md:inline">
-              {match.away_team.name}
-            </span>
-            <TeamLogo name={match.away_team.name} size={28} />
+      <div className="glass-card-subtle p-5 md:p-6 mb-6">
+        {/* Mobile — Sporza style: logos centered, names below */}
+        <div className="md:hidden">
+          <div className="flex items-center justify-center gap-4">
+            <div className="flex-1 flex flex-col items-center text-center min-w-0">
+              <TeamLogo name={match.home_team.name} size={48} />
+              <span className="heading-display text-sm text-white mt-2 truncate max-w-full">
+                {match.home_team.name}
+              </span>
+            </div>
+            <div className="flex flex-col items-center shrink-0">
+              {result ? (
+                <>
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider">einde</span>
+                  <span className="heading-display text-3xl text-white mt-0.5">
+                    {result.home_score} - {result.away_score}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                    {match.match_datetime
+                      ? new Date(match.match_datetime).toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" })
+                      : ""}
+                  </span>
+                  <span className="heading-display text-2xl text-gray-600 mt-0.5">VS</span>
+                </>
+              )}
+            </div>
+            <div className="flex-1 flex flex-col items-center text-center min-w-0">
+              <TeamLogo name={match.away_team.name} size={48} />
+              <span className="heading-display text-sm text-white mt-2 truncate max-w-full">
+                {match.away_team.name}
+              </span>
+            </div>
           </div>
         </div>
-        <p className="text-center text-xs text-gray-500 mt-3">
-          {match.is_cup_final
-            ? "Bekerfinale"
-            : `Speeldag ${match.speeldag}`}
+
+        {/* Desktop — horizontal: logo + name | score | name + logo */}
+        <div className="hidden md:block">
+          <div className="flex items-center justify-center gap-8">
+            <div className="flex items-center gap-3 flex-1 justify-end">
+              <TeamLogo name={match.home_team.name} size={32} />
+              <span className="heading-display text-3xl text-white text-right">{match.home_team.name}</span>
+            </div>
+            {result ? (
+              <span className="heading-display text-3xl text-cb-blue shrink-0">
+                {result.home_score} - {result.away_score}
+              </span>
+            ) : (
+              <span className="text-xl text-gray-600 heading-display shrink-0">VS</span>
+            )}
+            <div className="flex items-center gap-3 flex-1">
+              <span className="heading-display text-3xl text-white">{match.away_team.name}</span>
+              <TeamLogo name={match.away_team.name} size={32} />
+            </div>
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-gray-500 mt-4">
+          {match.is_cup_final ? "Bekerfinale" : `Speeldag ${match.speeldag}`}
           {match.match_datetime &&
             ` — ${new Date(match.match_datetime).toLocaleDateString("nl-BE", { dateStyle: "long" })}`}
         </p>
@@ -281,24 +312,27 @@ export default async function MatchDetailPage({
                   <div className="text-sm text-gray-200 font-medium truncate">
                     {pred.display_name}
                   </div>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                    <span className="text-gray-300 font-bold">
-                      {pred.home_score}-{pred.away_score}
+                  <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                    <span>
+                      <span className="text-gray-500">Prono: </span>
+                      <span className="text-gray-300 font-bold">
+                        {pred.home_score}-{pred.away_score}
+                      </span>
                     </span>
                     {result && (
-                      <>
-                        <span className="text-gray-600">&rarr;</span>
+                      <span>
+                        <span className="text-gray-500">Uitslag: </span>
                         <span className="text-gray-300 font-bold">
                           {result.home_score}-{result.away_score}
                         </span>
-                      </>
+                      </span>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-                  <span className="hidden md:inline-flex">{getCategoryBadge(pred.category)}</span>
+                  {getCategoryBadge(pred.category)}
                   <span
-                    className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(pred.category)}`}
+                    className={`heading-display text-lg w-10 text-right ${getCategoryPointColor(pred.category)}`}
                   >
                     {result ? `+${pred.points}` : "—"}
                   </span>

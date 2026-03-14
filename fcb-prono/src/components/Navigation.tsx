@@ -54,7 +54,7 @@ export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
   return (
     <>
       {/* Desktop header */}
-      <header className="sticky top-0 z-50 bg-[#0a0e14]/95 backdrop-blur-md border-b border-white/[0.06]">
+      <header className="sticky top-0 z-50 bg-[#0a0e14]/95 backdrop-blur-md border-b border-white/[0.06] hidden md:block">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3">
@@ -67,7 +67,7 @@ export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="flex items-center gap-1">
             {publicNavItems.map((item) => (
               <Link
                 key={item.href}

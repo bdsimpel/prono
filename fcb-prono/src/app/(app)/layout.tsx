@@ -29,9 +29,9 @@ export default async function AppLayout({
       <Navigation isAdmin={isAdmin} />
       <main className="flex-1">{children}</main>
 
-      {/* Footer */}
-      <footer className="border-t border-border-subtle mt-auto">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
+      {/* Footer (desktop only) */}
+      <footer className="hidden md:block border-t border-border-subtle mt-auto">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex flex-row items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-6 h-6 rounded-md bg-cb-blue flex items-center justify-center">
               <span className="heading-display text-[7px] text-white font-bold tracking-wider">
