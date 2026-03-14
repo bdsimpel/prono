@@ -453,34 +453,34 @@ export default function AdminPage() {
       <div className="space-y-2 mb-8">
         {filteredPlayers.map(player => (
           <div key={player.id} className="glass-card-subtle p-3">
-            <div className="flex items-center gap-3">
-              <span className="flex-1 text-sm font-medium truncate text-gray-200">{player.display_name}</span>
-              <div className="flex items-center gap-2 shrink-0">
-                {player.payment_method && (
-                  <span className="hidden md:inline text-xs text-gray-500">
-                    {player.payment_method === 'wero' ? 'Payconiq' : player.payment_method === 'transfer' ? 'Overschrijving' : 'Cash'}
-                  </span>
-                )}
-                <span className={`text-xs px-2.5 py-1 rounded border ${
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-gray-200">{player.display_name}</span>
+              <button
+                onClick={() => togglePayment(player.id, player.payment_status)}
+                className={`px-3 py-1.5 text-xs rounded-lg transition-colors font-medium shrink-0 ${
                   player.payment_status === 'paid'
-                    ? 'border-cb-blue/40 text-cb-blue'
-                    : player.payment_status === 'pending'
-                    ? 'border-cb-gold/30 text-cb-gold'
-                    : 'border-white/10 text-gray-500'
-                }`}>
-                  {player.payment_status === 'paid' ? 'Betaald' : player.payment_status === 'pending' ? 'In afwachting' : 'Niet betaald'}
+                    ? 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] border border-white/[0.06]'
+                    : 'bg-cb-blue/15 text-cb-blue hover:bg-cb-blue/25 border border-cb-blue/20'
+                }`}
+              >
+                {player.payment_status === 'paid' ? 'Ongedaan' : 'Betaald'}
+              </button>
+            </div>
+            <div className="flex items-center gap-2 mt-1.5">
+              {player.payment_method && (
+                <span className="text-xs text-gray-500">
+                  {player.payment_method === 'wero' ? 'Payconiq' : player.payment_method === 'transfer' ? 'Overschrijving' : 'Cash'}
                 </span>
-                <button
-                  onClick={() => togglePayment(player.id, player.payment_status)}
-                  className={`px-3 py-1.5 text-xs rounded-lg transition-colors font-medium ${
-                    player.payment_status === 'paid'
-                      ? 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] border border-white/[0.06]'
-                      : 'bg-cb-blue/15 text-cb-blue hover:bg-cb-blue/25 border border-cb-blue/20'
-                  }`}
-                >
-                  {player.payment_status === 'paid' ? 'Ongedaan' : 'Betaald'}
-                </button>
-              </div>
+              )}
+              <span className={`text-xs px-2.5 py-1 rounded border ${
+                player.payment_status === 'paid'
+                  ? 'border-cb-blue/40 text-cb-blue'
+                  : player.payment_status === 'pending'
+                  ? 'border-cb-gold/30 text-cb-gold'
+                  : 'border-white/10 text-gray-500'
+              }`}>
+                {player.payment_status === 'paid' ? 'Betaald' : player.payment_status === 'pending' ? 'In afwachting' : 'Niet betaald'}
+              </span>
             </div>
           </div>
         ))}

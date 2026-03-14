@@ -217,6 +217,7 @@ export default async function KlassementPage() {
                 <span className="w-7 text-right shrink-0">#</span>
                 <span className="flex-1">Naam</span>
                 <span className="shrink-0">Score</span>
+                <span className="w-4 shrink-0" />
               </div>
               {standings.map((row) => (
                 <Link
@@ -235,6 +236,19 @@ export default async function KlassementPage() {
                   <span className="text-sm font-bold text-white shrink-0">
                     {row.total_score}
                   </span>
+                  <svg
+                    className="w-4 h-4 text-gray-600 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
                 </Link>
               ))}
             </div>
