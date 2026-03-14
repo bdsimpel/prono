@@ -24,10 +24,10 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="min-h-screen pb-16 md:pb-0 flex flex-col">
+    <div className="h-[100dvh] md:h-auto md:min-h-screen flex flex-col overflow-hidden md:overflow-visible">
       <ScrollToTop />
       <Navigation isAdmin={isAdmin} />
-      <main className="flex-1">{children}</main>
+      <main id="main-scroll" className="flex-1 overflow-y-auto md:overflow-visible pb-16 md:pb-0">{children}</main>
 
       {/* Footer (desktop only) */}
       <footer className="hidden md:block border-t border-border-subtle mt-auto">

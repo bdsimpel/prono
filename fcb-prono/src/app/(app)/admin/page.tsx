@@ -251,7 +251,7 @@ export default function AdminPage() {
       {/* Match results */}
       <h2 className="heading-display text-xl text-gray-400 mb-3">UITSLAGEN INVOEREN</h2>
       <div className="space-y-8 mb-12">
-        {Object.entries(grouped).map(([label, groupMatches]) => (
+        {Object.entries(grouped).sort(([a], [b]) => a === 'Bekerfinale' ? 1 : b === 'Bekerfinale' ? -1 : 0).map(([label, groupMatches]) => (
           <div key={label}>
             <h3 className="heading-display text-sm text-gray-500 mb-3 flex items-center gap-2">
               <span className="w-1 h-4 bg-cb-blue rounded-full" />

@@ -176,7 +176,7 @@ export default async function KlassementPage() {
                         {row.display_name}
                       </Link>
                     </td>
-                    <td className="text-right px-2 py-3 text-sm font-bold text-cb-blue">
+                    <td className="text-right px-2 py-3 text-sm font-bold text-white">
                       <Link href={`/player/${row.user_id}`} className="block">
                         {row.total_score}
                       </Link>
@@ -201,7 +201,7 @@ export default async function KlassementPage() {
                         {row.match_score}
                       </Link>
                     </td>
-                    <td className="text-right px-2 py-3 pr-5 text-sm text-gray-500">
+                    <td className="text-right px-2 py-3 pr-5 text-sm text-cb-gold">
                       <Link href={`/player/${row.user_id}`} className="block">
                         {row.extra_score}
                       </Link>
@@ -232,7 +232,7 @@ export default async function KlassementPage() {
                   <span className="flex-1 text-sm font-medium text-gray-200 truncate">
                     {row.display_name}
                   </span>
-                  <span className="text-sm font-bold text-cb-blue shrink-0">
+                  <span className="text-sm font-bold text-white shrink-0">
                     {row.total_score}
                   </span>
                 </Link>
