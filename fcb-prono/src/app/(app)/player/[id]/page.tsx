@@ -322,6 +322,12 @@ export default async function PlayerDetailPage({
             <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
               <span>#{rank}</span>
               {memberSince && <span>Lid sinds {memberSince}</span>}
+              {player.favorite_team && (
+                <span className="flex items-center gap-1">
+                  <TeamLogo name={player.favorite_team} size={14} />
+                  <span className="text-gray-400">{player.favorite_team}</span>
+                </span>
+              )}
               {player.payment_status === "paid" && (
                 <svg
                     className="w-4 h-4 text-cb-blue"

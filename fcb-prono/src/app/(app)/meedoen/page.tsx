@@ -5,6 +5,7 @@ import PlayerCombobox from "@/components/PlayerCombobox";
 import TeamCombobox from "@/components/TeamCombobox";
 import TeamLogo from "@/components/TeamLogo";
 import { createClient } from "@/lib/supabase/client";
+import { FAVORITE_TEAMS } from "@/lib/teamLogos";
 import type { ExtraQuestion, FootballPlayer, Match, Team } from "@/lib/types";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -128,6 +129,7 @@ function loadSavedForm(): {
   step?: Step;
   firstName?: string;
   lastName?: string;
+  favoriteTeam?: string;
   predictions?: Record<number, { home: string; away: string }>;
   extraAnswers?: Record<number, string>;
 } | null {
@@ -159,6 +161,9 @@ export default function MeedoenPage() {
   const [lastName, setLastName] = useState(
     () => loadSavedForm()?.lastName ?? "",
   );
+  const [favoriteTeam, setFavoriteTeam] = useState(
+    () => loadSavedForm()?.favoriteTeam ?? "",
+  );
   const [predictions, setPredictions] = useState<
     Record<number, { home: string; away: string }>
   >(() => loadSavedForm()?.predictions ?? {});
@@ -178,6 +183,7 @@ export default function MeedoenPage() {
           step,
           firstName,
           lastName,
+          favoriteTeam,
           predictions,
           extraAnswers,
         }),
@@ -185,7 +191,7 @@ export default function MeedoenPage() {
     } catch {
       /* storage full or unavailable */
     }
-  }, [step, firstName, lastName, predictions, extraAnswers]);
+  }, [step, firstName, lastName, favoriteTeam, predictions, extraAnswers]);
 
   const [deadline, setDeadline] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -315,6 +321,7 @@ export default function MeedoenPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           displayName: `${firstName.trim()} ${lastName.trim()}`,
+          favoriteTeam: favoriteTeam || null,
           predictions: predArray,
           extraAnswers: extraArray,
         }),
@@ -581,56 +588,72 @@ export default function MeedoenPage() {
   // Step 2: Naam
   if (step === "naam") {
     return (
-      <div className="max-w-lg mx-auto px-6 py-8">
+      <div className="max-w-lg mx-auto px-6 py-4 md:py-8">
         <StepBar current="naam" />
-        <h1 className="heading-display text-3xl md:text-4xl text-white mb-8">
+        <h1 className="heading-display text-2xl md:text-4xl text-white mb-4 md:mb-8">
           JOUW NAAM
         </h1>
 
-        <div className="glass-card-subtle p-6 md:p-8">
-          <p className="text-sm text-gray-400 mb-6">
+        <div className="glass-card-subtle p-4 md:p-8">
+          <p className="text-xs md:text-sm text-gray-400 mb-4 md:mb-6">
             Kies een naam die zichtbaar is in het klassement. Dit kan je
             achteraf niet meer wijzigen.
           </p>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
-                Voornaam
-              </label>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Je voornaam"
-                maxLength={25}
-                className="w-full px-4 py-3 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
-              />
+          <div className="space-y-3 md:space-y-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-1 md:gap-4">
+              <div>
+                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5 md:mb-2">
+                  Voornaam
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Voornaam"
+                  maxLength={25}
+                  className="w-full px-3 md:px-4 py-2.5 md:py-3 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5 md:mb-2">
+                  Achternaam
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Achternaam"
+                  maxLength={25}
+                  className="w-full px-3 md:px-4 py-2.5 md:py-3 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
+                />
+              </div>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
-                Achternaam
+              <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5 md:mb-2">
+                Favoriete ploeg <span className="text-gray-600 normal-case tracking-normal">(optioneel)</span>
               </label>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Je achternaam"
-                maxLength={25}
-                className="w-full px-4 py-3 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
+              <TeamCombobox
+                options={[
+                  { name: 'Neutraal', statLabel: '' },
+                  ...FAVORITE_TEAMS.map(t => ({ name: t, statLabel: '' })),
+                ]}
+                value={favoriteTeam}
+                onChange={(val) => setFavoriteTeam(val === 'Neutraal' ? '' : val)}
+                placeholder="Kies je ploeg..."
               />
             </div>
           </div>
 
           {error && <p className="text-red-400 text-xs mt-3">{error}</p>}
 
-          <div className="flex gap-3 mt-8">
+          <div className="flex gap-3 mt-6 md:mt-8">
             <button
               onClick={() => {
                 setError("");
                 setStep("regels");
               }}
-              className="btn-secondary py-3 px-6"
+              className="btn-secondary py-2.5 md:py-3 px-5 md:px-6"
             >
               Terug
             </button>
@@ -652,7 +675,7 @@ export default function MeedoenPage() {
                 setError("");
                 setStep("voorspellingen");
               }}
-              className="flex-1 btn-primary py-3"
+              className="flex-1 btn-primary py-2.5 md:py-3"
             >
               Volgende
             </button>

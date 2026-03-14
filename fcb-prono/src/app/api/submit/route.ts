@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { displayName, predictions, extraAnswers } = body
+    const { displayName, predictions, extraAnswers, favoriteTeam } = body
 
     // Validate displayName
     if (!displayName || typeof displayName !== 'string') {
@@ -67,7 +67,10 @@ export async function POST(request: Request) {
     // Insert player
     const { data: player, error: playerError } = await serviceClient
       .from('players')
-      .insert({ display_name: trimmedName })
+      .insert({
+        display_name: trimmedName,
+        favorite_team: favoriteTeam && typeof favoriteTeam === 'string' && favoriteTeam.trim() ? favoriteTeam.trim() : null,
+      })
       .select('id')
       .single()
 

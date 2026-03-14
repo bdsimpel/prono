@@ -1,0 +1,1 @@
+ALTER TABLE players ADD COLUMN favorite_team TEXT DEFAULT NULL;
