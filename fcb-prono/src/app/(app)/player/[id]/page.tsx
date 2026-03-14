@@ -1,10 +1,9 @@
+import { calculateMatchPoints, checkExtraAnswer } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
-import { calculateMatchPoints } from "@/lib/scoring";
-import { checkExtraAnswer } from "@/lib/scoring";
-import { notFound } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
 import { getTeamLogo } from "@/lib/teamLogos";
+import Image from "next/image";
+import Link from "next/link";
+import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -126,10 +125,8 @@ export default async function PlayerDetailPage({
     supabase.from("extra_question_answers").select("*"),
   ]);
 
-  const resultMap: Record<
-    number,
-    { home_score: number; away_score: number }
-  > = {};
+  const resultMap: Record<number, { home_score: number; away_score: number }> =
+    {};
   for (const r of allResults || []) {
     resultMap[r.match_id] = {
       home_score: r.home_score,
@@ -153,7 +150,8 @@ export default async function PlayerDetailPage({
 
   const correctAnswersMap: Record<number, string[]> = {};
   for (const a of extraAnswers || []) {
-    if (!correctAnswersMap[a.question_id]) correctAnswersMap[a.question_id] = [];
+    if (!correctAnswersMap[a.question_id])
+      correctAnswersMap[a.question_id] = [];
     correctAnswersMap[a.question_id].push(a.correct_answer);
   }
 
@@ -226,41 +224,66 @@ export default async function PlayerDetailPage({
             <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
               <span>#{rank}</span>
               {memberSince && <span>Lid sinds {memberSince}</span>}
+              {player.payment_status === "paid" && (
+                <svg
+                    className="w-4 h-4 text-cb-blue"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Payment banner */}
-      {player.payment_status !== "paid" && (
+      {/* Payment status */}
+      {player.payment_status === "unpaid" && (
         <Link
           href={`/betalen/${player.id}`}
-          className="block mb-6 px-5 py-4 glass-card-subtle border-yellow-900/50 text-sm text-yellow-300 hover:border-yellow-800 transition-colors"
+          className="block mb-6 px-5 py-4 glass-card-subtle border-yellow-900/50 hover:border-yellow-800 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <svg
-              className="w-5 h-5 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-              />
-            </svg>
-            {player.payment_status === "pending"
-              ? "Betaling in afwachting — klik hier om opnieuw te betalen"
-              : "Je hebt nog niet betaald — klik hier om te betalen"}
+            <span className="text-xl shrink-0">💸</span>
+            <div>
+              <p className="text-sm text-yellow-300 font-medium">
+                Oei, nog niet betaald!
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Voor de prijs van een halve pintje ben je mee. Tik hier en maak
+                het in orde dan kunnen wij de prijzenpot vullen!
+              </p>
+            </div>
           </div>
         </Link>
+      )}
+      {player.payment_status === "pending" && (
+        <div className="mb-6 px-5 py-4 glass-card-subtle border-cb-blue/20">
+          <div className="flex items-center gap-3">
+            <span className="text-xl shrink-0">🔍</span>
+            <div>
+              <p className="text-sm text-cb-blue font-medium">
+                Betaling wordt gecheckt!
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                De admin is je centen aan het zoeken tussen de sofa-kussens.
+                Even geduld, we bevestigen het zo snel mogelijk!
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Stats row */}
       {playerScore && (
-        <div className="flex items-center justify-start gap-4 md:gap-10 mb-8 md:mb-10 px-1 md:px-2">
+        <div className="flex items-center justify-center md:justify-start gap-4 md:gap-10 mb-8 md:mb-10 px-1 md:px-2">
           <div className="text-center">
             <div className="heading-display text-2xl md:text-3xl text-cb-blue font-bold">
               {playerScore.total_score}
@@ -340,36 +363,56 @@ export default async function PlayerDetailPage({
                     <div className="flex items-center mb-1">
                       <span className="flex-1" />
                       {result && (
-                        <span className="text-[8px] text-gray-600 uppercase tracking-wider w-10 text-center shrink-0">Uitslag</span>
+                        <span className="text-[8px] text-gray-600 uppercase tracking-wider w-10 text-center shrink-0">
+                          Uitslag
+                        </span>
                       )}
                     </div>
                     {/* Home */}
                     <div className="flex items-center text-sm">
                       <TeamLogo name={match.home_team.name} />
-                      <span className="text-gray-200 truncate flex-1 ml-1.5">{match.home_team.name}</span>
+                      <span className="text-gray-200 truncate flex-1 ml-1.5">
+                        {match.home_team.name}
+                      </span>
                       {result && (
-                        <span className="text-white font-bold text-sm w-10 text-center shrink-0">{result.home_score}</span>
+                        <span className="text-white font-bold text-sm w-10 text-center shrink-0">
+                          {result.home_score}
+                        </span>
                       )}
                     </div>
                     {/* Away */}
                     <div className="flex items-center text-sm mt-1">
                       <TeamLogo name={match.away_team.name} />
-                      <span className="text-gray-200 truncate flex-1 ml-1.5">{match.away_team.name}</span>
+                      <span className="text-gray-200 truncate flex-1 ml-1.5">
+                        {match.away_team.name}
+                      </span>
                       {result && (
-                        <span className="text-white font-bold text-sm w-10 text-center shrink-0">{result.away_score}</span>
+                        <span className="text-white font-bold text-sm w-10 text-center shrink-0">
+                          {result.away_score}
+                        </span>
                       )}
                     </div>
                   </div>
                   {/* Prono column with left border */}
-                  <div className={`shrink-0 ml-2 pl-2 flex flex-col items-center ${result ? "border-l border-white/[0.06]" : ""}`}>
-                    <span className="text-[8px] text-gray-600 uppercase tracking-wider mb-1">Prono</span>
-                    <span className="text-gray-500 text-sm">{pred.home_score}</span>
-                    <span className="text-gray-500 text-sm mt-1">{pred.away_score}</span>
+                  <div
+                    className={`shrink-0 ml-2 pl-2 flex flex-col items-center ${result ? "border-l border-white/[0.06]" : ""}`}
+                  >
+                    <span className="text-[8px] text-gray-600 uppercase tracking-wider mb-1">
+                      Prono
+                    </span>
+                    <span className="text-gray-500 text-sm">
+                      {pred.home_score}
+                    </span>
+                    <span className="text-gray-500 text-sm mt-1">
+                      {pred.away_score}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-end gap-1.5 mt-1.5">
                   {getCategoryBadge(category)}
-                  <span className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}>
+                  <span
+                    className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}
+                  >
                     {result ? `+${points}` : "—"}
                   </span>
                 </div>
@@ -404,7 +447,9 @@ export default async function PlayerDetailPage({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {getCategoryBadge(category)}
-                  <span className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}>
+                  <span
+                    className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}
+                  >
                     {result ? `+${points}` : "—"}
                   </span>
                 </div>
@@ -473,7 +518,11 @@ export default async function PlayerDetailPage({
                   <span
                     className={`heading-display text-lg w-8 text-right ${hasAnswer ? (isCorrect ? "text-cb-blue" : "text-gray-500") : "text-gray-600"}`}
                   >
-                    {hasAnswer ? (isCorrect ? `+${question.points}` : "0") : "—"}
+                    {hasAnswer
+                      ? isCorrect
+                        ? `+${question.points}`
+                        : "0"
+                      : "—"}
                   </span>
                 </div>
               </div>

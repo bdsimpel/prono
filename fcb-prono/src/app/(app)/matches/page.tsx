@@ -85,7 +85,7 @@ export default async function MatchesPage() {
       </div>
 
       {/* Stats row */}
-      <div className="flex items-center gap-6 md:gap-10 mb-8 px-2">
+      <div className="flex items-center justify-center gap-6 md:gap-10 mb-8 px-2">
         <div className="text-center">
           <div className="heading-display text-3xl text-cb-blue font-bold">
             {totalMatches}

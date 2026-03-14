@@ -8,9 +8,10 @@ interface PaymentSectionProps {
   playerId: string
   playerName: string
   initialStatus?: PaymentStatus
+  onStatusChange?: (status: PaymentStatus) => void
 }
 
-export default function PaymentSection({ playerId, playerName, initialStatus = 'unpaid' }: PaymentSectionProps) {
+export default function PaymentSection({ playerId, playerName, initialStatus = 'unpaid', onStatusChange }: PaymentSectionProps) {
   const [status, setStatus] = useState<PaymentStatus>(initialStatus)
   const [copied, setCopied] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -25,6 +26,7 @@ export default function PaymentSection({ playerId, playerName, initialStatus = '
       })
       if (res.ok) {
         setStatus('pending')
+        onStatusChange?.('pending')
       }
     } catch {
       // silently fail

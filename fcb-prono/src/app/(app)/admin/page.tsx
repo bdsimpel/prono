@@ -229,9 +229,10 @@ export default function AdminPage() {
     : players.filter(p => p.payment_status === paymentFilter)
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
       <div className="mb-6">
         <h1 className="heading-display text-3xl md:text-4xl text-white">ADMIN</h1>
+        <p className="text-gray-500 text-sm mt-1">Beheer uitslagen, antwoorden en betalingen.</p>
       </div>
 
       {message && (
@@ -245,7 +246,7 @@ export default function AdminPage() {
       <button
         onClick={saveAll}
         disabled={saving}
-        className="btn-primary py-3 px-8 mb-8 disabled:opacity-40"
+        className="btn-primary py-3 px-8 mb-8 w-full md:w-auto disabled:opacity-40"
       >
         {saving ? (
           <span className="flex items-center gap-2">
@@ -268,10 +269,10 @@ export default function AdminPage() {
               {groupMatches.map((match) => {
                 const r = results[match.id] || { home: '', away: '' }
                 return (
-                  <div key={match.id} className="glass-card-subtle p-3 flex items-center gap-2">
-                    <span className="flex-1 text-right text-sm truncate flex items-center justify-end gap-1.5 text-gray-300">
-                      {match.home_team.name}
-                      <TeamLogo name={match.home_team.name} />
+                  <div key={match.id} className="glass-card-subtle p-3 flex items-center gap-1.5 md:gap-2">
+                    <span className="flex-1 text-right text-xs md:text-sm truncate flex items-center justify-end gap-1 md:gap-1.5 text-gray-300 min-w-0">
+                      <span className="truncate">{match.home_team.name}</span>
+                      <span className="shrink-0"><TeamLogo name={match.home_team.name} /></span>
                     </span>
                     <input
                       ref={el => { inputRefs.current[`admin-${match.id}-home`] = el }}
@@ -280,9 +281,9 @@ export default function AdminPage() {
                       value={r.home}
                       onChange={(e) => handleScoreInput(match.id, 'home', e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className="w-10 h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue transition-colors"
+                      className="w-9 h-9 md:w-10 md:h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold text-sm focus:outline-none focus:border-cb-blue transition-colors shrink-0"
                     />
-                    <span className="text-gray-600 text-xs">-</span>
+                    <span className="text-gray-600 text-xs shrink-0">-</span>
                     <input
                       ref={el => { inputRefs.current[`admin-${match.id}-away`] = el }}
                       type="text"
@@ -290,11 +291,11 @@ export default function AdminPage() {
                       value={r.away}
                       onChange={(e) => handleScoreInput(match.id, 'away', e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className="w-10 h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold focus:outline-none focus:border-cb-blue transition-colors"
+                      className="w-9 h-9 md:w-10 md:h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold text-sm focus:outline-none focus:border-cb-blue transition-colors shrink-0"
                     />
-                    <span className="flex-1 text-left text-sm truncate flex items-center gap-1.5 text-gray-300">
-                      <TeamLogo name={match.away_team.name} />
-                      {match.away_team.name}
+                    <span className="flex-1 text-left text-xs md:text-sm truncate flex items-center gap-1 md:gap-1.5 text-gray-300 min-w-0">
+                      <span className="shrink-0"><TeamLogo name={match.away_team.name} /></span>
+                      <span className="truncate">{match.away_team.name}</span>
                     </span>
                   </div>
                 )
@@ -339,7 +340,7 @@ export default function AdminPage() {
 
               {playerConfig ? (
                 isSingle ? (
-                  <div className="w-72">
+                  <div className="w-full md:w-72">
                     <PlayerCombobox
                       options={playerOptionsBySort[playerConfig.sortBy]}
                       value={answers[0] || ''}
@@ -349,7 +350,7 @@ export default function AdminPage() {
                     />
                   </div>
                 ) : (
-                  <div className="w-72">
+                  <div className="w-full md:w-72">
                     <PlayerCombobox
                       options={playerOptionsBySort[playerConfig.sortBy].filter(o => !answers.includes(o.name))}
                       value=""
@@ -364,7 +365,7 @@ export default function AdminPage() {
                   <select
                     value={answers[0] || ''}
                     onChange={(e) => setExtraAnswers(prev => ({ ...prev, [q.id]: e.target.value ? [e.target.value] : [] }))}
-                    className="w-56 px-4 py-2.5 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
+                    className="w-full md:w-56 px-4 py-2.5 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors"
                   >
                     <option value="">Kies een ploeg...</option>
                     {teamOptions.map((t) => (
@@ -407,30 +408,30 @@ export default function AdminPage() {
       <h2 className="heading-display text-xl text-gray-400 mb-3">BETALINGEN</h2>
 
       {/* Stats row */}
-      <div className="flex items-center gap-6 md:gap-10 mb-6 px-2">
+      <div className="flex items-center justify-center gap-4 md:gap-10 mb-6 px-2">
         <div className="text-center">
-          <div className="heading-display text-3xl text-cb-blue font-bold">
+          <div className="heading-display text-2xl md:text-3xl text-cb-blue font-bold">
             {paidCount}/{totalCount}
           </div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+          <div className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-0.5">
             Betaald
           </div>
         </div>
         <div className="stat-divider" />
         <div className="text-center">
-          <div className="heading-display text-3xl text-white font-bold">
+          <div className="heading-display text-2xl md:text-3xl text-white font-bold">
             &euro;{(paidCount * 2).toFixed(0)}
           </div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+          <div className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-0.5">
             Ontvangen
           </div>
         </div>
         <div className="stat-divider" />
         <div className="text-center">
-          <div className="heading-display text-3xl text-white font-bold">
+          <div className="heading-display text-2xl md:text-3xl text-white font-bold">
             &euro;{(totalCount * 2).toFixed(0)}
           </div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+          <div className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-0.5">
             Totaal
           </div>
         </div>
@@ -459,32 +460,36 @@ export default function AdminPage() {
 
       <div className="space-y-2 mb-8">
         {filteredPlayers.map(player => (
-          <div key={player.id} className="glass-card-subtle p-3 flex items-center gap-3">
-            <span className="flex-1 text-sm font-medium truncate text-gray-200">{player.display_name}</span>
-            {player.payment_method && (
-              <span className="text-xs text-gray-500">
-                {player.payment_method === 'wero' ? 'Payconiq' : player.payment_method === 'transfer' ? 'Overschrijving' : 'Cash'}
-              </span>
-            )}
-            <span className={`text-xs px-2.5 py-1 rounded border ${
-              player.payment_status === 'paid'
-                ? 'border-cb-blue/40 text-cb-blue'
-                : player.payment_status === 'pending'
-                ? 'border-cb-gold/30 text-cb-gold'
-                : 'border-white/10 text-gray-500'
-            }`}>
-              {player.payment_status === 'paid' ? 'Betaald' : player.payment_status === 'pending' ? 'In afwachting' : 'Niet betaald'}
-            </span>
-            <button
-              onClick={() => togglePayment(player.id, player.payment_status)}
-              className={`px-3 py-1.5 text-xs rounded-lg transition-colors font-medium ${
-                player.payment_status === 'paid'
-                  ? 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] border border-white/[0.06]'
-                  : 'bg-cb-blue/15 text-cb-blue hover:bg-cb-blue/25 border border-cb-blue/20'
-              }`}
-            >
-              {player.payment_status === 'paid' ? 'Ongedaan' : 'Betaald'}
-            </button>
+          <div key={player.id} className="glass-card-subtle p-3">
+            <div className="flex items-center gap-3">
+              <span className="flex-1 text-sm font-medium truncate text-gray-200">{player.display_name}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                {player.payment_method && (
+                  <span className="hidden md:inline text-xs text-gray-500">
+                    {player.payment_method === 'wero' ? 'Payconiq' : player.payment_method === 'transfer' ? 'Overschrijving' : 'Cash'}
+                  </span>
+                )}
+                <span className={`text-xs px-2.5 py-1 rounded border ${
+                  player.payment_status === 'paid'
+                    ? 'border-cb-blue/40 text-cb-blue'
+                    : player.payment_status === 'pending'
+                    ? 'border-cb-gold/30 text-cb-gold'
+                    : 'border-white/10 text-gray-500'
+                }`}>
+                  {player.payment_status === 'paid' ? 'Betaald' : player.payment_status === 'pending' ? 'In afwachting' : 'Niet betaald'}
+                </span>
+                <button
+                  onClick={() => togglePayment(player.id, player.payment_status)}
+                  className={`px-3 py-1.5 text-xs rounded-lg transition-colors font-medium ${
+                    player.payment_status === 'paid'
+                      ? 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] border border-white/[0.06]'
+                      : 'bg-cb-blue/15 text-cb-blue hover:bg-cb-blue/25 border border-cb-blue/20'
+                  }`}
+                >
+                  {player.payment_status === 'paid' ? 'Ongedaan' : 'Betaald'}
+                </button>
+              </div>
+            </div>
           </div>
         ))}
         {filteredPlayers.length === 0 && (

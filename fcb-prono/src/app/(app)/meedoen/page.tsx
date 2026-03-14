@@ -134,6 +134,7 @@ export default function MeedoenPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [playerId, setPlayerId] = useState<string | null>(null)
+  const [paymentDone, setPaymentDone] = useState(false)
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const loadData = useCallback(async () => {
@@ -253,6 +254,7 @@ export default function MeedoenPage() {
 
       setPlayerId(data.playerId)
       setStep('bevestiging')
+      window.scrollTo(0, 0)
     } catch {
       setError('Er ging iets mis')
     } finally {
@@ -690,41 +692,65 @@ export default function MeedoenPage() {
     )
   }
 
-  // Step 5: Bevestiging
+  // Step 5: Bevestiging — first payment, then confirmation
   if (step === 'bevestiging') {
-    return (
-      <div className="max-w-lg mx-auto py-8 px-6 space-y-8">
-        <StepBar current="bevestiging" />
-        <div className="glass-card-subtle p-8 md:p-10 text-center">
-          <svg className="w-16 h-16 text-cb-blue mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-          </svg>
-          <h1 className="heading-display text-3xl mb-3">INGESCHREVEN!</h1>
-          <p className="text-gray-400 mb-8">
-            Bedankt <span className="text-white font-medium">{firstName} {lastName}</span>! Je voorspellingen zijn opgeslagen.
-          </p>
-          <div className="flex flex-col gap-3">
-            <Link
-              href="/"
-              className="btn-primary py-3 text-center"
-            >
-              Bekijk het klassement
-            </Link>
-            {playerId && (
+    // After payment is done, show confirmation screen
+    if (paymentDone) {
+      return (
+        <div className="max-w-lg mx-auto py-8 px-6 space-y-8">
+          <div className="glass-card-subtle p-8 md:p-10 text-center">
+            <svg className="w-16 h-16 text-cb-blue mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+            </svg>
+            <h1 className="heading-display text-3xl mb-3">JE BENT ERBIJ!</h1>
+            <p className="text-gray-400 mb-2">
+              Top, <span className="text-white font-medium">{firstName} {lastName}</span>!
+            </p>
+            <p className="text-gray-500 text-sm mb-8">
+              Je voorspellingen zijn opgeslagen en je betaling wordt gecontroleerd. Veel succes!
+            </p>
+            <div className="flex flex-col gap-3">
               <Link
-                href={`/player/${playerId}`}
-                className="btn-secondary py-3 text-center"
+                href="/"
+                className="btn-primary py-3 text-center"
               >
-                Bekijk je voorspellingen
+                Bekijk het klassement
               </Link>
-            )}
+              {playerId && (
+                <Link
+                  href={`/player/${playerId}`}
+                  className="btn-secondary py-3 text-center"
+                >
+                  Bekijk je voorspellingen
+                </Link>
+              )}
+            </div>
           </div>
+        </div>
+      )
+    }
+
+    // First show payment options
+    return (
+      <div className="max-w-lg mx-auto py-8 px-6 space-y-6">
+        <StepBar current="bevestiging" />
+        <div className="text-center mb-2">
+          <svg className="w-12 h-12 text-cb-blue mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h1 className="heading-display text-2xl mb-2">VOORSPELLINGEN OPGESLAGEN!</h1>
+          <p className="text-gray-400 text-sm">
+            Nog even betalen en je bent helemaal klaar.
+          </p>
         </div>
 
         {playerId && (
           <PaymentSection
             playerId={playerId}
             playerName={`${firstName.trim()} ${lastName.trim()}`}
+            onStatusChange={(status) => {
+              if (status === 'pending') setPaymentDone(true)
+            }}
           />
         )}
       </div>

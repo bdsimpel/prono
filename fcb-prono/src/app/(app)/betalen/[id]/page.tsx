@@ -19,7 +19,7 @@ export default async function BetalenPage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="max-w-lg mx-auto py-8">
+    <div className="max-w-lg mx-auto px-4 md:px-6 py-8">
       <h1 className="text-2xl font-bold mb-2">Betaling</h1>
       <p className="text-gray-400 mb-6">
         Hallo <span className="text-white font-medium">{player.display_name}</span>
