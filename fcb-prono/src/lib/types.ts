@@ -3,6 +3,10 @@ export interface Team {
   name: string
   short_name: string | null
   matrix_index: number
+  standing_rank: number | null
+  points_half: number | null
+  goals_for: number | null
+  goals_against: number | null
 }
 
 export interface Profile {

@@ -3,7 +3,11 @@ CREATE TABLE teams (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
   short_name TEXT,
-  matrix_index INT NOT NULL UNIQUE
+  matrix_index INT NOT NULL UNIQUE,
+  standing_rank INT,
+  points_half NUMERIC,
+  goals_for INT,
+  goals_against INT
 );
 
 -- User profiles (linked to auth.users)
@@ -96,13 +100,13 @@ INSERT INTO settings VALUES ('predictions_locked', 'false');
 INSERT INTO settings VALUES ('deadline', '2026-04-01T18:00:00Z');
 
 -- Seed teams
-INSERT INTO teams (name, short_name, matrix_index) VALUES
-  ('Genk', 'GNK', 1),
-  ('Club Brugge', 'CLB', 2),
-  ('Union', 'UNI', 3),
-  ('Anderlecht', 'AND', 4),
-  ('Gent', 'GNT', 5),
-  ('Antwerp', 'ANT', 6);
+INSERT INTO teams (name, short_name, matrix_index, standing_rank, points_half, goals_for, goals_against) VALUES
+  ('Union', 'UNI', 1, 1, 30, 45, 16),
+  ('Club Brugge', 'CLB', 2, 2, 28.5, 53, 34),
+  ('STVV', 'STV', 3, 3, 28.5, 46, 31),
+  ('Anderlecht', 'AND', 4, 4, 22, 41, 35),
+  ('Gent', 'GNT', 5, 5, 21, 46, 42),
+  ('Mechelen', 'MEC', 6, 6, 21, 37, 33);
 
 -- Seed extra questions
 INSERT INTO extra_questions (question_key, question_label, points) VALUES
@@ -115,53 +119,53 @@ INSERT INTO extra_questions (question_key, question_label, points) VALUES
   ('minste_goals_tegen_poi', 'Minste goals tegen POI', 10),
   ('kampioen', 'Kampioen', 20);
 
--- Seed matches (30 league matches from games.xlsx)
--- Team IDs: Genk=1, Club Brugge=2, Union=3, Anderlecht=4, Gent=5, Antwerp=6
+-- Seed matches (30 league matches, round-robin home & away)
+-- Team IDs: Union=1, Club Brugge=2, STVV=3, Anderlecht=4, Gent=5, Mechelen=6
 INSERT INTO matches (home_team_id, away_team_id, speeldag, match_datetime, is_cup_final) VALUES
   -- Speeldag 1
-  (3, 6, 1, '2025-03-29T20:45:00Z', false),  -- Union vs Antwerp
-  (2, 4, 1, '2025-03-30T13:30:00Z', false),  -- Club Brugge vs Anderlecht
-  (1, 5, 1, '2025-03-30T18:30:00Z', false),  -- Genk vs Gent
+  (1, 6, 1, '2026-03-28T20:45:00Z', false),  -- Union vs Mechelen
+  (2, 4, 1, '2026-03-29T13:30:00Z', false),  -- Club Brugge vs Anderlecht
+  (3, 5, 1, '2026-03-29T18:30:00Z', false),  -- STVV vs Gent
   -- Speeldag 2
-  (5, 3, 2, '2025-04-05T20:45:00Z', false),  -- Gent vs Union
-  (6, 2, 2, '2025-04-06T13:30:00Z', false),  -- Antwerp vs Club Brugge
-  (4, 1, 2, '2025-04-06T18:30:00Z', false),  -- Anderlecht vs Genk
+  (5, 1, 2, '2026-04-04T20:45:00Z', false),  -- Gent vs Union
+  (6, 2, 2, '2026-04-05T13:30:00Z', false),  -- Mechelen vs Club Brugge
+  (4, 3, 2, '2026-04-05T18:30:00Z', false),  -- Anderlecht vs STVV
   -- Speeldag 3
-  (3, 4, 3, '2025-04-12T20:45:00Z', false),  -- Union vs Anderlecht
-  (6, 5, 3, '2025-04-13T13:30:00Z', false),  -- Antwerp vs Gent
-  (2, 1, 3, '2025-04-13T18:30:00Z', false),  -- Club Brugge vs Genk
+  (1, 4, 3, '2026-04-11T20:45:00Z', false),  -- Union vs Anderlecht
+  (6, 5, 3, '2026-04-12T13:30:00Z', false),  -- Mechelen vs Gent
+  (2, 3, 3, '2026-04-12T18:30:00Z', false),  -- Club Brugge vs STVV
   -- Speeldag 4
-  (4, 6, 4, '2025-04-20T13:30:00Z', false),  -- Anderlecht vs Antwerp
-  (1, 3, 4, '2025-04-20T16:00:00Z', false),  -- Genk vs Union
-  (5, 2, 4, '2025-04-20T18:30:00Z', false),  -- Gent vs Club Brugge
+  (4, 6, 4, '2026-04-19T13:30:00Z', false),  -- Anderlecht vs Mechelen
+  (3, 1, 4, '2026-04-19T16:00:00Z', false),  -- STVV vs Union
+  (5, 2, 4, '2026-04-19T18:30:00Z', false),  -- Gent vs Club Brugge
   -- Speeldag 5
-  (6, 1, 5, '2025-04-23T20:30:00Z', false),  -- Antwerp vs Genk
-  (4, 5, 5, '2025-04-23T20:30:00Z', false),  -- Anderlecht vs Gent
-  (2, 3, 5, '2025-04-24T20:30:00Z', false),  -- Club Brugge vs Union
-  -- Speeldag 6
-  (5, 4, 6, '2025-04-27T13:30:00Z', false),  -- Gent vs Anderlecht
-  (1, 6, 6, '2025-04-27T16:00:00Z', false),  -- Genk vs Antwerp
-  (3, 2, 6, '2025-04-27T18:30:00Z', false),  -- Union vs Club Brugge
+  (6, 3, 5, '2026-04-22T20:30:00Z', false),  -- Mechelen vs STVV
+  (4, 5, 5, '2026-04-22T20:30:00Z', false),  -- Anderlecht vs Gent
+  (2, 1, 5, '2026-04-23T20:30:00Z', false),  -- Club Brugge vs Union
+  -- Speeldag 6 (return leg)
+  (6, 1, 6, '2026-04-26T13:30:00Z', false),  -- Mechelen vs Union
+  (4, 2, 6, '2026-04-26T16:00:00Z', false),  -- Anderlecht vs Club Brugge
+  (5, 3, 6, '2026-04-26T18:30:00Z', false),  -- Gent vs STVV
   -- Speeldag 7
-  (6, 4, 7, '2025-05-01T13:30:00Z', false),  -- Antwerp vs Anderlecht
-  (2, 5, 7, '2025-05-01T16:00:00Z', false),  -- Club Brugge vs Gent
-  (3, 1, 7, '2025-05-03T20:45:00Z', false),  -- Union vs Genk
+  (1, 5, 7, '2026-05-02T13:30:00Z', false),  -- Union vs Gent
+  (2, 6, 7, '2026-05-02T16:00:00Z', false),  -- Club Brugge vs Mechelen
+  (3, 4, 7, '2026-05-03T20:45:00Z', false),  -- STVV vs Anderlecht
   -- Speeldag 8
-  (4, 3, 8, '2025-05-10T20:45:00Z', false),  -- Anderlecht vs Union
-  (5, 6, 8, '2025-05-11T13:30:00Z', false),  -- Gent vs Antwerp
-  (1, 2, 8, '2025-05-11T18:30:00Z', false),  -- Genk vs Club Brugge
+  (4, 1, 8, '2026-05-09T20:45:00Z', false),  -- Anderlecht vs Union
+  (5, 6, 8, '2026-05-10T13:30:00Z', false),  -- Gent vs Mechelen
+  (3, 2, 8, '2026-05-10T18:30:00Z', false),  -- STVV vs Club Brugge
   -- Speeldag 9
-  (6, 3, 9, '2025-05-17T20:45:00Z', false),  -- Antwerp vs Union
-  (4, 2, 9, '2025-05-18T13:30:00Z', false),  -- Anderlecht vs Club Brugge
-  (5, 1, 9, '2025-05-18T18:30:00Z', false),  -- Gent vs Genk
+  (6, 4, 9, '2026-05-16T20:45:00Z', false),  -- Mechelen vs Anderlecht
+  (1, 3, 9, '2026-05-17T13:30:00Z', false),  -- Union vs STVV
+  (2, 5, 9, '2026-05-17T18:30:00Z', false),  -- Club Brugge vs Gent
   -- Speeldag 10
-  (3, 5, 10, '2025-05-25T18:30:00Z', false),  -- Union vs Gent
-  (1, 4, 10, '2025-05-25T18:30:00Z', false),  -- Genk vs Anderlecht
-  (2, 6, 10, '2025-05-25T18:30:00Z', false);  -- Club Brugge vs Antwerp
+  (3, 6, 10, '2026-05-24T18:30:00Z', false),  -- STVV vs Mechelen
+  (5, 4, 10, '2026-05-24T18:30:00Z', false),  -- Gent vs Anderlecht
+  (1, 2, 10, '2026-05-24T18:30:00Z', false);  -- Union vs Club Brugge
 
--- Cup final (Anderlecht vs Club Brugge)
+-- Cup final (Anderlecht vs Union)
 INSERT INTO matches (home_team_id, away_team_id, speeldag, match_datetime, is_cup_final) VALUES
-  (4, 2, NULL, NULL, true);
+  (4, 1, NULL, '2026-05-14T15:00:00Z', true);
 
 -- Auto-create profile on user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()

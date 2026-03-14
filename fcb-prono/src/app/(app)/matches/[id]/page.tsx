@@ -1,26 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { calculateMatchPoints } from "@/lib/scoring";
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
-import { getTeamLogo } from "@/lib/teamLogos";
+import TeamLogo from "@/components/TeamLogo";
 import ForceScrollTop from "@/components/ForceScrollTop";
 
 export const dynamic = "force-dynamic";
-
-function TeamLogo({ name, size = 32 }: { name: string; size?: number }) {
-  const logo = getTeamLogo(name);
-  if (!logo) return null;
-  return (
-    <Image
-      src={logo}
-      alt={name}
-      width={size}
-      height={size}
-      className="inline-block"
-    />
-  );
-}
 
 function getCategoryBadge(category: string) {
   switch (category) {
@@ -80,7 +65,7 @@ export default async function MatchDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: match }, { data: resultRow }, { data: predictions }] =
+  const [{ data: match }, { data: resultRow }, { data: predictions }, { data: allScores }] =
     await Promise.all([
       supabase
         .from("matches")
@@ -92,13 +77,29 @@ export default async function MatchDetailPage({
       supabase.from("results").select("*").eq("match_id", id).maybeSingle(),
       supabase
         .from("predictions")
-        .select("*, players!inner(display_name)")
+        .select("*, players!inner(id, display_name)")
         .eq("match_id", id),
+      supabase
+        .from("player_scores")
+        .select("user_id, total_score")
+        .order("total_score", { ascending: false }),
     ]);
 
   if (!match) notFound();
 
   const result = resultRow;
+
+  // Build rank map from leaderboard
+  const rankMap: Record<string, number> = {};
+  if (allScores) {
+    let currentRank = 0;
+    let prevScore = -1;
+    for (let i = 0; i < allScores.length; i++) {
+      if (allScores[i].total_score !== prevScore) currentRank = i + 1;
+      rankMap[allScores[i].user_id] = currentRank;
+      prevScore = allScores[i].total_score;
+    }
+  }
 
   type Category = "exact" | "goal_diff" | "result" | "wrong" | "pending";
 
@@ -107,18 +108,22 @@ export default async function MatchDetailPage({
     home_score: number;
     away_score: number;
     display_name: string;
+    user_id: string;
     points: number;
     category: Category;
+    rank: number;
   }[] = (predictions || []).map((pred) => {
-    const profile = pred.players as { display_name: string };
+    const profile = pred.players as { id: string; display_name: string };
     if (!result) {
       return {
         id: pred.id,
         home_score: pred.home_score,
         away_score: pred.away_score,
         display_name: profile.display_name,
+        user_id: profile.id,
         points: 0,
         category: "pending" as Category,
+        rank: rankMap[profile.id] ?? Infinity,
       };
     }
 
@@ -134,12 +139,14 @@ export default async function MatchDetailPage({
       home_score: pred.home_score,
       away_score: pred.away_score,
       display_name: profile.display_name,
+      user_id: profile.id,
       points,
       category: category as Category,
+      rank: rankMap[profile.id] ?? Infinity,
     };
   });
 
-  predWithPoints.sort((a, b) => b.points - a.points);
+  predWithPoints.sort((a, b) => a.rank - b.rank);
 
   const predictionCount = predWithPoints.length;
   const exactCount = predWithPoints.filter(

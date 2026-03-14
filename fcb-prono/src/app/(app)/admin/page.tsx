@@ -3,9 +3,8 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import PlayerCombobox from '@/components/PlayerCombobox'
-import { getTeamLogo } from '@/lib/teamLogos'
+import TeamLogo from '@/components/TeamLogo'
 import type { Team, FootballPlayer, PaymentStatus, PaymentMethod } from '@/lib/types'
 
 const PLAYER_QUESTIONS: Record<string, { filterGk: boolean; sortBy: 'goals' | 'assists' | 'clean_sheets'; statLabel: string }> = {
@@ -17,12 +16,6 @@ const PLAYER_QUESTIONS: Record<string, { filterGk: boolean; sortBy: 'goals' | 'a
 const TEAM_QUESTIONS = ['bekerwinnaar', 'beste_ploeg_poi', 'meeste_goals_poi', 'minste_goals_tegen_poi', 'kampioen']
 const SINGLE_ANSWER_QUESTIONS = ['kampioen', 'bekerwinnaar']
 const BEKER_TEAMS = ['Anderlecht', 'Union']
-
-function TeamLogo({ name, size = 18 }: { name: string; size?: number }) {
-  const logo = getTeamLogo(name)
-  if (!logo) return null
-  return <Image src={logo} alt={name} width={size} height={size} className="inline-block" />
-}
 
 interface PlayerPayment {
   id: string
@@ -95,7 +88,6 @@ export default function AdminPage() {
       supabase
         .from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
-        .order('speeldag', { ascending: true })
         .order('match_datetime', { ascending: true }),
       supabase.from('results').select('*'),
       supabase.from('extra_questions').select('id, question_key, question_label').order('id'),

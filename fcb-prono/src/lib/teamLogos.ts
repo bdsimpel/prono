@@ -1,10 +1,10 @@
 const teamLogoMap: Record<string, string> = {
-  'Genk': '/teams/genk.png',
-  'Club Brugge': '/teams/club-brugge.png',
   'Union': '/teams/union.png',
+  'Club Brugge': '/teams/club-brugge.png',
+  'STVV': '/teams/stvv.png',
   'Anderlecht': '/teams/anderlecht.png',
   'Gent': '/teams/gent.png',
-  'Antwerp': '/teams/antwerp.png',
+  'Mechelen': '/teams/mechelen.png',
 }
 
 export function getTeamLogo(teamName: string): string | null {

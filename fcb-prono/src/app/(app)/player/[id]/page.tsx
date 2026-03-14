@@ -1,25 +1,10 @@
 import { calculateMatchPoints, checkExtraAnswer } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
-import { getTeamLogo } from "@/lib/teamLogos";
-import Image from "next/image";
+import TeamLogo from "@/components/TeamLogo";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-
-function TeamLogo({ name, size = 16 }: { name: string; size?: number }) {
-  const logo = getTeamLogo(name);
-  if (!logo) return null;
-  return (
-    <Image
-      src={logo}
-      alt={name}
-      width={size}
-      height={size}
-      className="inline-block"
-    />
-  );
-}
 
 function getInitials(name: string): string {
   return name

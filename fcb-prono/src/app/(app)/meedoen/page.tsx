@@ -3,10 +3,10 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import Image from 'next/image'
 import PlayerCombobox from '@/components/PlayerCombobox'
+import TeamCombobox from '@/components/TeamCombobox'
 import PaymentSection from '@/components/PaymentSection'
-import { getTeamLogo } from '@/lib/teamLogos'
+import TeamLogo from '@/components/TeamLogo'
 import type { Match, Team, ExtraQuestion, FootballPlayer } from '@/lib/types'
 
 interface MatchWithTeams extends Match {
@@ -26,12 +26,6 @@ const PLAYER_QUESTIONS: Record<string, { filterGk: boolean; sortBy: 'goals' | 'a
 type Step = 'regels' | 'naam' | 'voorspellingen' | 'extra' | 'bevestiging'
 
 const STORAGE_KEY = 'meedoen-form'
-
-function TeamLogo({ name, size = 18 }: { name: string; size?: number }) {
-  const logo = getTeamLogo(name)
-  if (!logo) return null
-  return <Image src={logo} alt={name} width={size} height={size} className="inline-block" />
-}
 
 const STEPS: { key: Step; label: string }[] = [
   { key: 'naam', label: 'Naam' },
@@ -142,7 +136,6 @@ export default function MeedoenPage() {
       supabase
         .from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
-        .order('speeldag', { ascending: true })
         .order('match_datetime', { ascending: true }),
       supabase.from('extra_questions').select('*').order('id'),
       supabase.from('teams').select('*').order('name'),
@@ -582,6 +575,7 @@ export default function MeedoenPage() {
               }
               setError('')
               setStep('extra')
+              window.scrollTo(0, 0)
             }}
             disabled={!allPredictionsFilled}
             className="flex-1 btn-primary py-3 disabled:opacity-40"
@@ -604,9 +598,32 @@ export default function MeedoenPage() {
           {questions.map((q) => {
             const isTeamQuestion = TEAM_QUESTIONS.includes(q.question_key)
             const playerConfig = PLAYER_QUESTIONS[q.question_key]
-            const teamOptions = q.question_key === 'bekerwinnaar'
+            const isBeker = q.question_key === 'bekerwinnaar'
+            const baseTeams = isBeker
               ? teams.filter(t => BEKER_TEAMS.includes(t.name))
               : teams
+            const teamOptions = (() => {
+              const sorted = [...baseTeams]
+              if (q.question_key === 'meeste_goals_poi') {
+                sorted.sort((a, b) => (b.goals_for ?? 0) - (a.goals_for ?? 0))
+              } else if (q.question_key === 'minste_goals_tegen_poi') {
+                sorted.sort((a, b) => (a.goals_against ?? 0) - (b.goals_against ?? 0))
+              } else if (q.question_key === 'kampioen') {
+                sorted.sort((a, b) => (a.standing_rank ?? 99) - (b.standing_rank ?? 99))
+              } else if (q.question_key === 'beste_ploeg_poi') {
+                sorted.sort((a, b) => (b.points_half ?? 0) - (a.points_half ?? 0))
+              }
+              return sorted
+            })()
+            const getTeamStatLabel = (t: Team) => {
+              if (isBeker) return ''
+              if (q.question_key === 'meeste_goals_poi') return `${t.goals_for ?? 0} goals`
+              if (q.question_key === 'minste_goals_tegen_poi') return `${t.goals_against ?? 0} goals`
+              if (q.question_key === 'kampioen') return `#${t.standing_rank} · ${t.points_half ?? 0} ptn`
+              if (q.question_key === 'beste_ploeg_poi') return `${t.points_half ?? 0} ptn`
+              return ''
+            }
+            const comboboxOptions = teamOptions.map(t => ({ name: t.name, statLabel: getTeamStatLabel(t) }))
             return (
               <div key={q.id} className="glass-card-subtle p-4 md:p-5">
                 <label className="block text-sm font-medium mb-3 text-gray-200">
@@ -619,20 +636,14 @@ export default function MeedoenPage() {
                   )}
                 </label>
                 {isTeamQuestion ? (
-                  <select
+                  <TeamCombobox
+                    options={comboboxOptions}
                     value={extraAnswers[q.id] || ''}
-                    onChange={(e) =>
-                      setExtraAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
+                    onChange={(val) =>
+                      setExtraAnswers((prev) => ({ ...prev, [q.id]: val }))
                     }
-                    className="w-full px-4 py-3 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors [&>option]:bg-cb-dark [&>option]:text-white"
-                  >
-                    <option value="">Kies een ploeg...</option>
-                    {teamOptions.map((t) => (
-                      <option key={t.id} value={t.name}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Kies een ploeg..."
+                  />
                 ) : playerConfig ? (
                   <PlayerCombobox
                     options={playerOptionsBySort[playerConfig.sortBy]}
