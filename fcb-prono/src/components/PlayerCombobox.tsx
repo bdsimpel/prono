@@ -120,20 +120,18 @@ export default function PlayerCombobox({
   return (
     <div ref={containerRef} className="relative">
       {value ? (
-        <div className="flex items-center gap-2 w-full px-4 py-2.5 bg-cb-dark border border-border-subtle rounded-lg text-white text-sm">
+        <button
+          type="button"
+          onClick={() => {
+            setIsOpen(!isOpen)
+          }}
+          className="flex items-center gap-2 w-full px-4 py-2.5 bg-cb-dark border border-border-subtle rounded-lg text-white text-sm text-left cursor-pointer hover:border-cb-blue/40 transition-colors"
+        >
           <span className="flex-1 truncate">{value}</span>
-          <button
-            type="button"
-            onClick={() => {
-              onChange('')
-              setIsOpen(true)
-              setTimeout(() => inputRef.current?.focus(), 0)
-            }}
-            className="text-gray-500 hover:text-white shrink-0 px-1 transition-colors"
-          >
-            &times;
-          </button>
-        </div>
+          <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+          </svg>
+        </button>
       ) : (
         <input
           ref={inputRef}
@@ -150,7 +148,7 @@ export default function PlayerCombobox({
         />
       )}
 
-      {isOpen && !value && (
+      {isOpen && (
         <ul
           ref={listRef}
           className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto bg-cb-card border border-border rounded-lg shadow-xl shadow-black/40"
@@ -167,9 +165,11 @@ export default function PlayerCombobox({
                 }}
                 onMouseEnter={() => setHighlightIndex(idx)}
                 className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${
-                  idx === highlightIndex
-                    ? 'bg-cb-blue/20 text-white'
-                    : 'text-gray-300 hover:bg-white/[0.03]'
+                  option.name === value
+                    ? 'bg-cb-blue/10 text-cb-blue'
+                    : idx === highlightIndex
+                      ? 'bg-cb-blue/20 text-white'
+                      : 'text-gray-300 hover:bg-white/[0.03]'
                 }`}
               >
                 <span className="font-medium">{option.name}</span>

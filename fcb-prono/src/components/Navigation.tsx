@@ -127,7 +127,7 @@ export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
               href={item.href}
               className={`flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition-all ${
                 isActive(item.href)
-                  ? 'text-cb-gold'
+                  ? 'text-white'
                   : 'text-gray-500'
               }`}
             >
@@ -139,7 +139,7 @@ export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
             href="/meedoen"
             className={`flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition-all ${
               isActive('/meedoen')
-                ? 'text-cb-blue'
+                ? 'text-white'
                 : 'text-gray-500'
             }`}
           >
@@ -151,7 +151,7 @@ export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
               href="/admin"
               className={`flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition-all ${
                 isActive('/admin')
-                  ? 'text-cb-gold'
+                  ? 'text-white'
                   : 'text-gray-500'
               }`}
             >

@@ -7,9 +7,10 @@ Must haves:
 - [x] Implement caching for Meedoen
 - [ ] Not able to view others predictions upfront, once play offs start, being able to see each others predictions and see predictions per game
 - [x] Friendly for mobile
-- [ ] Add own domain
+- [x] Add own domain
+- [x] Database and deployment both in same region (Ireland)
 - [x] Add functionality to see progress over time of players
-- [ ] Improve UX
+- [x] Improve UX
 - [ ] Add favorite team
 - [ ] Community feeling with activity log
 - [ ] Add history of users as well: number of years presense, ere lijst

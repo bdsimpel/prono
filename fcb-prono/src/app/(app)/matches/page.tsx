@@ -74,7 +74,7 @@ export default async function MatchesPage() {
   const playedCount = played?.length ?? 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
       <div className="mb-6">
         <h1 className="heading-display text-3xl md:text-4xl text-white">
           WEDSTRIJDEN
@@ -130,35 +130,35 @@ export default async function MatchesPage() {
                 <Link
                   key={match.id}
                   href={`/matches/${match.id}`}
-                  className="glass-card-subtle p-4 flex items-center gap-4 hover:bg-white/[0.03] transition-colors"
+                  className="glass-card-subtle p-3 md:p-4 flex items-center gap-3 md:gap-4 hover:bg-white/[0.03] transition-colors"
                 >
-                  <div className="text-center min-w-[60px]">
-                    <div className="text-xs text-gray-400 capitalize">
+                  <div className="text-center min-w-[50px] md:min-w-[60px]">
+                    <div className="text-[10px] md:text-xs text-gray-400 capitalize">
                       {day} {date}
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">{time}</div>
+                    <div className="text-[10px] md:text-xs text-gray-500 mt-0.5">{time}</div>
                   </div>
 
-                  <div className="flex-1 flex items-center gap-2 text-sm">
-                    <span className="flex items-center gap-1.5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 text-sm">
                       <TeamLogo name={match.home_team.name} />
-                      {match.home_team.name}
-                    </span>
-                    <span className="text-gray-600 text-xs">vs</span>
-                    <span className="flex items-center gap-1.5">
+                      <span className="truncate md:hidden">{match.home_team.short_name || match.home_team.name}</span>
+                      <span className="truncate hidden md:inline">{match.home_team.name}</span>
+                      <span className="text-gray-600 text-xs shrink-0">-</span>
+                      <span className="truncate md:hidden">{match.away_team.short_name || match.away_team.name}</span>
+                      <span className="truncate hidden md:inline">{match.away_team.name}</span>
                       <TeamLogo name={match.away_team.name} />
-                      {match.away_team.name}
-                    </span>
+                    </div>
                   </div>
 
-                  <span className="text-xs text-gray-600">
+                  <span className="text-[10px] md:text-xs text-gray-600 shrink-0">
                     {match.is_cup_final
-                      ? "Bekerfinale"
+                      ? "Beker"
                       : `SD ${match.speeldag}`}
                   </span>
 
                   <svg
-                    className="w-4 h-4 text-gray-600"
+                    className="w-4 h-4 text-gray-600 shrink-0 hidden md:block"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -194,36 +194,36 @@ export default async function MatchesPage() {
                 <Link
                   key={match.id}
                   href={`/matches/${match.id}`}
-                  className="glass-card-subtle p-4 flex items-center gap-4 hover:bg-white/[0.03] transition-colors"
+                  className="glass-card-subtle p-3 md:p-4 flex items-center gap-3 md:gap-4 hover:bg-white/[0.03] transition-colors"
                 >
-                  <div className="text-center min-w-[60px]">
-                    <div className="text-xs text-gray-500 capitalize">
+                  <div className="text-center min-w-[50px] md:min-w-[60px]">
+                    <div className="text-[10px] md:text-xs text-gray-500 capitalize">
                       {day} {date}
                     </div>
                   </div>
 
-                  <div className="flex-1 flex items-center gap-2 text-sm">
-                    <span className="flex items-center gap-1.5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 text-sm">
                       <TeamLogo name={match.home_team.name} />
-                      {match.home_team.name}
-                    </span>
-                    <span className="bg-white/[0.06] px-2.5 py-0.5 rounded text-white font-bold text-xs">
-                      {result.home_score} - {result.away_score}
-                    </span>
-                    <span className="flex items-center gap-1.5">
+                      <span className="truncate md:hidden">{match.home_team.short_name || match.home_team.name}</span>
+                      <span className="truncate hidden md:inline">{match.home_team.name}</span>
+                      <span className="bg-white/[0.06] px-2 py-0.5 rounded text-white font-bold text-xs shrink-0">
+                        {result.home_score}-{result.away_score}
+                      </span>
+                      <span className="truncate md:hidden">{match.away_team.short_name || match.away_team.name}</span>
+                      <span className="truncate hidden md:inline">{match.away_team.name}</span>
                       <TeamLogo name={match.away_team.name} />
-                      {match.away_team.name}
-                    </span>
+                    </div>
                   </div>
 
-                  <span className="text-xs text-gray-600">
+                  <span className="text-[10px] md:text-xs text-gray-600 shrink-0">
                     {match.is_cup_final
-                      ? "Bekerfinale"
+                      ? "Beker"
                       : `SD ${match.speeldag}`}
                   </span>
 
                   <svg
-                    className="w-4 h-4 text-gray-600"
+                    className="w-4 h-4 text-gray-600 shrink-0 hidden md:block"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

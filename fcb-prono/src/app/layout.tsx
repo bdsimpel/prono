@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Bebas_Neue } from "next/font/google";
 import "./globals.css";
 
@@ -16,6 +16,13 @@ const bebasNeue = Bebas_Neue({
 export const metadata: Metadata = {
   title: "FCB Prono 2025-2026",
   description: "Club Brugge Pronostiek Seizoen 2025-2026 — No Sweat No Glory",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({

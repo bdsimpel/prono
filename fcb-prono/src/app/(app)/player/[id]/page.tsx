@@ -42,7 +42,7 @@ function getCategoryBadge(category: string) {
     case "goal_diff":
       return (
         <span className="text-xs px-2.5 py-1 rounded border border-cb-blue/25 text-cb-blue/80">
-          Doelpuntenverschil
+          Goal verschil
         </span>
       );
     case "result":
@@ -169,7 +169,7 @@ export default async function PlayerDetailPage({
     : null;
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
       {/* Back + close */}
       <div className="flex items-center justify-between mb-6">
         <Link
@@ -260,39 +260,39 @@ export default async function PlayerDetailPage({
 
       {/* Stats row */}
       {playerScore && (
-        <div className="flex items-center justify-start gap-6 md:gap-10 mb-10 px-2">
+        <div className="flex items-center justify-start gap-4 md:gap-10 mb-8 md:mb-10 px-1 md:px-2">
           <div className="text-center">
-            <div className="heading-display text-3xl text-cb-blue font-bold">
+            <div className="heading-display text-2xl md:text-3xl text-cb-blue font-bold">
               {playerScore.total_score}
             </div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+            <div className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-0.5">
               Score
             </div>
           </div>
           <div className="stat-divider" />
           <div className="text-center">
-            <div className="heading-display text-3xl text-white font-bold">
+            <div className="heading-display text-2xl md:text-3xl text-white font-bold">
               {gamesPlayed}
             </div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+            <div className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-0.5">
               Gespeeld
             </div>
           </div>
           <div className="stat-divider" />
           <div className="text-center">
-            <div className="heading-display text-3xl text-white font-bold">
+            <div className="heading-display text-2xl md:text-3xl text-white font-bold">
               {playerScore.exact_matches}
             </div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+            <div className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-0.5">
               Exact
             </div>
           </div>
           <div className="stat-divider" />
           <div className="text-center">
-            <div className="heading-display text-3xl text-white font-bold">
+            <div className="heading-display text-2xl md:text-3xl text-white font-bold">
               {playerScore.correct_results}
             </div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+            <div className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-0.5">
               Correct
             </div>
           </div>
@@ -330,17 +330,20 @@ export default async function PlayerDetailPage({
           }
 
           return (
-            <div key={pred.id} className="glass-card-subtle p-4">
-              <div className="flex items-start justify-between gap-4">
+            <div key={pred.id} className="glass-card-subtle p-3 md:p-4">
+              <div className="flex items-center justify-between gap-2 md:gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm text-gray-200 font-medium flex items-center gap-1.5">
+                  <div className="text-sm text-gray-200 font-medium flex items-center gap-1 truncate">
                     <TeamLogo name={match.home_team.name} />
-                    {match.home_team.name} vs {match.away_team.name}
+                    <span className="truncate md:hidden">{match.home_team.short_name || match.home_team.name}</span>
+                    <span className="truncate hidden md:inline">{match.home_team.name}</span>
+                    <span className="text-gray-600 shrink-0">-</span>
+                    <span className="truncate md:hidden">{match.away_team.short_name || match.away_team.name}</span>
+                    <span className="truncate hidden md:inline">{match.away_team.name}</span>
                     <TeamLogo name={match.away_team.name} />
                   </div>
-                  <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-500">
+                  <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
                     <span>
-                      Prono:{" "}
                       <span className="text-gray-300 font-bold">
                         {pred.home_score}-{pred.away_score}
                       </span>
@@ -348,18 +351,15 @@ export default async function PlayerDetailPage({
                     {result && (
                       <>
                         <span className="text-gray-600">&rarr;</span>
-                        <span>
-                          Uitslag:{" "}
-                          <span className="text-gray-300 font-bold">
-                            {result.home_score}-{result.away_score}
-                          </span>
+                        <span className="text-gray-300 font-bold">
+                          {result.home_score}-{result.away_score}
                         </span>
                       </>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {getCategoryBadge(category)}
+                <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+                  <span className="hidden md:inline-flex">{getCategoryBadge(category)}</span>
                   <span
                     className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}
                   >

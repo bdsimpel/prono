@@ -65,7 +65,7 @@ export default async function KlassementPage() {
   return (
     <div>
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-10 md:py-16">
+      <section className="relative overflow-hidden py-6 md:py-16">
         {/* Watermark */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
           <span className="heading-display text-[8rem] md:text-[14rem] lg:text-[18rem] text-white/[0.02] leading-none tracking-wider">
@@ -73,46 +73,46 @@ export default async function KlassementPage() {
           </span>
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-6 text-center">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 text-center">
           <span className="heading-display text-xs md:text-sm text-gray-500 tracking-[0.3em]">
             Seizoen 2025-2026
           </span>
-          <h1 className="heading-display text-6xl md:text-8xl lg:text-9xl leading-none mt-4">
+          <h1 className="heading-display text-5xl md:text-8xl lg:text-9xl leading-none mt-2 md:mt-4">
             <span className="block text-white">PRONO</span>
             <span className="block text-cb-blue">PLAY-OFFS</span>
           </h1>
-          <p className="mt-6 text-gray-400 max-w-2xl mx-auto text-sm md:text-base">
+          <p className="mt-3 md:mt-6 text-gray-400 max-w-md md:max-w-2xl mx-auto text-xs md:text-base leading-relaxed">
             De allerlaatste editie van de play-offs prono, de prono van
             Klein-Brabant. Voorspel de uitslagen, strijd tegen vrienden en
             familie, en bewijs dat jij de echte voetbal kenner bent.
           </p>
 
           {/* Stats */}
-          <div className="flex items-center justify-center gap-6 md:gap-12 mt-8">
+          <div className="flex items-center justify-center gap-4 md:gap-12 mt-5 md:mt-8">
             <div className="text-center">
-              <div className="heading-display text-3xl md:text-4xl text-white font-bold">
+              <div className="heading-display text-2xl md:text-4xl text-white font-bold">
                 {playerCount}
               </div>
-              <div className="text-[10px] md:text-xs text-gray-500 uppercase tracking-[0.2em] mt-1">
+              <div className="text-[9px] md:text-xs text-gray-500 uppercase tracking-[0.15em] mt-0.5">
                 Spelers
               </div>
             </div>
             <div className="stat-divider" />
             <div className="text-center">
-              <div className="heading-display text-3xl md:text-4xl text-white font-bold">
+              <div className="heading-display text-2xl md:text-4xl text-white font-bold">
                 {matchCount ?? 0}
               </div>
-              <div className="text-[10px] md:text-xs text-gray-500 uppercase tracking-[0.2em] mt-1">
+              <div className="text-[9px] md:text-xs text-gray-500 uppercase tracking-[0.15em] mt-0.5">
                 Wedstrijden
               </div>
             </div>
             <div className="stat-divider" />
             <div className="text-center">
-              <div className="heading-display text-3xl md:text-4xl text-white font-bold">
+              <div className="heading-display text-2xl md:text-4xl text-white font-bold">
                 {predictionCount ?? 0}
               </div>
-              <div className="text-[10px] md:text-xs text-gray-500 uppercase tracking-[0.2em] mt-1">
-                Voorspellingen
+              <div className="text-[9px] md:text-xs text-gray-500 uppercase tracking-[0.15em] mt-0.5">
+                Prono&apos;s
               </div>
             </div>
           </div>
@@ -120,7 +120,7 @@ export default async function KlassementPage() {
       </section>
 
       {/* Rankings Section */}
-      <section className="max-w-7xl mx-auto px-6 pb-16">
+      <section className="max-w-7xl mx-auto px-4 md:px-6 pb-16">
         <div className="flex items-end justify-between mb-6">
           <div>
             <h2 className="heading-display text-3xl md:text-4xl text-white">
@@ -146,7 +146,7 @@ export default async function KlassementPage() {
                     Score
                   </th>
                   <th className="text-right font-normal px-2 py-3 w-12">E</th>
-                  <th className="text-right font-normal px-2 py-3 w-12">GD</th>
+                  <th className="text-right font-normal px-2 py-3 w-12">GV</th>
                   <th className="text-right font-normal px-2 py-3 w-12">JR</th>
                   <th className="text-right font-normal px-2 py-3 w-16">
                     Match
@@ -213,23 +213,38 @@ export default async function KlassementPage() {
 
             {/* Mobile list */}
             <div className="md:hidden">
+              <div className="flex items-center text-[10px] text-gray-600 uppercase tracking-wider px-3 py-2 border-b border-white/[0.06]">
+                <span className="w-7">#</span>
+                <span className="flex-1">Naam</span>
+                <span className="w-8 text-right">E</span>
+                <span className="w-8 text-right">GV</span>
+                <span className="w-8 text-right">JR</span>
+                <span className="w-12 text-right">Score</span>
+              </div>
               {standings.map((row) => (
                 <Link
                   key={row.user_id}
                   href={`/player/${row.user_id}`}
-                  className="table-row flex items-center justify-between px-4 py-3"
+                  className="table-row flex items-center px-3 py-2.5"
                 >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`heading-display text-lg w-6 ${getRankColor(row.rank)}`}
-                    >
-                      {row.rank}
-                    </span>
-                    <span className="text-sm font-medium text-gray-200">
-                      {row.display_name}
-                    </span>
-                  </div>
-                  <span className="text-sm font-bold text-cb-blue">
+                  <span
+                    className={`heading-display text-base w-7 ${getRankColor(row.rank)}`}
+                  >
+                    {row.rank}
+                  </span>
+                  <span className="flex-1 text-sm font-medium text-gray-200 truncate pr-2">
+                    {row.display_name}
+                  </span>
+                  <span className="w-8 text-right text-xs text-gray-500">
+                    {row.exact_matches}
+                  </span>
+                  <span className="w-8 text-right text-xs text-gray-500">
+                    {row.correct_goal_diffs}
+                  </span>
+                  <span className="w-8 text-right text-xs text-gray-500">
+                    {row.correct_results}
+                  </span>
+                  <span className="w-12 text-right text-sm font-bold text-cb-blue">
                     {row.total_score}
                   </span>
                 </Link>
@@ -238,7 +253,7 @@ export default async function KlassementPage() {
 
             {/* Legend */}
             <div className="px-5 py-3 text-xs text-gray-600 border-t border-white/[0.04]">
-              E = Exact &middot; GD = Juist doelpuntenverschil &middot; JR =
+              E = Exact &middot; GV = Goal verschil &middot; JR =
               Juist resultaat
             </div>
           </div>

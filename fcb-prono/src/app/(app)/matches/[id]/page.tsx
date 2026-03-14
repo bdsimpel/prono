@@ -32,7 +32,7 @@ function getCategoryBadge(category: string) {
     case "goal_diff":
       return (
         <span className="text-xs px-2.5 py-1 rounded border border-cb-blue/25 text-cb-blue/80">
-          Doelpuntenverschil
+          Goal verschil
         </span>
       );
     case "result":
@@ -149,7 +149,7 @@ export default async function MatchDetailPage({
   ).length;
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
       {/* Back + close */}
       <div className="flex items-center justify-between mb-6">
         <Link
@@ -192,26 +192,32 @@ export default async function MatchDetailPage({
       </div>
 
       {/* Match header */}
-      <div className="glass-card-subtle p-6 mb-6">
-        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
-          <div className="flex items-center gap-3">
-            <TeamLogo name={match.home_team.name} size={40} />
-            <span className="heading-display text-2xl md:text-3xl text-white">
+      <div className="glass-card-subtle p-4 md:p-6 mb-6">
+        <div className="flex items-center justify-center gap-3 md:gap-8">
+          <div className="flex items-center gap-2 md:gap-3 flex-1 justify-end">
+            <TeamLogo name={match.home_team.name} size={28} />
+            <span className="heading-display text-lg md:text-3xl text-white text-right md:hidden">
+              {match.home_team.short_name || match.home_team.name}
+            </span>
+            <span className="heading-display text-lg md:text-3xl text-white text-right hidden md:inline">
               {match.home_team.name}
             </span>
           </div>
           {result ? (
-            <span className="heading-display text-3xl text-cb-blue">
+            <span className="heading-display text-2xl md:text-3xl text-cb-blue shrink-0">
               {result.home_score} - {result.away_score}
             </span>
           ) : (
-            <span className="text-xl text-gray-600 heading-display">VS</span>
+            <span className="text-lg md:text-xl text-gray-600 heading-display shrink-0">VS</span>
           )}
-          <div className="flex items-center gap-3">
-            <span className="heading-display text-2xl md:text-3xl text-white">
+          <div className="flex items-center gap-2 md:gap-3 flex-1">
+            <span className="heading-display text-lg md:text-3xl text-white md:hidden">
+              {match.away_team.short_name || match.away_team.name}
+            </span>
+            <span className="heading-display text-lg md:text-3xl text-white hidden md:inline">
               {match.away_team.name}
             </span>
-            <TeamLogo name={match.away_team.name} size={40} />
+            <TeamLogo name={match.away_team.name} size={28} />
           </div>
         </div>
         <p className="text-center text-xs text-gray-500 mt-3">
@@ -269,34 +275,28 @@ export default async function MatchDetailPage({
           </div>
         ) : (
           predWithPoints.map((pred) => (
-            <div key={pred.id} className="glass-card-subtle p-4">
-              <div className="flex items-start justify-between gap-4">
+            <div key={pred.id} className="glass-card-subtle p-3 md:p-4">
+              <div className="flex items-center justify-between gap-2 md:gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm text-gray-200 font-medium">
+                  <div className="text-sm text-gray-200 font-medium truncate">
                     {pred.display_name}
                   </div>
-                  <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-500">
-                    <span>
-                      Prono:{" "}
-                      <span className="text-gray-300 font-bold">
-                        {pred.home_score}-{pred.away_score}
-                      </span>
+                  <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                    <span className="text-gray-300 font-bold">
+                      {pred.home_score}-{pred.away_score}
                     </span>
                     {result && (
                       <>
                         <span className="text-gray-600">&rarr;</span>
-                        <span>
-                          Uitslag:{" "}
-                          <span className="text-gray-300 font-bold">
-                            {result.home_score}-{result.away_score}
-                          </span>
+                        <span className="text-gray-300 font-bold">
+                          {result.home_score}-{result.away_score}
                         </span>
                       </>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {getCategoryBadge(pred.category)}
+                <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+                  <span className="hidden md:inline-flex">{getCategoryBadge(pred.category)}</span>
                   <span
                     className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(pred.category)}`}
                   >

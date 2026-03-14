@@ -1,4 +1,5 @@
 import Navigation from "@/components/Navigation";
+import ScrollToTop from "@/components/ScrollToTop";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
@@ -24,6 +25,7 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen pb-16 md:pb-0 flex flex-col">
+      <ScrollToTop />
       <Navigation isAdmin={isAdmin} />
       <main className="flex-1">{children}</main>
 
