@@ -1,6 +1,6 @@
+import TeamLogo from "@/components/TeamLogo";
 import { calculateMatchPoints, checkExtraAnswer } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
-import TeamLogo from "@/components/TeamLogo";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -65,9 +65,18 @@ function getCategoryPointColor(category: string) {
   }
 }
 
-function PredictionCard({ pred, match, result, points, category }: {
+function PredictionCard({
+  pred,
+  match,
+  result,
+  points,
+  category,
+}: {
   pred: { id: number; home_score: number; away_score: number };
-  match: { home_team: { name: string; short_name: string }; away_team: { name: string; short_name: string } };
+  match: {
+    home_team: { name: string; short_name: string };
+    away_team: { name: string; short_name: string };
+  };
   result: { home_score: number; away_score: number } | undefined;
   points: number;
   category: string;
@@ -79,27 +88,38 @@ function PredictionCard({ pred, match, result, points, category }: {
         <div className="flex items-center">
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
             <TeamLogo name={match.home_team.name} />
-            <span className="text-sm text-gray-200 truncate">{match.home_team.name}</span>
+            <span className="text-sm text-gray-200 truncate">
+              {match.home_team.name}
+            </span>
           </div>
           {result ? (
             <span className="heading-display text-xl text-white shrink-0 px-2">
-              {result.home_score}<span className="text-gray-600 mx-0.5">-</span>{result.away_score}
+              {result.home_score}
+              <span className="text-gray-600 mx-0.5">-</span>
+              {result.away_score}
             </span>
           ) : (
             <span className="text-sm text-gray-600 shrink-0 px-2">vs</span>
           )}
           <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-            <span className="text-sm text-gray-200 truncate">{match.away_team.name}</span>
+            <span className="text-sm text-gray-200 truncate">
+              {match.away_team.name}
+            </span>
             <TeamLogo name={match.away_team.name} />
           </div>
         </div>
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/[0.06]">
           <span className="text-xs text-gray-500">
-            Prono <span className="text-gray-300 font-bold ml-1">{pred.home_score} - {pred.away_score}</span>
+            Prono{" "}
+            <span className="text-gray-300 font-bold ml-1">
+              {pred.home_score} - {pred.away_score}
+            </span>
           </span>
           <div className="flex items-center gap-1.5">
             {getCategoryBadge(category)}
-            <span className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}>
+            <span
+              className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}
+            >
               {result ? `+${points}` : "—"}
             </span>
           </div>
@@ -118,19 +138,25 @@ function PredictionCard({ pred, match, result, points, category }: {
           <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
             <span>
               <span className="text-gray-500">Prono: </span>
-              <span className="text-gray-300 font-bold">{pred.home_score}-{pred.away_score}</span>
+              <span className="text-gray-300 font-bold">
+                {pred.home_score}-{pred.away_score}
+              </span>
             </span>
             {result && (
               <span>
                 <span className="text-gray-500">Uitslag: </span>
-                <span className="text-gray-300 font-bold">{result.home_score}-{result.away_score}</span>
+                <span className="text-gray-300 font-bold">
+                  {result.home_score}-{result.away_score}
+                </span>
               </span>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {getCategoryBadge(category)}
-          <span className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}>
+          <span
+            className={`heading-display text-lg w-8 text-right ${getCategoryPointColor(category)}`}
+          >
             {result ? `+${points}` : "—"}
           </span>
         </div>
@@ -220,22 +246,45 @@ export default async function PlayerDetailPage({
 
   // Group predictions by round (same logic as matches page)
   type PredWithMatch = NonNullable<typeof predictions>[number];
-  type PredRound = { label: string; key: string; predictions: PredWithMatch[]; firstDatetime: number };
+  type PredRound = {
+    label: string;
+    key: string;
+    predictions: PredWithMatch[];
+    firstDatetime: number;
+  };
   const roundsMap = new Map<string, PredRound>();
   for (const pred of predictions || []) {
-    const match = pred.matches as { speeldag: number | null; is_cup_final: boolean; match_datetime: string | null; home_team: { name: string; short_name: string }; away_team: { name: string; short_name: string } };
-    const key = match.is_cup_final ? 'beker' : `sd-${match.speeldag}`;
-    const label = match.is_cup_final ? 'Bekerfinale' : `Speeldag ${match.speeldag}`;
+    const match = pred.matches as {
+      speeldag: number | null;
+      is_cup_final: boolean;
+      match_datetime: string | null;
+      home_team: { name: string; short_name: string };
+      away_team: { name: string; short_name: string };
+    };
+    const key = match.is_cup_final ? "beker" : `sd-${match.speeldag}`;
+    const label = match.is_cup_final
+      ? "Bekerfinale"
+      : `Speeldag ${match.speeldag}`;
     if (!roundsMap.has(key)) {
-      roundsMap.set(key, { label, key, predictions: [], firstDatetime: match.match_datetime ? new Date(match.match_datetime).getTime() : Infinity });
+      roundsMap.set(key, {
+        label,
+        key,
+        predictions: [],
+        firstDatetime: match.match_datetime
+          ? new Date(match.match_datetime).getTime()
+          : Infinity,
+      });
     }
     roundsMap.get(key)!.predictions.push(pred);
     if (match.match_datetime) {
       const t = new Date(match.match_datetime).getTime();
-      if (t < roundsMap.get(key)!.firstDatetime) roundsMap.get(key)!.firstDatetime = t;
+      if (t < roundsMap.get(key)!.firstDatetime)
+        roundsMap.get(key)!.firstDatetime = t;
     }
   }
-  const rounds = Array.from(roundsMap.values()).sort((a, b) => a.firstDatetime - b.firstDatetime);
+  const rounds = Array.from(roundsMap.values()).sort(
+    (a, b) => a.firstDatetime - b.firstDatetime,
+  );
 
   // Find current round (activates 2 days before first match)
   const now = Date.now();
@@ -251,11 +300,19 @@ export default async function PlayerDetailPage({
   const currentRoundKeys = new Set(currentRound ? [currentRound.key] : []);
   const currentPredictions = currentRound?.predictions ?? [];
   const upcomingPredictions = rounds
-    .filter(r => !currentRoundKeys.has(r.key) && r.predictions.some(p => !resultMap[p.match_id]))
-    .flatMap(r => r.predictions);
+    .filter(
+      (r) =>
+        !currentRoundKeys.has(r.key) &&
+        r.predictions.some((p) => !resultMap[p.match_id]),
+    )
+    .flatMap((r) => r.predictions);
   const playedPredictions = rounds
-    .filter(r => !currentRoundKeys.has(r.key) && r.predictions.every(p => resultMap[p.match_id]))
-    .flatMap(r => r.predictions);
+    .filter(
+      (r) =>
+        !currentRoundKeys.has(r.key) &&
+        r.predictions.every((p) => resultMap[p.match_id]),
+    )
+    .flatMap((r) => r.predictions);
 
   const memberSince = player.created_at
     ? new Date(player.created_at).toLocaleDateString("nl-BE", {
@@ -324,22 +381,26 @@ export default async function PlayerDetailPage({
               {memberSince && <span>Lid sinds {memberSince}</span>}
               {player.payment_status === "paid" && (
                 <svg
-                    className="w-4 h-4 text-cb-blue"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
+                  className="w-4 h-4 text-cb-blue"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
               )}
               {player.favorite_team && (
                 <span className="flex items-center gap-1">
-                  <svg className="w-3 h-3 text-cb-blue" fill="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="w-3 h-3 text-cb-blue"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
                   </svg>
                   <TeamLogo name={player.favorite_team} size={14} />
@@ -380,8 +441,8 @@ export default async function PlayerDetailPage({
                 Betaling wordt gecheckt!
               </p>
               <p className="text-xs text-gray-500 mt-0.5">
-                De admin is je centen aan het zoeken tussen de sofa-kussens.
-                Even geduld, we bevestigen het zo snel mogelijk!
+                De admin is je centen aan het zoeken. Even geduld, we bevestigen
+                het zo snel mogelijk!
               </p>
             </div>
           </div>
@@ -430,12 +491,6 @@ export default async function PlayerDetailPage({
       )}
 
       {/* Match predictions */}
-      <div className="mb-4">
-        <h2 className="heading-display text-xl text-gray-400">
-          VOORSPELLINGEN
-        </h2>
-      </div>
-
       {/* Current round */}
       {currentRound && currentPredictions.length > 0 && (
         <div className="mb-8">
@@ -445,12 +500,41 @@ export default async function PlayerDetailPage({
           </h3>
           <div className="space-y-2">
             {currentPredictions.map((pred) => {
-              const match = pred.matches as { speeldag: number | null; is_cup_final: boolean; match_datetime: string | null; home_team: { name: string; short_name: string }; away_team: { name: string; short_name: string } };
+              const match = pred.matches as {
+                speeldag: number | null;
+                is_cup_final: boolean;
+                match_datetime: string | null;
+                home_team: { name: string; short_name: string };
+                away_team: { name: string; short_name: string };
+              };
               const result = resultMap[pred.match_id];
               let points = 0;
-              let category: "exact" | "goal_diff" | "result" | "wrong" | "pending" = "pending";
-              if (result) { const calc = calculateMatchPoints(pred.home_score, pred.away_score, result.home_score, result.away_score); points = calc.points; category = calc.category; }
-              return <PredictionCard key={pred.id} pred={pred} match={match} result={result} points={points} category={category} />;
+              let category:
+                | "exact"
+                | "goal_diff"
+                | "result"
+                | "wrong"
+                | "pending" = "pending";
+              if (result) {
+                const calc = calculateMatchPoints(
+                  pred.home_score,
+                  pred.away_score,
+                  result.home_score,
+                  result.away_score,
+                );
+                points = calc.points;
+                category = calc.category;
+              }
+              return (
+                <PredictionCard
+                  key={pred.id}
+                  pred={pred}
+                  match={match}
+                  result={result}
+                  points={points}
+                  category={category}
+                />
+              );
             })}
           </div>
         </div>
@@ -464,8 +548,23 @@ export default async function PlayerDetailPage({
           </h3>
           <div className="space-y-2">
             {upcomingPredictions.map((pred) => {
-              const match = pred.matches as { speeldag: number | null; is_cup_final: boolean; match_datetime: string | null; home_team: { name: string; short_name: string }; away_team: { name: string; short_name: string } };
-              return <PredictionCard key={pred.id} pred={pred} match={match} result={undefined} points={0} category="pending" />;
+              const match = pred.matches as {
+                speeldag: number | null;
+                is_cup_final: boolean;
+                match_datetime: string | null;
+                home_team: { name: string; short_name: string };
+                away_team: { name: string; short_name: string };
+              };
+              return (
+                <PredictionCard
+                  key={pred.id}
+                  pred={pred}
+                  match={match}
+                  result={undefined}
+                  points={0}
+                  category="pending"
+                />
+              );
             })}
           </div>
         </div>
@@ -479,12 +578,41 @@ export default async function PlayerDetailPage({
           </h3>
           <div className="space-y-2">
             {playedPredictions.map((pred) => {
-              const match = pred.matches as { speeldag: number | null; is_cup_final: boolean; match_datetime: string | null; home_team: { name: string; short_name: string }; away_team: { name: string; short_name: string } };
+              const match = pred.matches as {
+                speeldag: number | null;
+                is_cup_final: boolean;
+                match_datetime: string | null;
+                home_team: { name: string; short_name: string };
+                away_team: { name: string; short_name: string };
+              };
               const result = resultMap[pred.match_id];
               let points = 0;
-              let category: "exact" | "goal_diff" | "result" | "wrong" | "pending" = "pending";
-              if (result) { const calc = calculateMatchPoints(pred.home_score, pred.away_score, result.home_score, result.away_score); points = calc.points; category = calc.category; }
-              return <PredictionCard key={pred.id} pred={pred} match={match} result={result} points={points} category={category} />;
+              let category:
+                | "exact"
+                | "goal_diff"
+                | "result"
+                | "wrong"
+                | "pending" = "pending";
+              if (result) {
+                const calc = calculateMatchPoints(
+                  pred.home_score,
+                  pred.away_score,
+                  result.home_score,
+                  result.away_score,
+                );
+                points = calc.points;
+                category = calc.category;
+              }
+              return (
+                <PredictionCard
+                  key={pred.id}
+                  pred={pred}
+                  match={match}
+                  result={result}
+                  points={points}
+                  category={category}
+                />
+              );
             })}
           </div>
         </div>

@@ -11,9 +11,7 @@ Must haves:
 - [x] Database and deployment both in same region (Ireland)
 - [x] Add functionality to see progress over time of players
 - [x] Improve UX
-- [ ] Add favorite team
-- [ ] Community feeling with activity log
-- [ ] Add history of users as well: number of years presense, ere lijst
+- [x] Add favorite team
 
 Should haves:
 
@@ -21,6 +19,8 @@ Should haves:
 - [ ] Add nice stats
 - [ ] Regular competition bot
 - [x] Add logos
+- [ ] Community feeling with activity log
+- [ ] Add history of users as well: number of years presense, ere lijst
 
 Could haves:
 

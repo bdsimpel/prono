@@ -146,7 +146,11 @@ export default async function MatchDetailPage({
     };
   });
 
-  predWithPoints.sort((a, b) => a.rank - b.rank);
+  if (result) {
+    predWithPoints.sort((a, b) => b.points - a.points || a.rank - b.rank);
+  } else {
+    predWithPoints.sort((a, b) => a.rank - b.rank);
+  }
 
   const predictionCount = predWithPoints.length;
   const exactCount = predWithPoints.filter(
