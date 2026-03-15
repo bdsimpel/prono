@@ -631,15 +631,20 @@ export default function MeedoenPage() {
             </div>
             <div>
               <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5 md:mb-2">
-                Favoriete ploeg <span className="text-gray-600 normal-case tracking-normal">(optioneel)</span>
+                Favoriete ploeg{" "}
+                <span className="text-gray-600 normal-case tracking-normal">
+                  (optioneel)
+                </span>
               </label>
               <TeamCombobox
                 options={[
-                  { name: 'Neutraal', statLabel: '' },
-                  ...FAVORITE_TEAMS.map(t => ({ name: t, statLabel: '' })),
+                  { name: "Neutraal", statLabel: "" },
+                  ...FAVORITE_TEAMS.map((t) => ({ name: t, statLabel: "" })),
                 ]}
                 value={favoriteTeam}
-                onChange={(val) => setFavoriteTeam(val === 'Neutraal' ? '' : val)}
+                onChange={(val) =>
+                  setFavoriteTeam(val === "Neutraal" ? "" : val)
+                }
                 placeholder="Kies je ploeg..."
               />
             </div>

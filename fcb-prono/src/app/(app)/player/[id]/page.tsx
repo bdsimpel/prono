@@ -322,12 +322,6 @@ export default async function PlayerDetailPage({
             <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
               <span>#{rank}</span>
               {memberSince && <span>Lid sinds {memberSince}</span>}
-              {player.favorite_team && (
-                <span className="flex items-center gap-1">
-                  <TeamLogo name={player.favorite_team} size={14} />
-                  <span className="text-gray-400">{player.favorite_team}</span>
-                </span>
-              )}
               {player.payment_status === "paid" && (
                 <svg
                     className="w-4 h-4 text-cb-blue"
@@ -342,6 +336,15 @@ export default async function PlayerDetailPage({
                       d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
+              )}
+              {player.favorite_team && (
+                <span className="flex items-center gap-1">
+                  <svg className="w-3 h-3 text-cb-blue" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                  </svg>
+                  <TeamLogo name={player.favorite_team} size={14} />
+                  <span className="text-gray-400">{player.favorite_team}</span>
+                </span>
               )}
             </div>
           </div>

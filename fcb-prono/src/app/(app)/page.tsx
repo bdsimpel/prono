@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import InfoModal from "@/components/InfoModal";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,9 @@ export default async function KlassementPage() {
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 text-center">
+          <div className="absolute top-0 right-4 md:right-6">
+            <InfoModal />
+          </div>
           <span className="heading-display text-xs md:text-sm text-gray-500 tracking-[0.3em]">
             Seizoen 2025-2026
           </span>
