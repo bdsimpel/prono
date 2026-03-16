@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -111,6 +112,8 @@ export async function POST(request: Request) {
       console.error('Extra predictions insert error:', extraError)
       return NextResponse.json({ error: 'Kon extra antwoorden niet opslaan' }, { status: 500 })
     }
+
+    revalidatePath('/', 'layout')
 
     return NextResponse.json({ success: true, playerId: player.id })
   } catch {

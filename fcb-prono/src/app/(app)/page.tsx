@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import InfoModal from "@/components/InfoModal";
 
-export const dynamic = "force-dynamic";
+export const revalidate = false;
 
 function getRankColor(rank: number): string {
   if (rank === 1) return "text-cb-gold";
@@ -12,7 +12,7 @@ function getRankColor(rank: number): string {
 }
 
 export default async function KlassementPage() {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   const [
     { data: players },

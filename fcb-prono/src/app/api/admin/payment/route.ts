@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
@@ -39,6 +40,8 @@ export async function POST(request: Request) {
     console.error('Admin payment update error:', error)
     return NextResponse.json({ error: 'Kon betaling niet bijwerken' }, { status: 500 })
   }
+
+  revalidatePath(`/player/${playerId}`)
 
   return NextResponse.json({ success: true })
 }

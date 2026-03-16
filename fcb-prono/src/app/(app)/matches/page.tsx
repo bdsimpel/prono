@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import TeamLogo from "@/components/TeamLogo";
 
-export const dynamic = "force-dynamic";
+export const revalidate = false;
 
 function formatMatchDate(datetime: string) {
   const d = new Date(datetime);
@@ -20,7 +20,7 @@ function formatMatchDate(datetime: string) {
 
 
 export default async function MatchesPage() {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   const [{ data: matches }, { data: allResults }] = await Promise.all([
     supabase

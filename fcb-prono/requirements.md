@@ -12,20 +12,25 @@ Must haves:
 - [x] Add functionality to see progress over time of players
 - [x] Improve UX
 - [x] Add favorite team
+- [ ] Fix many Edge Function calls
 
 Should haves:
 
 - [x] Built-in payment
-- [ ] Add nice stats
+- [ ] Add history of users as well: number of years presense, ere lijst
+- [ ] Add nice stats like total votes on extra vragen, votes per game, ...
 - [ ] Regular competition bot
 - [x] Add logos
 - [ ] Community feeling with activity log
-- [ ] Add history of users as well: number of years presense, ere lijst
+- [ ] Subcompetitions
 
 Could haves:
 
 - [ ] Live leaderboard
 - [ ] Live extra vragen leaderboard
-- [ ] Potential email service
 - [ ] Prediction of competition bot
+
+Won't do:
+
+- [ ] Potential email service
 - [ ] Add player images

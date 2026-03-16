@@ -1,11 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { calculateMatchPoints } from "@/lib/scoring";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import TeamLogo from "@/components/TeamLogo";
 import ForceScrollTop from "@/components/ForceScrollTop";
 
-export const dynamic = "force-dynamic";
+export const revalidate = false;
 
 function getCategoryBadge(category: string) {
   switch (category) {
@@ -63,7 +63,7 @@ export default async function MatchDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   const [{ data: match }, { data: resultRow }, { data: predictions }, { data: allScores }] =
     await Promise.all([

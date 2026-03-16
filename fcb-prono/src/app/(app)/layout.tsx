@@ -1,6 +1,5 @@
 import Navigation from "@/components/Navigation";
 import ScrollToTop from "@/components/ScrollToTop";
-import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
 export default async function AppLayout({
@@ -8,25 +7,10 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let isAdmin = false;
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
-    isAdmin = profile?.is_admin ?? false;
-  }
-
   return (
     <div className="h-[100dvh] md:h-auto md:min-h-screen flex flex-col overflow-hidden md:overflow-visible">
       <ScrollToTop />
-      <Navigation isAdmin={isAdmin} />
+      <Navigation />
       <main id="main-scroll" className="flex-1 overflow-y-auto md:overflow-visible pb-16 md:pb-0">{children}</main>
 
       {/* Footer (desktop only) */}

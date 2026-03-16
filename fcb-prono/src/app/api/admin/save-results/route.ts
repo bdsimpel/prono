@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { recalculateScores } from '@/lib/recalculate'
 
@@ -42,6 +43,8 @@ export async function POST(request: Request) {
 
   // Recalculate scores immediately
   const { playersUpdated } = await recalculateScores(serviceClient)
+
+  revalidatePath('/', 'layout')
 
   return NextResponse.json({ success: true, resultsSaved: saved, playersUpdated })
 }

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 const TrophyIcon = () => (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
@@ -35,10 +36,25 @@ const publicNavItems = [
   { href: '/matches', label: 'Wedstrijden', icon: <CalendarIcon /> },
 ]
 
-export default function Navigation({ isAdmin }: { isAdmin?: boolean }) {
+export default function Navigation() {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.is_admin) setIsAdmin(true)
+        })
+    })
+  }, [supabase])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()

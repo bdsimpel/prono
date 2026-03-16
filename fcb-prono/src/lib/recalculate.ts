@@ -49,6 +49,19 @@ export async function recalculateScores(serviceClient: SupabaseClient) {
     questionPointsMap[q.id] = q.points
   }
 
+  // Pre-group predictions by user_id for O(n) lookup
+  const predictionsByUser = new Map<string, typeof allPredictions>()
+  for (const pred of allPredictions || []) {
+    if (!predictionsByUser.has(pred.user_id)) predictionsByUser.set(pred.user_id, [])
+    predictionsByUser.get(pred.user_id)!.push(pred)
+  }
+
+  const extraPredsByUser = new Map<string, typeof allExtraPredictions>()
+  for (const ep of allExtraPredictions || []) {
+    if (!extraPredsByUser.has(ep.user_id)) extraPredsByUser.set(ep.user_id, [])
+    extraPredsByUser.get(ep.user_id)!.push(ep)
+  }
+
   // Compute new scores for all players
   const newScores: {
     user_id: string
@@ -68,8 +81,7 @@ export async function recalculateScores(serviceClient: SupabaseClient) {
     let correctGoalDiffs = 0
     let correctResults = 0
 
-    const userPredictions = (allPredictions || []).filter(p => p.user_id === userId)
-    for (const pred of userPredictions) {
+    for (const pred of predictionsByUser.get(userId) || []) {
       const result = resultMap[pred.match_id]
       if (!result) continue
 
@@ -86,8 +98,7 @@ export async function recalculateScores(serviceClient: SupabaseClient) {
       else if (calc.category === 'result') correctResults++
     }
 
-    const userExtraPreds = (allExtraPredictions || []).filter(p => p.user_id === userId)
-    for (const ep of userExtraPreds) {
+    for (const ep of extraPredsByUser.get(userId) || []) {
       const correctAnswers = correctAnswersMap[ep.question_id] || []
       if (correctAnswers.length > 0 && checkExtraAnswer(ep.answer, correctAnswers)) {
         extraScore += questionPointsMap[ep.question_id] || 10

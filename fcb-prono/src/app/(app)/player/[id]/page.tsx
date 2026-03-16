@@ -1,10 +1,10 @@
 import TeamLogo from "@/components/TeamLogo";
 import { calculateMatchPoints, checkExtraAnswer } from "@/lib/scoring";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-export const dynamic = "force-dynamic";
+export const revalidate = false;
 
 function getInitials(name: string): string {
   return name
@@ -171,7 +171,7 @@ export default async function PlayerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   const { data: player } = await supabase
     .from("players")
