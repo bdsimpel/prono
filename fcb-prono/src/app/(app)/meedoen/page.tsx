@@ -1007,16 +1007,16 @@ export default function MeedoenPage() {
               gecontroleerd. Veel succes!
             </p>
             <div className="flex flex-col gap-3">
-              <Link href="/" className="btn-primary py-3 text-center">
+              <a href="/" className="btn-primary py-3 text-center">
                 Bekijk het klassement
-              </Link>
+              </a>
               {playerId && (
-                <Link
+                <a
                   href={`/player/${playerId}`}
                   className="btn-secondary py-3 text-center"
                 >
                   Bekijk je voorspellingen
-                </Link>
+                </a>
               )}
             </div>
           </div>

@@ -12,7 +12,7 @@ Must haves:
 - [x] Add functionality to see progress over time of players
 - [x] Improve UX
 - [x] Add favorite team
-- [ ] Fix many Edge Function calls
+- [x] Fix many Edge Function calls
 
 Should haves:
 
