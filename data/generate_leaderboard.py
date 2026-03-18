@@ -24,12 +24,13 @@ def parse_file(filepath):
     with open(filepath, "r", encoding="utf-8", errors="replace") as f:
         for line in f:
             line = line.strip()
-            # Match: rank. Name Score
-            m = re.match(r'^\d+\.\s+(.+?)\s+([\d.]+)\s*$', line)
+            # Match: rank. Name Score (optional trailing *)
+            m = re.match(r'^(\d+)\.\s+(.+?)\s+([\d.]+)\*?\s*$', line)
             if m:
-                name = m.group(1).strip()
-                score = float(m.group(2))
-                players.append((name, score))
+                rank = int(m.group(1))
+                name = m.group(2).strip()
+                score = float(m.group(3))
+                players.append((name, score, rank))
     return players
 
 # Normalize names (handle slight variations across years)
@@ -57,10 +58,14 @@ all_players = set()
 
 for year in YEARS:
     raw = parse_file(FILES[year])
+    # Reassign ranks: equal scores get the same (best) rank
     parsed = []
-    for rank_idx, (name, score) in enumerate(raw, 1):
+    for i, (name, score, _) in enumerate(raw):
         name = normalize_name(name)
-        parsed.append((name, score, rank_idx))
+        if i == 0 or score < raw[i - 1][1]:
+            current_rank = i + 1
+        # else: keep current_rank from previous iteration (tied score)
+        parsed.append((name, score, current_rank))
         all_players.add(name)
     year_data[year] = parsed
 
@@ -205,8 +210,10 @@ for row_idx, (player, _, avg_pct) in enumerate(pct_data, 2):
     style_cell(ws2, row_idx, 1, row_idx - 1)
     ws2.cell(row=row_idx, column=2, value=player).font = bold_font
     ws2.cell(row=row_idx, column=2).border = thin_border
+    years_played = sum(1 for y in YEARS if player in player_year[y])
+    style_cell(ws2, row_idx, 3, years_played)
 
-    col = 3
+    col = 4
     for year in YEARS:
         if player in player_year[year]:
             score, _ = player_year[year][player]
@@ -226,7 +233,7 @@ for i in range(1, len(headers2) + 1):
 # ===================== SHEET 3: Z-Score =====================
 ws3 = wb.create_sheet("Z-Score")
 
-headers3 = ["#", "Player"]
+headers3 = ["#", "Player", "Years"]
 for year in YEARS:
     headers3.append(f"{year} Z")
 headers3.append("Avg Z")
@@ -250,8 +257,10 @@ for row_idx, (player, avg_z) in enumerate(z_data, 2):
     style_cell(ws3, row_idx, 1, row_idx - 1)
     ws3.cell(row=row_idx, column=2, value=player).font = bold_font
     ws3.cell(row=row_idx, column=2).border = thin_border
+    years_played = sum(1 for y in YEARS if player in player_year[y])
+    style_cell(ws3, row_idx, 3, years_played)
 
-    col = 3
+    col = 4
     for year in YEARS:
         if player in player_year[year]:
             score, _ = player_year[year][player]
@@ -271,7 +280,7 @@ for i in range(1, len(headers3) + 1):
 # ===================== SHEET 4: Percentile Rank =====================
 ws4 = wb.create_sheet("Percentile Rank")
 
-headers4 = ["#", "Player"]
+headers4 = ["#", "Player", "Years"]
 for year in YEARS:
     headers4.append(f"{year} Pctl")
 headers4.append("Avg Pctl")
@@ -295,8 +304,10 @@ for row_idx, (player, avg_p) in enumerate(p_data, 2):
     style_cell(ws4, row_idx, 1, row_idx - 1)
     ws4.cell(row=row_idx, column=2, value=player).font = bold_font
     ws4.cell(row=row_idx, column=2).border = thin_border
+    years_played = sum(1 for y in YEARS if player in player_year[y])
+    style_cell(ws4, row_idx, 3, years_played)
 
-    col = 3
+    col = 4
     for year in YEARS:
         if player in player_year[year]:
             _, rank = player_year[year][player]
