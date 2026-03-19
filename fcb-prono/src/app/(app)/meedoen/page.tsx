@@ -278,9 +278,9 @@ export default function MeedoenPage() {
         inputRefs.current[nextKey]?.focus();
         inputRefs.current[nextKey]?.select();
       } else {
-        const matchIndex = matches.findIndex((m) => m.id === matchId);
-        if (matchIndex < matches.length - 1) {
-          const nextMatch = matches[matchIndex + 1];
+        const matchIndex = displayOrderedMatches.findIndex((m) => m.id === matchId);
+        if (matchIndex < displayOrderedMatches.length - 1) {
+          const nextMatch = displayOrderedMatches[matchIndex + 1];
           const nextKey = `${nextMatch.id}-home`;
           setTimeout(() => {
             inputRefs.current[nextKey]?.focus();
@@ -350,6 +350,12 @@ export default function MeedoenPage() {
     acc[key].push(m);
     return acc;
   }, {});
+
+  const displayOrderedMatches = Object.entries(grouped)
+    .sort(([a], [b]) =>
+      a === "Bekerfinale" ? 1 : b === "Bekerfinale" ? -1 : 0,
+    )
+    .flatMap(([, groupMatches]) => groupMatches);
 
   if (locked === null) {
     return (
@@ -1010,14 +1016,6 @@ export default function MeedoenPage() {
               <a href="/" className="btn-primary py-3 text-center">
                 Bekijk het klassement
               </a>
-              {playerId && (
-                <a
-                  href={`/player/${playerId}`}
-                  className="btn-secondary py-3 text-center"
-                >
-                  Bekijk je voorspellingen
-                </a>
-              )}
             </div>
           </div>
         </div>
