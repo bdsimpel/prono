@@ -14,8 +14,8 @@ const bebasNeue = Bebas_Neue({
 });
 
 export const metadata: Metadata = {
-  title: "FCB Prono 2025-2026",
-  description: "Club Brugge Pronostiek Seizoen 2025-2026 — No Sweat No Glory",
+  title: "FCB Prono",
+  description: "Club Brugge Pronostiek — No Sweat No Glory",
 };
 
 export const viewport = {

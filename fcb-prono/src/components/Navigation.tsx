@@ -73,13 +73,7 @@ export default function Navigation() {
       <header className="sticky top-0 z-50 bg-[#0a0e14]/95 backdrop-blur-md border-b border-white/[0.06] hidden md:block">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-md bg-cb-blue flex items-center justify-center">
-              <span className="heading-display text-[10px] text-white font-bold tracking-wider">FCB</span>
-            </div>
-            <span className="heading-display text-lg text-white tracking-wider">
-              FCB <span className="font-bold">PRONO</span> <span className="text-gray-500">2025</span>
-            </span>
+          <Link href="/" className="flex items-center">
           </Link>
 
           {/* Desktop nav */}

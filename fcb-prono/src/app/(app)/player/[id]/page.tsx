@@ -188,6 +188,8 @@ export default async function PlayerDetailPage({
     { data: allResults },
     { data: extraPredictions },
     { data: extraAnswers },
+    { data: editions },
+    { data: editionScores },
   ] = await Promise.all([
     supabase.from("player_scores").select("*").eq("user_id", id).single(),
     supabase
@@ -208,6 +210,8 @@ export default async function PlayerDetailPage({
       .eq("user_id", id)
       .order("question_id", { ascending: true }),
     supabase.from("extra_question_answers").select("*"),
+    supabase.from("editions").select("*").order("year", { ascending: true }),
+    supabase.from("edition_scores").select("*"),
   ]);
 
   const resultMap: Record<number, { home_score: number; away_score: number }> =
@@ -239,6 +243,47 @@ export default async function PlayerDetailPage({
       correctAnswersMap[a.question_id] = [];
     correctAnswersMap[a.question_id].push(a.correct_answer);
   }
+
+  // Historical data lookup
+  const historicalName = player.matched_historical_name || player.display_name;
+  const playerEditionScores = (editionScores || []).filter(
+    (es) =>
+      es.player_name === historicalName ||
+      es.player_name.toLowerCase() === player.display_name.toLowerCase(),
+  );
+  const playerMedals = playerEditionScores
+    .filter((es) => es.rank <= 3)
+    .map((es) => {
+      const edition = (editions || []).find((e) => e.id === es.edition_id);
+      return { year: edition?.year ?? 0, label: edition?.label ?? "", rank: es.rank };
+    })
+    .sort((a, b) => b.year - a.year);
+  const playerHistory = playerEditionScores
+    .map((es) => {
+      const edition = (editions || []).find((e) => e.id === es.edition_id);
+      return {
+        year: edition?.year ?? 0,
+        rank: es.rank,
+        total_score: es.total_score,
+        player_count: edition?.player_count ?? 0,
+      };
+    })
+    .sort((a, b) => b.year - a.year);
+
+  // Add current year to history if player has a score
+  const currentEdition = (editions || []).find((e) => e.is_current);
+  if (playerScore && playerScore.total_score > 0 && rank > 0 && currentEdition) {
+    playerHistory.unshift({
+      year: currentEdition.year,
+      rank,
+      total_score: playerScore.total_score,
+      player_count: currentEdition.player_count ?? (allScores?.length ?? 0),
+    });
+  }
+
+  const bestRank = playerHistory.length > 0
+    ? Math.min(...playerHistory.map((h) => h.rank))
+    : null;
 
   const gamesPlayed = (predictions || []).filter(
     (p) => resultMap[p.match_id],
@@ -376,9 +421,7 @@ export default async function PlayerDetailPage({
             <h1 className="heading-display text-2xl md:text-3xl text-white">
               {player.display_name}
             </h1>
-            <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
-              <span>#{rank}</span>
-              {memberSince && <span>Lid sinds {memberSince}</span>}
+            <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5 flex-wrap">
               {player.payment_status === "paid" && (
                 <svg
                   className="w-4 h-4 text-cb-blue"
@@ -394,6 +437,14 @@ export default async function PlayerDetailPage({
                   />
                 </svg>
               )}
+              <span>#{rank}</span>
+              {playerHistory.length > 0 && (
+                <span>
+                  {playerHistory.length} edities
+                  {bestRank !== null && <> &middot; Beste: #{bestRank}</>}
+                </span>
+              )}
+              {memberSince && <span>Lid sinds {memberSince}</span>}
               {player.favorite_team && (
                 <span className="flex items-center gap-1">
                   <svg
@@ -408,6 +459,25 @@ export default async function PlayerDetailPage({
                 </span>
               )}
             </div>
+            {playerMedals.length > 0 && (
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {playerMedals.map((m) => (
+                  <span
+                    key={m.year}
+                    className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded ${
+                      m.rank === 1
+                        ? "bg-cb-gold/10 text-cb-gold border border-cb-gold/20"
+                        : m.rank === 2
+                          ? "bg-cb-silver/10 text-cb-silver border border-cb-silver/20"
+                          : "bg-cb-bronze/10 text-cb-bronze border border-cb-bronze/20"
+                    }`}
+                  >
+                    {m.rank === 1 ? "🥇" : m.rank === 2 ? "🥈" : "🥉"}
+                    {m.year}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -695,6 +765,56 @@ export default async function PlayerDetailPage({
           </div>
         )}
       </div>
+
+      {/* Historical editions */}
+      {playerHistory.length > 0 && (
+        <div className="mt-10">
+          <h2 className="heading-display text-xl text-gray-400 mb-4">
+            GESCHIEDENIS
+          </h2>
+          <div className="glass-card-subtle overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="text-[11px] text-gray-500 uppercase tracking-wider border-b border-white/[0.06]">
+                  <th className="text-left font-normal px-4 py-2.5">Jaar</th>
+                  <th className="text-right font-normal px-4 py-2.5">
+                    Positie
+                  </th>
+                  <th className="text-right font-normal px-4 py-2.5">Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {playerHistory.map((h) => (
+                  <tr
+                    key={h.year}
+                    className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                  >
+                    <td className="px-4 py-2.5 text-sm text-gray-300">
+                      {h.year}
+                    </td>
+                    <td className="text-right px-4 py-2.5 text-sm">
+                      <span className={getHistoryRankColor(h.rank)}>#{h.rank}</span>
+                      <span className="text-gray-600 ml-1">
+                        / {h.player_count}
+                      </span>
+                    </td>
+                    <td className="text-right px-4 py-2.5 text-sm font-bold text-white">
+                      {h.total_score}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function getHistoryRankColor(rank: number): string {
+  if (rank === 1) return "text-cb-gold";
+  if (rank === 2) return "text-cb-silver";
+  if (rank === 3) return "text-cb-bronze";
+  return "text-gray-400";
 }

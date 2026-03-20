@@ -35,7 +35,7 @@ export default function InfoModal() {
         >
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div
-            className="relative glass-card-subtle max-w-md w-full p-6 md:p-8 max-h-[80vh] overflow-y-auto"
+            className="relative glass-card-subtle max-w-md w-full p-6 md:p-8 max-h-[80vh] overflow-y-auto text-left"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -77,6 +77,26 @@ export default function InfoModal() {
               <div className="flex justify-between items-center">
                 <span>Juist resultaat</span>
                 <span className="text-white font-medium">5 punten</span>
+              </div>
+              <div className="border-t border-white/[0.06]" />
+              <div className="flex justify-between items-center">
+                <span>Fout</span>
+                <span className="text-white font-medium">0 punten</span>
+              </div>
+            </div>
+
+            <h3 className="heading-display text-2xl text-white mb-4">
+              EXTRA VRAGEN
+            </h3>
+            <div className="space-y-3 text-sm text-gray-400 mb-6">
+              <div className="flex justify-between items-center">
+                <span>Juist antwoord</span>
+                <span className="text-white font-medium">10 punten</span>
+              </div>
+              <div className="border-t border-white/[0.06]" />
+              <div className="flex justify-between items-center">
+                <span>Juiste kampioen</span>
+                <span className="text-white font-medium">20 punten</span>
               </div>
               <div className="border-t border-white/[0.06]" />
               <div className="flex justify-between items-center">

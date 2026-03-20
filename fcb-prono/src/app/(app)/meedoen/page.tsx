@@ -482,6 +482,10 @@ export default function MeedoenPage() {
                 <span className="text-right text-gray-300">5 punten</span>
                 <span>Fout</span>
                 <span className="text-right text-gray-300">0 punten</span>
+                <span>Extra vraag juist</span>
+                <span className="text-right text-gray-300">10 punten</span>
+                <span>Bonusvraag juist</span>
+                <span className="text-right text-gray-300">20 punten</span>
               </div>
             </div>
           </details>
@@ -503,14 +507,13 @@ export default function MeedoenPage() {
                 />
               </svg>
             </summary>
-            <div className="px-3 pb-3 space-y-1.5 text-xs text-gray-400">
-              <p>Deelname kost €2 per persoon.</p>
-              <p>
-                Alle voorspellingen moeten ingevuld zijn voor de eerste
-                wedstrijd.
-              </p>
-              <p>Voorspellingen kunnen achteraf niet meer gewijzigd worden.</p>
-              <p>De pot wordt verdeeld: 50% winnaar, 33% tweede, 17% derde.</p>
+            <div className="px-3 pb-3 text-xs text-gray-400">
+              <ul className="space-y-1.5 list-disc list-inside">
+                <li>Deelname kost €2 per persoon.</li>
+                <li>Alle voorspellingen moeten ingevuld zijn voor de eerste wedstrijd.</li>
+                <li>Voorspellingen kunnen achteraf niet meer gewijzigd worden.</li>
+                <li>De pot wordt verdeeld: 50% winnaar, 33% tweede, 17% derde.</li>
+              </ul>
             </div>
           </details>
         </div>
@@ -549,6 +552,10 @@ export default function MeedoenPage() {
               <span className="text-right text-gray-300">5 punten</span>
               <span>Fout</span>
               <span className="text-right text-gray-300">0 punten</span>
+              <span>Extra vraag juist</span>
+              <span className="text-right text-gray-300">10 punten</span>
+              <span>Bonusvraag juist</span>
+              <span className="text-right text-gray-300">20 punten</span>
             </div>
           </div>
 
@@ -556,15 +563,12 @@ export default function MeedoenPage() {
             <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">
               Regels
             </div>
-            <div className="space-y-1 text-xs text-gray-400">
-              <p>Deelname kost €2 per persoon.</p>
-              <p>
-                Alle voorspellingen moeten ingevuld zijn voor de eerste
-                wedstrijd.
-              </p>
-              <p>Voorspellingen kunnen achteraf niet meer gewijzigd worden.</p>
-              <p>De pot wordt verdeeld: 50% winnaar, 33% tweede, 17% derde.</p>
-            </div>
+            <ul className="space-y-1 text-xs text-gray-400 list-disc list-inside">
+              <li>Deelname kost €2 per persoon.</li>
+              <li>Alle voorspellingen moeten ingevuld zijn voor de eerste wedstrijd.</li>
+              <li>Voorspellingen kunnen achteraf niet meer gewijzigd worden.</li>
+              <li>De pot wordt verdeeld: 50% winnaar, 33% tweede, 17% derde.</li>
+            </ul>
           </div>
         </div>
 
@@ -585,7 +589,7 @@ export default function MeedoenPage() {
           SCHRIJF JE IN &rarr;
         </button>
         <p className="text-center text-xs text-gray-600 mt-3">
-          Duurt maar 2 minuten
+          Duurt maar 5 minuten
         </p>
       </div>
     );

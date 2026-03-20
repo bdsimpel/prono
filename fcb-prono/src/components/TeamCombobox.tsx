@@ -23,9 +23,15 @@ export default function TeamCombobox({
   placeholder = 'Kies een ploeg...',
 }: TeamComboboxProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [search, setSearch] = useState('')
   const [highlightIndex, setHighlightIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const filtered = search
+    ? options.filter((o) => o.name.toLowerCase().includes(search.toLowerCase()))
+    : options
 
   useEffect(() => {
     if (isOpen && listRef.current) {
@@ -33,6 +39,19 @@ export default function TeamCombobox({
       item?.scrollIntoView({ block: 'nearest' })
     }
   }, [highlightIndex, isOpen])
+
+  useEffect(() => {
+    if (isOpen) {
+      // Focus the search input when dropdown opens
+      setTimeout(() => inputRef.current?.focus(), 0)
+    } else {
+      setSearch('')
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    setHighlightIndex(0)
+  }, [search])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -61,17 +80,16 @@ export default function TeamCombobox({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault()
-        setHighlightIndex(i => Math.min(i + 1, options.length - 1))
+        setHighlightIndex(i => Math.min(i + 1, filtered.length - 1))
         break
       case 'ArrowUp':
         e.preventDefault()
         setHighlightIndex(i => Math.max(i - 1, 0))
         break
       case 'Enter':
-      case ' ':
         e.preventDefault()
-        if (options[highlightIndex]) {
-          selectOption(options[highlightIndex].name)
+        if (filtered[highlightIndex]) {
+          selectOption(filtered[highlightIndex].name)
         }
         break
       case 'Escape':
@@ -109,39 +127,57 @@ export default function TeamCombobox({
       </button>
 
       {isOpen && (
-        <ul
-          ref={listRef}
-          className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto bg-cb-card border border-border rounded-lg shadow-xl shadow-black/40"
-        >
-          {options.map((option, idx) => {
-            const optionLogo = getTeamLogo(option.name)
-            return (
-              <li
-                key={option.name}
-                onMouseDown={(e) => {
-                  e.preventDefault()
-                  selectOption(option.name)
-                }}
-                onMouseEnter={() => setHighlightIndex(idx)}
-                className={`px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center gap-2.5 ${
-                  option.name === value
-                    ? 'bg-cb-blue/10 text-cb-blue'
-                    : idx === highlightIndex
-                      ? 'bg-cb-blue/20 text-white'
-                      : 'text-gray-300 hover:bg-white/[0.03]'
-                }`}
-              >
-                {optionLogo && (
-                  <span className="inline-flex items-center justify-center shrink-0" style={{ width: 20, height: 20 }}>
-                    <Image src={optionLogo} alt={option.name} width={20} height={20} className="object-contain w-full h-full" />
-                  </span>
-                )}
-                <span className="font-medium">{option.name}</span>
-                <span className="text-gray-500 text-xs ml-auto">{option.statLabel}</span>
-              </li>
-            )
-          })}
-        </ul>
+        <div className="absolute z-50 mt-1 w-full bg-cb-card border border-border rounded-lg shadow-xl shadow-black/40 overflow-hidden">
+          {/* Search input */}
+          <div className="px-3 py-2 border-b border-white/[0.06]">
+            <input
+              ref={inputRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Zoek ploeg..."
+              className="w-full bg-transparent text-sm text-white placeholder-gray-500 outline-none"
+            />
+          </div>
+          <ul
+            ref={listRef}
+            className="max-h-60 overflow-y-auto"
+          >
+            {filtered.length === 0 ? (
+              <li className="px-4 py-3 text-sm text-gray-500">Geen resultaten</li>
+            ) : (
+              filtered.map((option, idx) => {
+                const optionLogo = getTeamLogo(option.name)
+                return (
+                  <li
+                    key={option.name}
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      selectOption(option.name)
+                    }}
+                    onMouseEnter={() => setHighlightIndex(idx)}
+                    className={`px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center gap-2.5 ${
+                      option.name === value
+                        ? 'bg-cb-blue/10 text-cb-blue'
+                        : idx === highlightIndex
+                          ? 'bg-cb-blue/20 text-white'
+                          : 'text-gray-300 hover:bg-white/[0.03]'
+                    }`}
+                  >
+                    {optionLogo && (
+                      <span className="inline-flex items-center justify-center shrink-0" style={{ width: 20, height: 20 }}>
+                        <Image src={optionLogo} alt={option.name} width={20} height={20} className="object-contain w-full h-full" />
+                      </span>
+                    )}
+                    <span className="font-medium">{option.name}</span>
+                    <span className="text-gray-500 text-xs ml-auto">{option.statLabel}</span>
+                  </li>
+                )
+              })
+            )}
+          </ul>
+        </div>
       )}
     </div>
   )

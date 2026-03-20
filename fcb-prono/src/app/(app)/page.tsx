@@ -1,15 +1,9 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import Link from "next/link";
 import InfoModal from "@/components/InfoModal";
+import YearSelector from "@/components/YearSelector";
+import ErelijstModal from "@/components/ErelijstModal";
 
 export const revalidate = false;
-
-function getRankColor(rank: number): string {
-  if (rank === 1) return "text-cb-gold";
-  if (rank === 2) return "text-cb-silver";
-  if (rank === 3) return "text-cb-bronze";
-  return "text-gray-500";
-}
 
 export default async function KlassementPage() {
   const supabase = await createServiceClient();
@@ -19,11 +13,17 @@ export default async function KlassementPage() {
     { data: scores },
     { count: matchCount },
     { count: predictionCount },
+    { data: editions },
+    { data: editionScores },
+    { data: alltimeScores },
   ] = await Promise.all([
-    supabase.from("players").select("id, display_name"),
+    supabase.from("players").select("id, display_name, matched_historical_name"),
     supabase.from("player_scores").select("*"),
     supabase.from("matches").select("*", { count: "exact", head: true }),
     supabase.from("predictions").select("*", { count: "exact", head: true }),
+    supabase.from("editions").select("*").order("year", { ascending: false }),
+    supabase.from("edition_scores").select("*"),
+    supabase.from("alltime_scores").select("*"),
   ]);
 
   const scoreMap: Record<
@@ -63,6 +63,70 @@ export default async function KlassementPage() {
 
   const playerCount = players?.length ?? 0;
 
+  // Compute augmented all-time scores including current year
+  const currentScores = (scores || []).map((s) => s.total_score);
+  const hasCurrentScores = currentScores.some((s) => s > 0);
+  let augmentedAlltime = alltimeScores ?? [];
+
+  if (hasCurrentScores && currentScores.length > 1) {
+    const mean = currentScores.reduce((a, b) => a + b, 0) / currentScores.length;
+    const stdev = Math.sqrt(
+      currentScores.reduce((sum, s) => sum + (s - mean) ** 2, 0) / (currentScores.length - 1)
+    ) || 1;
+
+    // Build map: historical name -> current z-score & rank
+    const currentZMap = new Map<string, { zScore: number; rank: number }>();
+    for (const standing of standings) {
+      const pl = (players || []).find((p) => p.id === standing.user_id);
+      const histName = pl?.matched_historical_name || standing.display_name;
+      currentZMap.set(histName.toLowerCase(), {
+        zScore: (standing.total_score - mean) / stdev,
+        rank: standing.rank,
+      });
+    }
+
+    // Augment existing alltime entries with current year
+    const updatedNames = new Set<string>();
+    augmentedAlltime = (alltimeScores ?? []).map((at) => {
+      const current = currentZMap.get(at.player_name.toLowerCase());
+      if (!current) return at;
+      updatedNames.add(at.player_name.toLowerCase());
+      const newYears = at.years_played + 1;
+      const newAvgZ = ((at.avg_z_score ?? 0) * at.years_played + current.zScore) / newYears;
+      const newBestRank = current.rank < (at.best_rank ?? Infinity) ? current.rank : at.best_rank;
+      const newBestYear = current.rank < (at.best_rank ?? Infinity) ? 2026 : at.best_rank_year;
+      return {
+        ...at,
+        years_played: newYears,
+        avg_z_score: newAvgZ,
+        best_rank: newBestRank,
+        best_rank_year: newBestYear,
+      };
+    });
+
+    // Add new players who aren't in historical alltime yet
+    for (const standing of standings) {
+      const pl = (players || []).find((p) => p.id === standing.user_id);
+      const histName = pl?.matched_historical_name || standing.display_name;
+      if (!updatedNames.has(histName.toLowerCase())) {
+        const current = currentZMap.get(histName.toLowerCase());
+        if (current) {
+          augmentedAlltime.push({
+            id: 0,
+            player_name: standing.display_name,
+            years_played: 1,
+            avg_z_score: current.zScore,
+            avg_percentile: null,
+            avg_points_pct: null,
+            combined_score: null,
+            best_rank: current.rank,
+            best_rank_year: 2026,
+          });
+        }
+      }
+    }
+  }
+
   return (
     <div>
       {/* Hero Section */}
@@ -79,7 +143,7 @@ export default async function KlassementPage() {
             <InfoModal />
           </div>
           <span className="heading-display text-xs md:text-sm text-gray-500 tracking-[0.3em]">
-            Seizoen 2025-2026
+            Play-Offs I
           </span>
           <h1 className="heading-display text-5xl md:text-8xl lg:text-9xl leading-none mt-2 md:mt-4">
             <span className="block text-white">PRONO</span>
@@ -131,139 +195,23 @@ export default async function KlassementPage() {
               RANKINGS
             </h2>
           </div>
-          <span className="text-sm text-gray-500">Play-Offs 2026</span>
+          <ErelijstModal
+            editions={(editions ?? []).filter((e) => !e.is_current).sort((a, b) => b.year - a.year)}
+            editionScores={editionScores ?? []}
+          />
         </div>
 
-        {standings.length === 0 ? (
-          <div className="glass-card p-12 text-center text-gray-500">
-            Nog geen spelers geregistreerd.
-          </div>
-        ) : (
-          <div className="glass-card-subtle overflow-hidden">
-            {/* Desktop table */}
-            <table className="hidden md:table w-full">
-              <thead>
-                <tr className="text-[11px] text-gray-500 uppercase tracking-wider border-b border-white/[0.06]">
-                  <th className="text-left font-normal px-5 py-3 w-12">#</th>
-                  <th className="text-left font-normal py-3">Naam</th>
-                  <th className="text-right font-normal px-2 py-3 w-16">
-                    Score
-                  </th>
-                  <th className="text-right font-normal px-2 py-3 w-12">E</th>
-                  <th className="text-right font-normal px-2 py-3 w-12">GV</th>
-                  <th className="text-right font-normal px-2 py-3 w-12">JR</th>
-                  <th className="text-right font-normal px-2 py-3 w-16">
-                    Match
-                  </th>
-                  <th className="text-right font-normal px-2 py-3 w-16 pr-5">
-                    Extra
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {standings.map((row) => (
-                  <tr key={row.user_id} className="group border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
-                    <td className="px-5 py-3">
-                      <Link href={`/player/${row.user_id}`} className="block">
-                        <span
-                          className={`heading-display text-lg ${getRankColor(row.rank)}`}
-                        >
-                          {row.rank}
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="py-3">
-                      <Link
-                        href={`/player/${row.user_id}`}
-                        className="block text-sm font-medium text-gray-200 group-hover:text-white transition-colors"
-                      >
-                        {row.display_name}
-                      </Link>
-                    </td>
-                    <td className="text-right px-2 py-3 text-sm font-bold text-white">
-                      <Link href={`/player/${row.user_id}`} className="block">
-                        {row.total_score}
-                      </Link>
-                    </td>
-                    <td className="text-right px-2 py-3 text-sm text-gray-500">
-                      <Link href={`/player/${row.user_id}`} className="block">
-                        {row.exact_matches}
-                      </Link>
-                    </td>
-                    <td className="text-right px-2 py-3 text-sm text-gray-500">
-                      <Link href={`/player/${row.user_id}`} className="block">
-                        {row.correct_goal_diffs}
-                      </Link>
-                    </td>
-                    <td className="text-right px-2 py-3 text-sm text-gray-500">
-                      <Link href={`/player/${row.user_id}`} className="block">
-                        {row.correct_results}
-                      </Link>
-                    </td>
-                    <td className="text-right px-2 py-3 text-sm text-gray-500">
-                      <Link href={`/player/${row.user_id}`} className="block">
-                        {row.match_score}
-                      </Link>
-                    </td>
-                    <td className="text-right px-2 py-3 pr-5 text-sm text-cb-gold">
-                      <Link href={`/player/${row.user_id}`} className="block">
-                        {row.extra_score}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Mobile list */}
-            <div className="md:hidden divide-y divide-white/[0.04]">
-              <div className="flex items-center px-4 py-2 gap-3 text-[11px] text-gray-500 uppercase tracking-wider">
-                <span className="w-7 text-right shrink-0">#</span>
-                <span className="flex-1">Naam</span>
-                <span className="shrink-0">Score</span>
-                <span className="w-4 shrink-0" />
-              </div>
-              {standings.map((row) => (
-                <Link
-                  key={row.user_id}
-                  href={`/player/${row.user_id}`}
-                  className="flex items-center px-4 py-3 gap-3 hover:bg-white/[0.02] transition-colors"
-                >
-                  <span
-                    className={`heading-display text-base w-7 text-right shrink-0 ${getRankColor(row.rank)}`}
-                  >
-                    {row.rank}
-                  </span>
-                  <span className="flex-1 text-sm font-medium text-gray-200 truncate">
-                    {row.display_name}
-                  </span>
-                  <span className="text-sm font-bold text-white shrink-0">
-                    {row.total_score}
-                  </span>
-                  <svg
-                    className="w-4 h-4 text-gray-600 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </Link>
-              ))}
-            </div>
-
-            {/* Legend (desktop only) */}
-            <div className="hidden md:block px-5 py-3 text-xs text-gray-600 border-t border-white/[0.04]">
-              E = Exact &middot; GV = Goal verschil &middot; JR =
-              Juist resultaat
-            </div>
-          </div>
-        )}
+        <YearSelector
+          editions={editions ?? []}
+          editionScores={editionScores ?? []}
+          alltimeScores={augmentedAlltime}
+          currentStandings={standings}
+          playerLinks={(players ?? []).map((p) => ({
+            id: p.id,
+            display_name: p.display_name,
+            matched_historical_name: p.matched_historical_name ?? null,
+          }))}
+        />
       </section>
     </div>
   );

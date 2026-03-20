@@ -113,6 +113,65 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Kon extra antwoorden niet opslaan' }, { status: 500 })
     }
 
+    // Match historical name and increment edition player_count
+    try {
+      const { data: alltimeNames } = await serviceClient
+        .from('alltime_scores')
+        .select('player_name')
+
+      if (alltimeNames && alltimeNames.length > 0) {
+        const normalized = trimmedName.toLowerCase().trim().replace(/\s+/g, ' ')
+        let bestMatch = ''
+        let bestSim = 0
+        for (const { player_name } of alltimeNames) {
+          const norm = player_name.toLowerCase().trim().replace(/\s+/g, ' ')
+          const maxLen = Math.max(normalized.length, norm.length)
+          if (maxLen === 0) continue
+          // Simple Levenshtein similarity
+          const m = normalized.length
+          const n = norm.length
+          const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0))
+          for (let i = 0; i <= m; i++) dp[i][0] = i
+          for (let j = 0; j <= n; j++) dp[0][j] = j
+          for (let i = 1; i <= m; i++) {
+            for (let j = 1; j <= n; j++) {
+              dp[i][j] = normalized[i - 1] === norm[j - 1]
+                ? dp[i - 1][j - 1]
+                : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+            }
+          }
+          const sim = (maxLen - dp[m][n]) / maxLen
+          if (sim > bestSim) {
+            bestSim = sim
+            bestMatch = player_name
+          }
+        }
+        if (bestSim >= 0.85) {
+          await serviceClient
+            .from('players')
+            .update({ matched_historical_name: bestMatch })
+            .eq('id', player.id)
+        }
+      }
+
+      // Increment current edition player_count
+      const { data: currentEdition } = await serviceClient
+        .from('editions')
+        .select('id, player_count')
+        .eq('is_current', true)
+        .single()
+
+      if (currentEdition) {
+        await serviceClient
+          .from('editions')
+          .update({ player_count: (currentEdition.player_count || 0) + 1 })
+          .eq('id', currentEdition.id)
+      }
+    } catch (e) {
+      // Non-critical: don't fail the signup if historical matching fails
+      console.error('Historical matching error:', e)
+    }
+
     revalidatePath('/', 'layout')
 
     return NextResponse.json({ success: true, playerId: player.id })

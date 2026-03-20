@@ -126,3 +126,35 @@ export interface PredictionWithPoints extends Prediction {
   category: 'exact' | 'goal_diff' | 'result' | 'wrong' | 'pending'
   display_name?: string
 }
+
+export interface Edition {
+  id: number
+  year: number
+  label: string
+  max_points: number | null
+  player_count: number
+  is_current: boolean
+}
+
+export interface EditionScore {
+  id: number
+  edition_id: number
+  player_name: string
+  rank: number
+  total_score: number
+  z_score: number | null
+  percentile: number | null
+  points_pct: number | null
+}
+
+export interface AlltimeScore {
+  id: number
+  player_name: string
+  years_played: number
+  avg_z_score: number | null
+  avg_percentile: number | null
+  avg_points_pct: number | null
+  combined_score: number | null
+  best_rank: number | null
+  best_rank_year: number | null
+}
