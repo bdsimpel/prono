@@ -121,10 +121,12 @@ export async function POST(request: Request) {
 
       if (alltimeNames && alltimeNames.length > 0) {
         const normalized = trimmedName.toLowerCase().trim().replace(/\s+/g, ' ')
+        if (normalized.length <= 100) {
         let bestMatch = ''
         let bestSim = 0
         for (const { player_name } of alltimeNames) {
           const norm = player_name.toLowerCase().trim().replace(/\s+/g, ' ')
+          if (norm.length > 100) continue
           const maxLen = Math.max(normalized.length, norm.length)
           if (maxLen === 0) continue
           // Simple Levenshtein similarity
@@ -152,20 +154,18 @@ export async function POST(request: Request) {
             .update({ matched_historical_name: bestMatch })
             .eq('id', player.id)
         }
+        } // end length guard
       }
 
-      // Increment current edition player_count
+      // Atomically increment current edition player_count
       const { data: currentEdition } = await serviceClient
         .from('editions')
-        .select('id, player_count')
+        .select('id')
         .eq('is_current', true)
         .single()
 
       if (currentEdition) {
-        await serviceClient
-          .from('editions')
-          .update({ player_count: (currentEdition.player_count || 0) + 1 })
-          .eq('id', currentEdition.id)
+        await serviceClient.rpc('increment_player_count', { p_edition_id: currentEdition.id })
       }
     } catch (e) {
       // Non-critical: don't fail the signup if historical matching fails

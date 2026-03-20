@@ -14,15 +14,22 @@ const bebasNeue = Bebas_Neue({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://fcbprono.be"),
   title: "FCB Prono",
   description: "Club Brugge Pronostiek — No Sweat No Glory",
+  openGraph: {
+    title: "FCB Prono",
+    description: "Club Brugge Pronostiek — No Sweat No Glory",
+    locale: "nl_BE",
+  },
 };
 
-export const viewport = {
+export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: "#0a0e14",
 };
 
 export default function RootLayout({

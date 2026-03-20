@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import type { Edition, EditionScore, AlltimeScore } from "@/lib/types";
 
 interface CurrentStanding {
@@ -15,18 +15,11 @@ interface CurrentStanding {
   extra_score: number;
 }
 
-interface PlayerLink {
-  id: string;
-  display_name: string;
-  matched_historical_name: string | null;
-}
-
 interface YearSelectorProps {
   editions: Edition[];
   editionScores: EditionScore[];
   alltimeScores: AlltimeScore[];
   currentStandings: CurrentStanding[];
-  playerLinks: PlayerLink[];
 }
 
 function getRankColor(rank: number): string {
@@ -43,7 +36,6 @@ export default function YearSelector({
   editionScores,
   alltimeScores,
   currentStandings,
-  playerLinks,
 }: YearSelectorProps) {
   const currentEdition = editions.find((e) => e.is_current);
   const [selectedView, setSelectedView] = useState<ViewType>("current");
@@ -65,20 +57,6 @@ export default function YearSelector({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Build a lookup: historical name -> player id
-  const nameToPlayerId = new Map<string, string>();
-  for (const pl of playerLinks) {
-    if (pl.matched_historical_name) {
-      nameToPlayerId.set(pl.matched_historical_name.toLowerCase(), pl.id);
-    }
-    nameToPlayerId.set(pl.display_name.toLowerCase(), pl.id);
-  }
-
-  function getPlayerHref(historicalName: string): string | null {
-    const id = nameToPlayerId.get(historicalName.toLowerCase());
-    return id ? `/player/${id}` : null;
-  }
-
   // Get edition scores for a specific year
   const getYearScores = (year: number) => {
     const edition = editions.find((e) => e.year === year);
@@ -88,8 +66,9 @@ export default function YearSelector({
       .sort((a, b) => a.rank - b.rank);
   };
 
-  const sortedAlltime = [...alltimeScores].sort(
-    (a, b) => (b.avg_z_score ?? -999) - (a.avg_z_score ?? -999)
+  const sortedAlltime = useMemo(
+    () => [...alltimeScores].sort((a, b) => (b.avg_z_score ?? -999) - (a.avg_z_score ?? -999)),
+    [alltimeScores],
   );
 
   const selectedHistoricalYear = typeof selectedView === "number" ? selectedView : null;
@@ -320,7 +299,6 @@ export default function YearSelector({
                   </thead>
                   <tbody>
                     {scores.map((s) => {
-                      const href = getPlayerHref(s.player_name);
                       return (
                         <tr
                           key={`${s.edition_id}-${s.player_name}`}
@@ -334,13 +312,7 @@ export default function YearSelector({
                             </span>
                           </td>
                           <td className="py-3 text-sm font-medium text-gray-200">
-                            {href ? (
-                              <a href={href} className="hover:text-white transition-colors">
-                                {s.player_name}
-                              </a>
-                            ) : (
-                              s.player_name
-                            )}
+                            {s.player_name}
                           </td>
                           <td className="text-right px-2 py-3 pr-5 text-sm font-bold text-white">
                             {s.total_score}
@@ -358,51 +330,24 @@ export default function YearSelector({
                     <span className="flex-1">Naam</span>
                     <span className="shrink-0">Score</span>
                   </div>
-                  {scores.map((s) => {
-                    const href = getPlayerHref(s.player_name);
-                    const content = (
-                      <>
-                        <span
-                          className={`heading-display text-base w-7 text-right shrink-0 ${getRankColor(s.rank)}`}
-                        >
-                          {s.rank}
-                        </span>
-                        <span className="flex-1 text-sm font-medium text-gray-200 truncate">
-                          {s.player_name}
-                        </span>
-                        <span className="text-sm font-bold text-white shrink-0">
-                          {s.total_score}
-                        </span>
-                        {href && (
-                          <svg
-                            className="w-4 h-4 text-gray-600 shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
-                        )}
-                      </>
-                    );
-                    return href ? (
-                      <a
-                        key={`${s.edition_id}-${s.player_name}`}
-                        href={href}
-                        className="flex items-center px-4 py-3 gap-3 hover:bg-white/[0.02] transition-colors"
+                  {scores.map((s) => (
+                    <div
+                      key={`${s.edition_id}-${s.player_name}`}
+                      className="flex items-center px-4 py-3 gap-3"
+                    >
+                      <span
+                        className={`heading-display text-base w-7 text-right shrink-0 ${getRankColor(s.rank)}`}
                       >
-                        {content}
-                      </a>
-                    ) : (
-                      <div
-                        key={`${s.edition_id}-${s.player_name}`}
-                        className="flex items-center px-4 py-3 gap-3"
-                      >
-                        {content}
-                      </div>
-                    );
-                  })}
+                        {s.rank}
+                      </span>
+                      <span className="flex-1 text-sm font-medium text-gray-200 truncate">
+                        {s.player_name}
+                      </span>
+                      <span className="text-sm font-bold text-white shrink-0">
+                        {s.total_score}
+                      </span>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Footer with edition info */}
@@ -441,7 +386,6 @@ export default function YearSelector({
                 </thead>
                 <tbody>
                   {sortedAlltime.map((s, i) => {
-                    const href = getPlayerHref(s.player_name);
                     return (
                       <tr
                         key={s.player_name}
@@ -455,13 +399,7 @@ export default function YearSelector({
                           </span>
                         </td>
                         <td className="py-3 text-sm font-medium text-gray-200">
-                          {href ? (
-                            <a href={href} className="hover:text-white transition-colors">
-                              {s.player_name}
-                            </a>
-                          ) : (
-                            s.player_name
-                          )}
+                          {s.player_name}
                         </td>
                         <td className="text-right px-2 py-3 text-sm text-gray-500">
                           {s.years_played}
@@ -483,43 +421,27 @@ export default function YearSelector({
                   <span className="w-10 text-right shrink-0">Jaren</span>
                   <span className="shrink-0">Z-Score</span>
                 </div>
-                {sortedAlltime.map((s, i) => {
-                  const href = getPlayerHref(s.player_name);
-                  const content = (
-                    <>
-                      <span
-                        className={`heading-display text-base w-7 text-right shrink-0 ${getRankColor(i + 1)}`}
-                      >
-                        {i + 1}
-                      </span>
-                      <span className="flex-1 text-sm font-medium text-gray-200 truncate">
-                        {s.player_name}
-                      </span>
-                      <span className="w-10 text-right text-sm text-gray-500 shrink-0">
-                        {s.years_played}
-                      </span>
-                      <span className="text-sm font-bold text-white shrink-0">
-                        {s.avg_z_score !== null ? s.avg_z_score.toFixed(2) : "-"}
-                      </span>
-                    </>
-                  );
-                  return href ? (
-                    <a
-                      key={s.player_name}
-                      href={href}
-                      className="flex items-center px-4 py-3 gap-3 hover:bg-white/[0.02] transition-colors"
+                {sortedAlltime.map((s, i) => (
+                  <div
+                    key={s.player_name}
+                    className="flex items-center px-4 py-3 gap-3"
+                  >
+                    <span
+                      className={`heading-display text-base w-7 text-right shrink-0 ${getRankColor(i + 1)}`}
                     >
-                      {content}
-                    </a>
-                  ) : (
-                    <div
-                      key={s.player_name}
-                      className="flex items-center px-4 py-3 gap-3"
-                    >
-                      {content}
-                    </div>
-                  );
-                })}
+                      {i + 1}
+                    </span>
+                    <span className="flex-1 text-sm font-medium text-gray-200 truncate">
+                      {s.player_name}
+                    </span>
+                    <span className="w-10 text-right text-sm text-gray-500 shrink-0">
+                      {s.years_played}
+                    </span>
+                    <span className="text-sm font-bold text-white shrink-0">
+                      {s.avg_z_score !== null ? s.avg_z_score.toFixed(2) : "-"}
+                    </span>
+                  </div>
+                ))}
               </div>
 
               <div className="px-5 py-3 text-xs text-gray-600 border-t border-white/[0.04]">

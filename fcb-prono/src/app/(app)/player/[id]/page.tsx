@@ -211,7 +211,12 @@ export default async function PlayerDetailPage({
       .order("question_id", { ascending: true }),
     supabase.from("extra_question_answers").select("*"),
     supabase.from("editions").select("*").order("year", { ascending: true }),
-    supabase.from("edition_scores").select("*"),
+    supabase
+      .from("edition_scores")
+      .select("*")
+      .or(
+        `player_name.eq.${player.matched_historical_name || player.display_name},player_name.ilike.${player.display_name}`,
+      ),
   ]);
 
   const resultMap: Record<number, { home_score: number; away_score: number }> =

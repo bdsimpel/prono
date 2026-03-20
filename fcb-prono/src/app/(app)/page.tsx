@@ -206,11 +206,6 @@ export default async function KlassementPage() {
           editionScores={editionScores ?? []}
           alltimeScores={augmentedAlltime}
           currentStandings={standings}
-          playerLinks={(players ?? []).map((p) => ({
-            id: p.id,
-            display_name: p.display_name,
-            matched_historical_name: p.matched_historical_name ?? null,
-          }))}
         />
       </section>
     </div>
