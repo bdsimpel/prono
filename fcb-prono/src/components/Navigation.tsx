@@ -57,9 +57,9 @@ export default function Navigation() {
   }, [supabase])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
+    const { error } = await supabase.auth.signOut()
+    if (error) console.error('Sign out error:', error)
+    window.location.href = '/'
   }
 
   const isActive = (href: string) => {
@@ -174,6 +174,17 @@ export default function Navigation() {
               <span className="[&>svg]:w-5 [&>svg]:h-5"><GearIcon /></span>
               <span>Admin</span>
             </Link>
+          )}
+          {isAdmin && (
+            <button
+              onClick={handleLogout}
+              className="flex flex-col items-center gap-0.5 px-3 py-1 text-xs text-gray-500 transition-all"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3-3h-9m9 0l-3-3m3 3l-3 3" />
+              </svg>
+              <span>Uitloggen</span>
+            </button>
           )}
         </div>
       </nav>

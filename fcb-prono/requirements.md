@@ -13,8 +13,8 @@ Must haves:
 - [x] Improve UX
 - [x] Add favorite team
 - [x] Fix many Edge Function calls
-- [ ] Fix order which you fill in, jumps to bekerfinale in order
-- [ ] Remove looking at own voorspellingen
+- [x] Fix order which you fill in, jumps to bekerfinale in order
+- [x] Remove looking at own voorspellingen
 
 Should haves:
 
