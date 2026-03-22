@@ -5,7 +5,7 @@ Must haves:
 - [x] Add guidelines with current league table
 - [x] current top scorers, ...
 - [x] Implement caching for Meedoen
-- [ ] Not able to view others predictions upfront, once play offs start, being able to see each others predictions and see predictions per game
+- [x] Not able to view others predictions upfront, once play offs start, being able to see each others predictions and see predictions per game
 - [x] Friendly for mobile
 - [x] Add own domain
 - [x] Database and deployment both in same region (Ireland)
@@ -19,16 +19,15 @@ Must haves:
 Should haves:
 
 - [x] Built-in payment
-- [ ] Add history of users as well: number of years presense, ere lijst
-- [ ] Add nice stats like total votes on extra vragen, votes per game, ...
+- [x] Add history of users as well: number of years presense, ere lijst
+- [ ] Add nice stats like total votes on extra vragen, votes per game, scores per community / per favorite team
 - [ ] Regular competition bot
 - [x] Add logos
-- [ ] Community feeling with activity log
-- [ ] Subcompetitions
+- [ ] Subcompetitions -> filter button under 2026, let them or me create a subcompetition? I think I can do it
 
 Could haves:
 
-- [ ] Live leaderboard
+- [ ] Live leaderboard laatste speeldag
 - [ ] Live extra vragen leaderboard
 - [ ] Prediction of competition bot
 
@@ -36,3 +35,4 @@ Won't do:
 
 - [ ] Potential email service
 - [ ] Add player images
+- [ ] Community feeling with activity log

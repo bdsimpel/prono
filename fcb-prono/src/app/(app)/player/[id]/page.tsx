@@ -71,6 +71,7 @@ function PredictionCard({
   result,
   points,
   category,
+  shouldHide,
 }: {
   pred: { id: number; home_score: number; away_score: number };
   match: {
@@ -80,6 +81,7 @@ function PredictionCard({
   result: { home_score: number; away_score: number } | undefined;
   points: number;
   category: string;
+  shouldHide: boolean;
 }) {
   return (
     <div className="glass-card-subtle p-3 md:p-4">
@@ -112,7 +114,11 @@ function PredictionCard({
           <span className="text-xs text-gray-500">
             Prono{" "}
             <span className="text-gray-300 font-bold ml-1">
-              {pred.home_score} - {pred.away_score}
+              {shouldHide ? (
+                <span className="blur-sm select-none">? - ?</span>
+              ) : (
+                <>{pred.home_score} - {pred.away_score}</>
+              )}
             </span>
           </span>
           <div className="flex items-center gap-1.5">
@@ -139,7 +145,11 @@ function PredictionCard({
             <span>
               <span className="text-gray-500">Prono: </span>
               <span className="text-gray-300 font-bold">
-                {pred.home_score}-{pred.away_score}
+                {shouldHide ? (
+                  <span className="blur-sm select-none">?-?</span>
+                ) : (
+                  <>{pred.home_score}-{pred.away_score}</>
+                )}
               </span>
             </span>
             {result && (
@@ -190,6 +200,7 @@ export default async function PlayerDetailPage({
     { data: extraAnswers },
     { data: editions },
     { data: editionScores },
+    { data: deadlineSetting },
   ] = await Promise.all([
     supabase.from("player_scores").select("*").eq("user_id", id).single(),
     supabase
@@ -217,7 +228,15 @@ export default async function PlayerDetailPage({
       .or(
         `player_name.eq.${player.matched_historical_name || player.display_name},player_name.ilike.${player.display_name}`,
       ),
+    supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "deadline")
+      .maybeSingle(),
   ]);
+
+  const deadline = deadlineSetting?.value ?? null;
+  const shouldHide = !!deadline && new Date(deadline) > new Date();
 
   const resultMap: Record<number, { home_score: number; away_score: number }> =
     {};
@@ -608,6 +627,7 @@ export default async function PlayerDetailPage({
                   result={result}
                   points={points}
                   category={category}
+                  shouldHide={shouldHide}
                 />
               );
             })}
@@ -638,6 +658,7 @@ export default async function PlayerDetailPage({
                   result={undefined}
                   points={0}
                   category="pending"
+                  shouldHide={shouldHide}
                 />
               );
             })}
@@ -686,6 +707,7 @@ export default async function PlayerDetailPage({
                   result={result}
                   points={points}
                   category={category}
+                  shouldHide={shouldHide}
                 />
               );
             })}
@@ -726,7 +748,11 @@ export default async function PlayerDetailPage({
                     <span>
                       Antwoord:{" "}
                       <span className="text-gray-300 font-bold">
-                        {ep.answer}
+                        {shouldHide ? (
+                          <span className="blur-sm select-none">?</span>
+                        ) : (
+                          ep.answer
+                        )}
                       </span>
                     </span>
                     {hasAnswer && (

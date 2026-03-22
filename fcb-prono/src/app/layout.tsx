@@ -15,10 +15,10 @@ const bebasNeue = Bebas_Neue({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://fcbprono.be"),
-  title: "FCB Prono",
+  title: "Play Offs Prono",
   description: "Club Brugge Pronostiek — No Sweat No Glory",
   openGraph: {
-    title: "FCB Prono",
+    title: "Play Offs Prono",
     description: "Club Brugge Pronostiek — No Sweat No Glory",
     locale: "nl_BE",
   },

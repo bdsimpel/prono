@@ -65,7 +65,7 @@ export default async function MatchDetailPage({
   const { id } = await params;
   const supabase = await createServiceClient();
 
-  const [{ data: match }, { data: resultRow }, { data: predictions }, { data: allScores }] =
+  const [{ data: match }, { data: resultRow }, { data: predictions }, { data: allScores }, { data: deadlineSetting }] =
     await Promise.all([
       supabase
         .from("matches")
@@ -83,7 +83,15 @@ export default async function MatchDetailPage({
         .from("player_scores")
         .select("user_id, total_score")
         .order("total_score", { ascending: false }),
+      supabase
+        .from("settings")
+        .select("value")
+        .eq("key", "deadline")
+        .maybeSingle(),
     ]);
+
+  const deadline = deadlineSetting?.value ?? null;
+  const shouldHide = !!deadline && new Date(deadline) > new Date();
 
   if (!match) notFound();
 
@@ -327,7 +335,11 @@ export default async function MatchDetailPage({
                     <span>
                       <span className="text-gray-500">Prono: </span>
                       <span className="text-gray-300 font-bold">
-                        {pred.home_score}-{pred.away_score}
+                        {shouldHide ? (
+                          <span className="blur-sm select-none">?-?</span>
+                        ) : (
+                          <>{pred.home_score}-{pred.away_score}</>
+                        )}
                       </span>
                     </span>
                     {result && (

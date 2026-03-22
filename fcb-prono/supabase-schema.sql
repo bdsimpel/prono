@@ -101,12 +101,12 @@ INSERT INTO settings VALUES ('deadline', '2026-04-01T18:00:00Z');
 
 -- Seed teams
 INSERT INTO teams (name, short_name, matrix_index, standing_rank, points_half, goals_for, goals_against) VALUES
-  ('Union', 'UNI', 1, 1, 30, 45, 16),
-  ('Club Brugge', 'CLB', 2, 2, 28.5, 53, 34),
-  ('STVV', 'STV', 3, 3, 28.5, 46, 31),
-  ('Anderlecht', 'AND', 4, 4, 22, 41, 35),
-  ('Gent', 'GNT', 5, 5, 21, 46, 42),
-  ('Mechelen', 'MEC', 6, 6, 21, 37, 33);
+  ('Union', 'UNI', 1, 1, 33, 50, 17),
+  ('Club Brugge', 'CLB', 2, 2, 31.5, 59, 36),
+  ('STVV', 'STV', 3, 3, 28.5, 47, 35),
+  ('Gent', 'GNT', 5, 4, 22.5, 49, 43),
+  ('Mechelen', 'MEC', 6, 5, 22.5, 39, 37),
+  ('Anderlecht', 'AND', 4, 6, 22, 43, 39);
 
 -- Seed extra questions
 INSERT INTO extra_questions (question_key, question_label, points) VALUES

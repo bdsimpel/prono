@@ -11,7 +11,7 @@ export const PAYMENT_CONFIG = {
 }
 
 export function getPaymentReference(playerName: string): string {
-  return `FCB Prono - ${playerName}`
+  return `Play Offs Prono - ${playerName}`
 }
 
 /**

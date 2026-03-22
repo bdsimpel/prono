@@ -22,7 +22,7 @@ export default async function AppLayout({
                 FCB
               </span>
             </div>
-            <span className="text-sm text-gray-500">FCB PRONO 2026</span>
+            <span className="text-sm text-gray-500">PLAY OFFS PRONO 2026</span>
           </Link>
           <span className="text-xs text-gray-600 tracking-[0.25em] uppercase heading-display">
             No Sweat No Glory &middot; Bluvn Goan
