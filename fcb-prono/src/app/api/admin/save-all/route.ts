@@ -64,8 +64,57 @@ export async function POST(request: Request) {
     }
   }
 
+  // Insert result activity events for saved matches
+  const savedMatchIds = Object.entries(results)
+    .filter(([, score]) => {
+      const s = score as { home: string; away: string }
+      return !isNaN(parseInt(s.home)) && !isNaN(parseInt(s.away))
+    })
+    .map(([matchId]) => parseInt(matchId))
+
+  if (savedMatchIds.length > 0) {
+    const [{ data: matchRows }, { data: teamRows }] = await Promise.all([
+      serviceClient.from('matches').select('id, speeldag, home_team_id, away_team_id, is_cup_final').in('id', savedMatchIds),
+      serviceClient.from('teams').select('id, name'),
+    ])
+    const teamMap: Record<number, string> = {}
+    for (const t of teamRows || []) teamMap[t.id] = t.name
+
+    const resultEvents = (matchRows || []).map(m => {
+      const s = results[String(m.id)] as { home: string; away: string }
+      return {
+        type: 'result' as const,
+        message: `${teamMap[m.home_team_id]} ${s.home} - ${s.away} ${teamMap[m.away_team_id]}`,
+        metadata: { match_id: m.id, speeldag: m.speeldag },
+      }
+    })
+
+    if (resultEvents.length > 0) {
+      await serviceClient.from('activity_events').insert(resultEvents)
+    }
+  }
+
   // Recalculate all scores
-  const { playersUpdated } = await recalculateScores(serviceClient)
+  const { playersUpdated, pointDeltas } = await recalculateScores(serviceClient)
+
+  // Insert points activity events
+  if (pointDeltas.length > 0) {
+    const { data: playerNames } = await serviceClient
+      .from('players')
+      .select('id, display_name')
+      .in('id', pointDeltas.map(d => d.user_id))
+
+    const nameMap: Record<string, string> = {}
+    for (const p of playerNames || []) nameMap[p.id] = p.display_name
+
+    const pointEvents = pointDeltas.map(d => ({
+      type: 'points' as const,
+      message: `${nameMap[d.user_id] || 'Speler'} scoorde ${d.delta} ${d.delta === 1 ? 'punt' : 'punten'}`,
+      metadata: { player_id: d.user_id, points: d.delta },
+    }))
+
+    await serviceClient.from('activity_events').insert(pointEvents)
+  }
 
   revalidatePath('/', 'layout')
 

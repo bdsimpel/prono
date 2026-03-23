@@ -123,45 +123,45 @@ INSERT INTO extra_questions (question_key, question_label, points) VALUES
 -- Team IDs: Union=1, Club Brugge=2, STVV=3, Anderlecht=4, Gent=5, Mechelen=6
 INSERT INTO matches (home_team_id, away_team_id, speeldag, match_datetime, is_cup_final) VALUES
   -- Speeldag 1
-  (1, 6, 1, '2026-03-28T20:45:00Z', false),  -- Union vs Mechelen
-  (2, 4, 1, '2026-03-29T13:30:00Z', false),  -- Club Brugge vs Anderlecht
-  (3, 5, 1, '2026-03-29T18:30:00Z', false),  -- STVV vs Gent
+  (1, 3, 1, '2026-04-04T18:45:00Z', false),  -- Union vs STVV
+  (2, 4, 1, '2026-04-06T11:30:00Z', false),  -- Club Brugge vs Anderlecht
+  (5, 6, 1, '2026-04-06T16:30:00Z', false),  -- Gent vs Mechelen
   -- Speeldag 2
-  (5, 1, 2, '2026-04-04T20:45:00Z', false),  -- Gent vs Union
-  (6, 2, 2, '2026-04-05T13:30:00Z', false),  -- Mechelen vs Club Brugge
-  (4, 3, 2, '2026-04-05T18:30:00Z', false),  -- Anderlecht vs STVV
+  (3, 2, 2, '2026-04-11T18:45:00Z', false),  -- STVV vs Club Brugge
+  (6, 1, 2, '2026-04-12T11:30:00Z', false),  -- Mechelen vs Union
+  (4, 5, 2, '2026-04-12T16:30:00Z', false),  -- Anderlecht vs Gent
   -- Speeldag 3
-  (1, 4, 3, '2026-04-11T20:45:00Z', false),  -- Union vs Anderlecht
-  (6, 5, 3, '2026-04-12T13:30:00Z', false),  -- Mechelen vs Gent
-  (2, 3, 3, '2026-04-12T18:30:00Z', false),  -- Club Brugge vs STVV
+  (6, 4, 3, '2026-04-18T18:45:00Z', false),  -- Mechelen vs Anderlecht
+  (5, 3, 3, '2026-04-19T11:30:00Z', false),  -- Gent vs STVV
+  (1, 2, 3, '2026-04-19T16:30:00Z', false),  -- Union vs Club Brugge
   -- Speeldag 4
-  (4, 6, 4, '2026-04-19T13:30:00Z', false),  -- Anderlecht vs Mechelen
-  (3, 1, 4, '2026-04-19T16:00:00Z', false),  -- STVV vs Union
-  (5, 2, 4, '2026-04-19T18:30:00Z', false),  -- Gent vs Club Brugge
+  (1, 5, 4, '2026-04-22T18:30:00Z', false),  -- Union vs Gent
+  (2, 6, 4, '2026-04-22T18:30:00Z', false),  -- Club Brugge vs Mechelen
+  (3, 4, 4, '2026-04-23T18:30:00Z', false),  -- STVV vs Anderlecht
   -- Speeldag 5
-  (6, 3, 5, '2026-04-22T20:30:00Z', false),  -- Mechelen vs STVV
-  (4, 5, 5, '2026-04-22T20:30:00Z', false),  -- Anderlecht vs Gent
-  (2, 1, 5, '2026-04-23T20:30:00Z', false),  -- Club Brugge vs Union
+  (5, 2, 5, '2026-04-26T11:30:00Z', false),  -- Gent vs Club Brugge
+  (6, 3, 5, '2026-04-26T14:00:00Z', false),  -- Mechelen vs STVV
+  (4, 1, 5, '2026-04-26T16:30:00Z', false),  -- Anderlecht vs Union
   -- Speeldag 6 (return leg)
-  (6, 1, 6, '2026-04-26T13:30:00Z', false),  -- Mechelen vs Union
-  (4, 2, 6, '2026-04-26T16:00:00Z', false),  -- Anderlecht vs Club Brugge
-  (5, 3, 6, '2026-04-26T18:30:00Z', false),  -- Gent vs STVV
+  (3, 1, 6, '2026-05-02T18:45:00Z', false),  -- STVV vs Union
+  (6, 5, 6, '2026-05-03T11:30:00Z', false),  -- Mechelen vs Gent
+  (4, 2, 6, '2026-05-03T16:30:00Z', false),  -- Anderlecht vs Club Brugge
   -- Speeldag 7
-  (1, 5, 7, '2026-05-02T13:30:00Z', false),  -- Union vs Gent
-  (2, 6, 7, '2026-05-02T16:00:00Z', false),  -- Club Brugge vs Mechelen
-  (3, 4, 7, '2026-05-03T20:45:00Z', false),  -- STVV vs Anderlecht
+  (2, 3, 7, '2026-05-09T18:45:00Z', false),  -- Club Brugge vs STVV
+  (5, 4, 7, '2026-05-10T11:30:00Z', false),  -- Gent vs Anderlecht
+  (1, 6, 7, '2026-05-10T16:30:00Z', false),  -- Union vs Mechelen
   -- Speeldag 8
-  (4, 1, 8, '2026-05-09T20:45:00Z', false),  -- Anderlecht vs Union
-  (5, 6, 8, '2026-05-10T13:30:00Z', false),  -- Gent vs Mechelen
-  (3, 2, 8, '2026-05-10T18:30:00Z', false),  -- STVV vs Club Brugge
+  (3, 5, 8, '2026-05-16T18:45:00Z', false),  -- STVV vs Gent
+  (4, 6, 8, '2026-05-17T11:30:00Z', false),  -- Anderlecht vs Mechelen
+  (2, 1, 8, '2026-05-17T16:30:00Z', false),  -- Club Brugge vs Union
   -- Speeldag 9
-  (6, 4, 9, '2026-05-16T20:45:00Z', false),  -- Mechelen vs Anderlecht
-  (1, 3, 9, '2026-05-17T13:30:00Z', false),  -- Union vs STVV
-  (2, 5, 9, '2026-05-17T18:30:00Z', false),  -- Club Brugge vs Gent
+  (6, 2, 9, '2026-05-21T18:30:00Z', false),  -- Mechelen vs Club Brugge
+  (5, 1, 9, '2026-05-21T18:30:00Z', false),  -- Gent vs Union
+  (4, 3, 9, '2026-05-21T18:30:00Z', false),  -- Anderlecht vs STVV
   -- Speeldag 10
-  (3, 6, 10, '2026-05-24T18:30:00Z', false),  -- STVV vs Mechelen
-  (5, 4, 10, '2026-05-24T18:30:00Z', false),  -- Gent vs Anderlecht
-  (1, 2, 10, '2026-05-24T18:30:00Z', false);  -- Union vs Club Brugge
+  (2, 5, 10, '2026-05-24T16:30:00Z', false),  -- Club Brugge vs Gent
+  (1, 4, 10, '2026-05-24T16:30:00Z', false),  -- Union vs Anderlecht
+  (3, 6, 10, '2026-05-24T16:30:00Z', false);  -- STVV vs Mechelen
 
 -- Cup final (Anderlecht vs Union)
 INSERT INTO matches (home_team_id, away_team_id, speeldag, match_datetime, is_cup_final) VALUES

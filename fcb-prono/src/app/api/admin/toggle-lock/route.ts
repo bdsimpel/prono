@@ -21,5 +21,11 @@ export async function POST(request: Request) {
     .update({ value: locked ? 'true' : 'false' })
     .eq('key', 'predictions_locked')
 
+  await serviceClient.from('activity_events').insert({
+    type: 'lock',
+    message: locked ? 'Voorspellingen zijn vergrendeld' : 'Voorspellingen zijn ontgrendeld',
+    metadata: { locked },
+  })
+
   return NextResponse.json({ success: true })
 }

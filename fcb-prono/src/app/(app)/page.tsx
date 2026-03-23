@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import InfoModal from "@/components/InfoModal";
 import YearSelector from "@/components/YearSelector";
 import ErelijstModal from "@/components/ErelijstModal";
+import ActivityFeed from "@/components/ActivityFeed";
 
 export const revalidate = false;
 
@@ -16,6 +17,7 @@ export default async function KlassementPage() {
     { data: editions },
     { data: editionScores },
     { data: alltimeScores },
+    { data: activityEvents },
   ] = await Promise.all([
     supabase.from("players").select("id, display_name, matched_historical_name"),
     supabase.from("player_scores").select("*"),
@@ -24,6 +26,7 @@ export default async function KlassementPage() {
     supabase.from("editions").select("*").order("year", { ascending: false }),
     supabase.from("edition_scores").select("*"),
     supabase.from("alltime_scores").select("*"),
+    supabase.from("activity_events").select("*").neq("type", "points").order("created_at", { ascending: false }).limit(5),
   ]);
 
   const scoreMap: Record<
@@ -186,6 +189,9 @@ export default async function KlassementPage() {
           </div>
         </div>
       </section>
+
+      {/* Activity Feed */}
+      <ActivityFeed events={activityEvents ?? []} />
 
       {/* Rankings Section */}
       <section className="max-w-7xl mx-auto px-4 md:px-6 pb-16">

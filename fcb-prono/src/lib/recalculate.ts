@@ -165,5 +165,17 @@ export async function recalculateScores(serviceClient: SupabaseClient) {
     if (!error) playersUpdated++
   }
 
-  return { playersUpdated, resultsCount: Object.keys(resultMap).length }
+  // Compute point deltas for activity events
+  const pointDeltas: { user_id: string; delta: number }[] = []
+  if (hasChanges) {
+    for (const score of newScores) {
+      const oldTotal = oldScoreMap[score.user_id] ?? 0
+      const delta = score.total_score - oldTotal
+      if (delta > 0) {
+        pointDeltas.push({ user_id: score.user_id, delta })
+      }
+    }
+  }
+
+  return { playersUpdated, resultsCount: Object.keys(resultMap).length, pointDeltas }
 }

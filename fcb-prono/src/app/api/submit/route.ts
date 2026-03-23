@@ -80,6 +80,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Kon speler niet aanmaken' }, { status: 500 })
     }
 
+    // Insert signup activity event
+    await serviceClient.from('activity_events').insert({
+      type: 'signup',
+      message: `${trimmedName} doet mee!`,
+      metadata: { player_id: player.id },
+    })
+
     // Bulk insert predictions
     const predictionRows = predictions.map((p: { matchId: number; home: number; away: number }) => ({
       user_id: player.id,

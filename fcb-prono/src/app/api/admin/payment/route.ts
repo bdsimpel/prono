@@ -41,6 +41,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Kon betaling niet bijwerken' }, { status: 500 })
   }
 
+  // Insert payment activity event
+  if (status === 'paid') {
+    const { data: player } = await serviceClient
+      .from('players')
+      .select('display_name')
+      .eq('id', playerId)
+      .single()
+
+    if (player) {
+      await serviceClient.from('activity_events').insert({
+        type: 'payment',
+        message: `${player.display_name} heeft betaald`,
+        metadata: { player_id: playerId },
+      })
+    }
+  }
+
   revalidatePath(`/player/${playerId}`)
 
   return NextResponse.json({ success: true })

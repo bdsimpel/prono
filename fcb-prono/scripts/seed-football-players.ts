@@ -23,12 +23,42 @@ interface PlayerRow {
 }
 
 async function main() {
-  const xlsxPath = path.resolve(__dirname, '../../Players.xlsx')
+  const xlsxPath = path.resolve(__dirname, '../../data/Players.xlsx')
   const workbook = XLSX.readFile(xlsxPath)
+
+  // Fetch team names from DB to filter and map sheet names
+  const { data: teams, error: teamsError } = await supabase.from('teams').select('name')
+  if (teamsError || !teams) {
+    console.error('Error fetching teams:', teamsError)
+    process.exit(1)
+  }
+  const dbTeamNames = teams.map(t => t.name as string)
+
+  // Map sheet name to DB team name using fuzzy/contains matching
+  function matchTeamName(sheetName: string): string | null {
+    // Exact match first
+    const exact = dbTeamNames.find(t => t === sheetName)
+    if (exact) return exact
+
+    // DB name contained in sheet name (e.g. "Mechelen" in "KV Mechelen")
+    const contained = dbTeamNames.find(t => sheetName.includes(t))
+    if (contained) return contained
+
+    // Sheet name contained in DB name
+    const reverse = dbTeamNames.find(t => t.includes(sheetName))
+    if (reverse) return reverse
+
+    return null
+  }
 
   const allPlayers: PlayerRow[] = []
 
   for (const sheetName of workbook.SheetNames) {
+    const dbTeamName = matchTeamName(sheetName)
+    if (!dbTeamName) {
+      console.warn(`Sheet "${sheetName}" does not match any team in DB, skipping`)
+      continue
+    }
     const sheet = workbook.Sheets[sheetName]
     const rows: (string | number | null)[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
 
@@ -91,7 +121,7 @@ async function main() {
 
       allPlayers.push({
         name,
-        team: sheetName,
+        team: dbTeamName,
         position: pos,
         goals,
         assists,
