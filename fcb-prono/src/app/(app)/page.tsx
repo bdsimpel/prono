@@ -26,7 +26,7 @@ export default async function KlassementPage() {
     supabase.from("editions").select("*").order("year", { ascending: false }),
     supabase.from("edition_scores").select("*"),
     supabase.from("alltime_scores").select("*"),
-    supabase.from("activity_events").select("*").neq("type", "points").order("created_at", { ascending: false }).limit(5),
+    supabase.from("activity_events").select("*").neq("type", "points").order("created_at", { ascending: false }).limit(6),
   ]);
 
   const scoreMap: Record<

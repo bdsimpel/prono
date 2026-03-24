@@ -12,14 +12,24 @@ interface ActivityEvent {
 }
 
 const PAGE_SIZE = 5;
+const MAX_EVENTS = 20;
 
-function formatRelativeTime(dateStr: string): string {
+function formatRelativeTime(dateStr: string, compact = false): string {
   const now = new Date();
   const date = new Date(dateStr);
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60000);
   const diffHour = Math.floor(diffMs / 3600000);
   const diffDay = Math.floor(diffMs / 86400000);
+
+  if (compact) {
+    if (diffMin < 1) return "net";
+    if (diffMin < 60) return `${diffMin}m`;
+    if (diffHour < 24) return `${diffHour}u`;
+    if (diffDay < 7) return `${diffDay}d`;
+    if (diffDay < 30) return `${Math.floor(diffDay / 7)}w`;
+    return date.toLocaleDateString("nl-BE", { day: "numeric", month: "short" });
+  }
 
   if (diffMin < 1) return "net";
   if (diffMin < 60) return `${diffMin}m geleden`;
@@ -30,13 +40,71 @@ function formatRelativeTime(dateStr: string): string {
   return date.toLocaleDateString("nl-BE", { day: "numeric", month: "short" });
 }
 
-const typeConfig: Record<ActivityEvent["type"], { dot: string }> = {
-  signup: { dot: "bg-green-500" },
-  result: { dot: "bg-cb-blue" },
-  payment: { dot: "bg-cb-gold" },
-  points: { dot: "bg-purple-500" },
-  lock: { dot: "bg-red-500" },
-  extra_answer: { dot: "bg-orange-500" },
+function PersonPlusIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="7" r="4" />
+      <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+      <line x1="19" y1="8" x2="19" y2="14" />
+      <line x1="16" y1="11" x2="22" y2="11" />
+    </svg>
+  );
+}
+
+function FootballIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z" />
+      <path d="M2 12h20" />
+    </svg>
+  );
+}
+
+function EuroIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.2 7A6.5 6.5 0 0 0 7 12a6.5 6.5 0 0 0 10.2 5" />
+      <line x1="5" y1="10" x2="15" y2="10" />
+      <line x1="5" y1="14" x2="15" y2="14" />
+    </svg>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
+function TrendUpIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </svg>
+  );
+}
+
+const typeIcons: Record<ActivityEvent["type"], () => React.ReactNode> = {
+  signup: () => <PersonPlusIcon />,
+  result: () => <FootballIcon />,
+  payment: () => <EuroIcon />,
+  points: () => <TrendUpIcon />,
+  lock: () => <LockIcon />,
+  extra_answer: () => <CheckCircleIcon />,
 };
 
 export default function ActivityFeed({
@@ -44,9 +112,11 @@ export default function ActivityFeed({
 }: {
   events: ActivityEvent[];
 }) {
-  const [events, setEvents] = useState(initialEvents);
+  const [events, setEvents] = useState(initialEvents.slice(0, PAGE_SIZE));
   const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(initialEvents.length >= PAGE_SIZE);
+  const [hasMore, setHasMore] = useState(
+    initialEvents.length > PAGE_SIZE && initialEvents.length <= MAX_EVENTS,
+  );
 
   async function loadMore() {
     if (loading || !hasMore) return;
@@ -60,11 +130,13 @@ export default function ActivityFeed({
         .neq("type", "points")
         .order("created_at", { ascending: false })
         .lt("created_at", lastEvent.created_at)
-        .limit(PAGE_SIZE);
+        .limit(PAGE_SIZE + 1);
 
       if (data && data.length > 0) {
-        setEvents((prev) => [...prev, ...data]);
-        setHasMore(data.length >= PAGE_SIZE);
+        const page = data.slice(0, PAGE_SIZE);
+        const newTotal = events.length + page.length;
+        setEvents((prev) => [...prev, ...page]);
+        setHasMore(data.length > PAGE_SIZE && newTotal < MAX_EVENTS);
       } else {
         setHasMore(false);
       }
@@ -82,35 +154,62 @@ export default function ActivityFeed({
           ACTIVITEIT
         </h2>
       </div>
-      <div className="rounded-lg border border-white/5 bg-white/[0.02] overflow-hidden">
-        {events.map((event, i) => {
-          const config = typeConfig[event.type];
-          return (
+      <div className="glass-card-subtle overflow-hidden">
+        {/* Desktop table */}
+        <table className="hidden md:table w-full">
+          <thead>
+            <tr className="text-[11px] text-gray-500 uppercase tracking-wider border-b border-white/[0.06]">
+              <th className="text-left font-normal px-5 py-3 w-12" />
+              <th className="text-left font-normal py-3">Activiteit</th>
+              <th className="text-right font-normal px-5 py-3 w-36">Wanneer</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.map((event) => (
+              <tr
+                key={event.id}
+                className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+              >
+                <td className="px-5 py-3 text-cb-blue">
+                  {typeIcons[event.type]()}
+                </td>
+                <td className="py-3 text-sm text-gray-200">
+                  {event.message}
+                </td>
+                <td className="text-right px-5 py-3 text-xs text-gray-500 whitespace-nowrap">
+                  {formatRelativeTime(event.created_at)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Mobile list */}
+        <div className="md:hidden divide-y divide-white/[0.04]">
+          {events.map((event) => (
             <div
               key={event.id}
-              className={`flex items-center gap-3 px-4 py-3 ${
-                i !== events.length - 1 || hasMore
-                  ? "border-b border-white/5"
-                  : ""
-              }`}
+              className="flex items-center px-4 py-3 gap-3"
             >
-              <span
-                className={`shrink-0 w-2 h-2 rounded-full ${config.dot}`}
-              />
-              <span className="text-sm text-gray-300 flex-1 min-w-0 truncate">
+              <span className="text-cb-blue shrink-0">
+                {typeIcons[event.type]()}
+              </span>
+              <span className="text-[12px] text-gray-200 flex-1 min-w-0">
                 {event.message}
               </span>
-              <span className="text-xs text-gray-600 shrink-0">
+              <span className="text-[10px] text-gray-500 shrink-0">
                 {formatRelativeTime(event.created_at)}
               </span>
             </div>
-          );
-        })}
+          ))}
+        </div>
+
+        {/* Load more */}
         {hasMore && (
           <button
             onClick={loadMore}
             disabled={loading}
-            className="w-full px-4 py-2.5 text-xs text-gray-500 hover:text-gray-400 transition-colors disabled:opacity-50"
+            className="w-full px-5 py-3 text-xs text-gray-500 hover:text-gray-400 border-t border-white/[0.04] transition-colors disabled:opacity-50"
           >
             {loading ? "Laden..." : "Laad meer"}
           </button>
