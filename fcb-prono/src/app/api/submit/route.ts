@@ -164,7 +164,7 @@ export async function POST(request: Request) {
         } // end length guard
       }
 
-      // Atomically increment current edition player_count
+      // Sync edition player_count with actual player count
       const { data: currentEdition } = await serviceClient
         .from('editions')
         .select('id')
@@ -172,7 +172,14 @@ export async function POST(request: Request) {
         .single()
 
       if (currentEdition) {
-        await serviceClient.rpc('increment_player_count', { p_edition_id: currentEdition.id })
+        const { count } = await serviceClient
+          .from('players')
+          .select('*', { count: 'exact', head: true })
+
+        await serviceClient
+          .from('editions')
+          .update({ player_count: count ?? 0 })
+          .eq('id', currentEdition.id)
       }
     } catch (e) {
       // Non-critical: don't fail the signup if historical matching fails

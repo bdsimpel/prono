@@ -445,7 +445,7 @@ export default function YearSelector({
               </div>
 
               <div className="px-5 py-3 text-xs text-gray-600 border-t border-white/[0.04]">
-                Gerangschikt op gemiddelde Z-Score over alle edities
+                Gemiddelde Z-Score gecorrigeerd voor aantal deelnames (&lt;3 jaar: score &times; jaren/3)
               </div>
             </>
           )}

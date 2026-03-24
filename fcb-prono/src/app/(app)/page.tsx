@@ -130,6 +130,16 @@ export default async function KlassementPage() {
     }
   }
 
+  // Apply years-played correction to all-time z-scores
+  // 1 year: ×1/3, 2 years: ×2/3, 3+ years: unchanged
+  augmentedAlltime = augmentedAlltime.map((at) => {
+    const factor = at.years_played >= 3 ? 1 : at.years_played / 3;
+    return {
+      ...at,
+      avg_z_score: at.avg_z_score != null ? at.avg_z_score * factor : null,
+    };
+  });
+
   return (
     <div>
       {/* Hero Section */}
