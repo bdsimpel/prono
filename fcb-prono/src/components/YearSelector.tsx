@@ -217,7 +217,7 @@ export default function YearSelector({
                           {row.match_score}
                         </a>
                       </td>
-                      <td className="text-right px-2 py-3 pr-5 text-sm text-cb-gold">
+                      <td className="text-right px-2 py-3 pr-5 text-sm text-gray-500">
                         <a href={`/player/${row.user_id}`} className="block">
                           {row.extra_score}
                         </a>
