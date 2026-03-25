@@ -40,7 +40,10 @@ export default function YearSelector({
   const currentEdition = editions.find((e) => e.is_current);
   const [selectedView, setSelectedView] = useState<ViewType>("current");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [minYearsFilter, setMinYearsFilter] = useState(1);
+  const [yearsDropdownOpen, setYearsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const yearsDropdownRef = useRef<HTMLDivElement>(null);
 
   const historicalEditions = editions
     .filter((e) => !e.is_current)
@@ -51,6 +54,9 @@ export default function YearSelector({
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
+      }
+      if (yearsDropdownRef.current && !yearsDropdownRef.current.contains(e.target as Node)) {
+        setYearsDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -69,6 +75,16 @@ export default function YearSelector({
   const sortedAlltime = useMemo(
     () => [...alltimeScores].sort((a, b) => (b.avg_z_score ?? -999) - (a.avg_z_score ?? -999)),
     [alltimeScores],
+  );
+
+  const availableYearCounts = useMemo(
+    () => [...new Set(alltimeScores.map((s) => s.years_played))].sort((a, b) => a - b),
+    [alltimeScores],
+  );
+
+  const filteredAlltime = useMemo(
+    () => sortedAlltime.filter((s) => s.years_played >= minYearsFilter),
+    [sortedAlltime, minYearsFilter],
   );
 
   const selectedHistoricalYear = typeof selectedView === "number" ? selectedView : null;
@@ -147,6 +163,60 @@ export default function YearSelector({
         )}
 
       </div>
+
+      {/* Min years filter dropdown (all-time only) */}
+      {selectedView === "alltime" && availableYearCounts.length > 1 && (
+        <div className="flex items-center gap-2 mb-4">
+          <div className="relative" ref={yearsDropdownRef}>
+            <button
+              onClick={() => setYearsDropdownOpen(!yearsDropdownOpen)}
+              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                minYearsFilter > 1
+                  ? "bg-cb-blue text-white"
+                  : "text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]"
+              }`}
+            >
+              {minYearsFilter <= 1 ? "Alle spelers" : `≥ ${minYearsFilter} jaar`}
+              <svg
+                className={`w-3.5 h-3.5 transition-transform ${yearsDropdownOpen ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {yearsDropdownOpen && (
+              <div className="absolute top-full left-0 mt-1 z-20 min-w-[160px] py-1 rounded-lg border border-white/[0.08] bg-[#141920] shadow-xl">
+                <button
+                  onClick={() => { setMinYearsFilter(1); setYearsDropdownOpen(false); }}
+                  className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                    minYearsFilter <= 1
+                      ? "text-white bg-white/[0.06]"
+                      : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
+                  }`}
+                >
+                  Alle spelers
+                </button>
+                {availableYearCounts.filter(c => c > 1).map((count) => (
+                  <button
+                    key={count}
+                    onClick={() => { setMinYearsFilter(count); setYearsDropdownOpen(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                      minYearsFilter === count
+                        ? "text-white bg-white/[0.06]"
+                        : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
+                    }`}
+                  >
+                    ≥ {count} jaar
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Current year table */}
       {selectedView === "current" && (
@@ -366,7 +436,7 @@ export default function YearSelector({
       {/* All-Time table */}
       {selectedView === "alltime" && (
         <div className="glass-card-subtle overflow-hidden">
-          {sortedAlltime.length === 0 ? (
+          {filteredAlltime.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               Geen all-time data beschikbaar.
             </div>
@@ -385,7 +455,7 @@ export default function YearSelector({
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedAlltime.map((s, i) => {
+                  {filteredAlltime.map((s, i) => {
                     return (
                       <tr
                         key={s.player_name}
@@ -421,7 +491,7 @@ export default function YearSelector({
                   <span className="w-10 text-right shrink-0">Jaren</span>
                   <span className="shrink-0">Z-Score</span>
                 </div>
-                {sortedAlltime.map((s, i) => (
+                {filteredAlltime.map((s, i) => (
                   <div
                     key={s.player_name}
                     className="flex items-center px-4 py-3 gap-3"
