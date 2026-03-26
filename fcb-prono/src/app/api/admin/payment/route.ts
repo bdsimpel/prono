@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     if (player) {
       await serviceClient.from('activity_events').insert({
         type: 'payment',
-        message: `${player.display_name} heeft betaald`,
+        message: `Betaling ${player.display_name} bevestigd ✓`,
         metadata: { player_id: playerId },
       })
     }
