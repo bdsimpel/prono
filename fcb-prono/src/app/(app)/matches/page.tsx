@@ -1,23 +1,22 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import Link from "next/link";
-import TeamLogo from "@/components/TeamLogo";
+import LiveMatchList from "@/components/LiveMatchList";
 
 export const revalidate = false;
 
 function formatMatchDate(datetime: string) {
   const d = new Date(datetime);
   const day = d.toLocaleDateString("nl-BE", { weekday: "short" });
-  const date = d.toLocaleDateString("nl-BE", {
-    day: "numeric",
-    month: "short",
-  });
-  const time = d.toLocaleTimeString("nl-BE", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const date = d.toLocaleDateString("nl-BE", { day: "numeric", month: "short" });
+  const time = d.toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" });
   return { day, date, time };
 }
 
+function withFormatted<T extends { match_datetime: string | null }>(matches: T[]) {
+  return matches.map(m => ({
+    ...m,
+    formatted: m.match_datetime ? formatMatchDate(m.match_datetime) : undefined,
+  }));
+}
 
 export default async function MatchesPage() {
   const supabase = await createServiceClient();
@@ -140,70 +139,7 @@ export default async function MatchesPage() {
             <span className="w-1.5 h-5 bg-cb-blue rounded-full" />
             {currentRound.label}
           </h2>
-          <div className="space-y-2">
-            {currentRound.matches.map((match) => {
-              const result = resultMap[match.id];
-              const { day, date, time } = match.match_datetime
-                ? formatMatchDate(match.match_datetime)
-                : { day: "", date: "", time: "" };
-
-              return (
-                <Link
-                  key={match.id}
-                  href={`/matches/${match.id}`}
-                  className="glass-card-subtle border-cb-blue/15 p-3 md:p-4 hover:bg-white/[0.03] transition-colors block"
-                >
-                  {/* Mobile */}
-                  <div className="md:hidden flex items-center gap-3">
-                    <div className="text-[10px] text-gray-500 w-[48px] text-right shrink-0 leading-tight">
-                      <div className="capitalize">{day} {date}</div>
-                      <div>{time}</div>
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <TeamLogo name={match.home_team.name} />
-                        <span className="text-sm text-gray-200 truncate flex-1">{match.home_team.name}</span>
-                        {result && <span className="text-white font-bold text-sm tabular-nums shrink-0">{result.home_score}</span>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <TeamLogo name={match.away_team.name} />
-                        <span className="text-sm text-gray-200 truncate flex-1">{match.away_team.name}</span>
-                        {result && <span className="text-white font-bold text-sm tabular-nums shrink-0">{result.away_score}</span>}
-                      </div>
-                    </div>
-                    <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                  {/* Desktop */}
-                  <div className="hidden md:flex items-center gap-4">
-                    <div className="text-center min-w-[60px]">
-                      <div className="text-xs text-gray-400 capitalize">{day} {date}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">{time}</div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <TeamLogo name={match.home_team.name} />
-                        <span className="truncate">{match.home_team.name}</span>
-                        {result ? (
-                          <span className="bg-white/[0.06] px-2 py-0.5 rounded text-white font-bold text-xs shrink-0">
-                            {result.home_score}-{result.away_score}
-                          </span>
-                        ) : (
-                          <span className="text-gray-600 text-xs shrink-0">-</span>
-                        )}
-                        <span className="truncate">{match.away_team.name}</span>
-                        <TeamLogo name={match.away_team.name} />
-                      </div>
-                    </div>
-                    <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <LiveMatchList matches={withFormatted(currentRound.matches)} resultMap={resultMap} variant="current" />
         </div>
       )}
 
@@ -213,65 +149,7 @@ export default async function MatchesPage() {
           <h2 className="heading-display text-xl text-gray-400 mb-3">
             KOMENDE WEDSTRIJDEN
           </h2>
-          <div className="space-y-2">
-            {upcomingFiltered.map((match) => {
-              const { day, date, time } = match.match_datetime
-                ? formatMatchDate(match.match_datetime)
-                : { day: "", date: "", time: "" };
-
-              return (
-                <Link
-                  key={match.id}
-                  href={`/matches/${match.id}`}
-                  className="glass-card-subtle p-3 md:p-4 hover:bg-white/[0.03] transition-colors block"
-                >
-                  {/* Mobile stacked layout */}
-                  <div className="md:hidden flex items-center gap-3">
-                    <div className="text-[10px] text-gray-500 w-[48px] text-right shrink-0 leading-tight">
-                      <div className="capitalize">{day} {date}</div>
-                      <div>{time}</div>
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <TeamLogo name={match.home_team.name} />
-                        <span className="text-sm text-gray-200 truncate">{match.home_team.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <TeamLogo name={match.away_team.name} />
-                        <span className="text-sm text-gray-200 truncate">{match.away_team.name}</span>
-                      </div>
-                    </div>
-                    <div className="text-[10px] text-gray-600 shrink-0 text-right">
-                      {match.is_cup_final ? "Beker" : `SD ${match.speeldag}`} &rsaquo;
-                    </div>
-                  </div>
-
-                  {/* Desktop horizontal layout */}
-                  <div className="hidden md:flex items-center gap-4">
-                    <div className="text-center min-w-[60px]">
-                      <div className="text-xs text-gray-400 capitalize">{day} {date}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">{time}</div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <TeamLogo name={match.home_team.name} />
-                        <span className="truncate">{match.home_team.name}</span>
-                        <span className="text-gray-600 text-xs shrink-0">-</span>
-                        <span className="truncate">{match.away_team.name}</span>
-                        <TeamLogo name={match.away_team.name} />
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-600 shrink-0">
-                      {match.is_cup_final ? "Beker" : `SD ${match.speeldag}`}
-                    </span>
-                    <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <LiveMatchList matches={withFormatted(upcomingFiltered)} resultMap={resultMap} variant="upcoming" />
         </div>
       )}
 
@@ -281,69 +159,7 @@ export default async function MatchesPage() {
           <h2 className="heading-display text-xl text-gray-400 mb-3">
             GESPEELD
           </h2>
-          <div className="space-y-2">
-            {playedFiltered.map((match) => {
-              const result = resultMap[match.id];
-              const { day, date } = match.match_datetime
-                ? formatMatchDate(match.match_datetime)
-                : { day: "", date: "" };
-
-              return (
-                <Link
-                  key={match.id}
-                  href={`/matches/${match.id}`}
-                  scroll={true}
-                  className="glass-card-subtle p-3 md:p-4 hover:bg-white/[0.03] transition-colors block"
-                >
-                  {/* Mobile stacked layout */}
-                  <div className="md:hidden flex items-center gap-3">
-                    <div className="text-[10px] text-gray-500 w-[48px] text-right shrink-0 capitalize">
-                      {day} {date}
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <TeamLogo name={match.home_team.name} />
-                        <span className="text-sm text-gray-200 truncate flex-1">{match.home_team.name}</span>
-                        <span className="text-white font-bold text-sm tabular-nums shrink-0">{result.home_score}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <TeamLogo name={match.away_team.name} />
-                        <span className="text-sm text-gray-200 truncate flex-1">{match.away_team.name}</span>
-                        <span className="text-white font-bold text-sm tabular-nums shrink-0">{result.away_score}</span>
-                      </div>
-                    </div>
-                    <div className="text-[10px] text-gray-600 shrink-0 text-right">
-                      {match.is_cup_final ? "Beker" : `SD ${match.speeldag}`} &rsaquo;
-                    </div>
-                  </div>
-
-                  {/* Desktop horizontal layout */}
-                  <div className="hidden md:flex items-center gap-4">
-                    <div className="text-center min-w-[60px]">
-                      <div className="text-xs text-gray-500 capitalize">{day} {date}</div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <TeamLogo name={match.home_team.name} />
-                        <span className="truncate">{match.home_team.name}</span>
-                        <span className="bg-white/[0.06] px-2 py-0.5 rounded text-white font-bold text-xs shrink-0">
-                          {result.home_score}-{result.away_score}
-                        </span>
-                        <span className="truncate">{match.away_team.name}</span>
-                        <TeamLogo name={match.away_team.name} />
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-600 shrink-0">
-                      {match.is_cup_final ? "Beker" : `SD ${match.speeldag}`}
-                    </span>
-                    <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <LiveMatchList matches={withFormatted(playedFiltered)} resultMap={resultMap} variant="played" />
         </div>
       )}
 

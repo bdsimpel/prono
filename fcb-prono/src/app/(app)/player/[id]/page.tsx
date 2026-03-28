@@ -3,6 +3,7 @@ import { calculateMatchPoints, checkExtraAnswer } from "@/lib/scoring";
 import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import LivePlayerPredictions from "@/components/LivePlayerPredictions";
 
 export const revalidate = false;
 
@@ -592,46 +593,15 @@ export default async function PlayerDetailPage({
             <span className="w-1.5 h-5 bg-cb-blue rounded-full" />
             {currentRound.label}
           </h3>
-          <div className="space-y-2">
-            {currentPredictions.map((pred) => {
-              const match = pred.matches as {
-                speeldag: number | null;
-                is_cup_final: boolean;
-                match_datetime: string | null;
-                home_team: { name: string; short_name: string };
-                away_team: { name: string; short_name: string };
-              };
-              const result = resultMap[pred.match_id];
-              let points = 0;
-              let category:
-                | "exact"
-                | "goal_diff"
-                | "result"
-                | "wrong"
-                | "pending" = "pending";
-              if (result) {
-                const calc = calculateMatchPoints(
-                  pred.home_score,
-                  pred.away_score,
-                  result.home_score,
-                  result.away_score,
-                );
-                points = calc.points;
-                category = calc.category;
-              }
-              return (
-                <PredictionCard
-                  key={pred.id}
-                  pred={pred}
-                  match={match}
-                  result={result}
-                  points={points}
-                  category={category}
-                  shouldHide={shouldHide}
-                />
-              );
+          <LivePlayerPredictions
+            predictions={currentPredictions.map((pred) => {
+              const m = pred.matches as { match_datetime: string | null; sofascore_event_id: number | null; home_team: { name: string }; away_team: { name: string } };
+              return { id: pred.id, match_id: pred.match_id, home_score: pred.home_score, away_score: pred.away_score, home_team_name: m.home_team.name, away_team_name: m.away_team.name, match_datetime: m.match_datetime, sofascore_event_id: m.sofascore_event_id };
             })}
-          </div>
+            resultMap={resultMap}
+            shouldHide={shouldHide}
+            section="current"
+          />
         </div>
       )}
 
@@ -641,28 +611,15 @@ export default async function PlayerDetailPage({
           <h3 className="heading-display text-lg text-gray-400 mb-3">
             KOMENDE WEDSTRIJDEN
           </h3>
-          <div className="space-y-2">
-            {upcomingPredictions.map((pred) => {
-              const match = pred.matches as {
-                speeldag: number | null;
-                is_cup_final: boolean;
-                match_datetime: string | null;
-                home_team: { name: string; short_name: string };
-                away_team: { name: string; short_name: string };
-              };
-              return (
-                <PredictionCard
-                  key={pred.id}
-                  pred={pred}
-                  match={match}
-                  result={undefined}
-                  points={0}
-                  category="pending"
-                  shouldHide={shouldHide}
-                />
-              );
+          <LivePlayerPredictions
+            predictions={upcomingPredictions.map((pred) => {
+              const m = pred.matches as { match_datetime: string | null; sofascore_event_id: number | null; home_team: { name: string }; away_team: { name: string } };
+              return { id: pred.id, match_id: pred.match_id, home_score: pred.home_score, away_score: pred.away_score, home_team_name: m.home_team.name, away_team_name: m.away_team.name, match_datetime: m.match_datetime, sofascore_event_id: m.sofascore_event_id };
             })}
-          </div>
+            resultMap={resultMap}
+            shouldHide={shouldHide}
+            section="upcoming"
+          />
         </div>
       )}
 
@@ -672,46 +629,15 @@ export default async function PlayerDetailPage({
           <h3 className="heading-display text-lg text-gray-400 mb-3">
             GESPEELD
           </h3>
-          <div className="space-y-2">
-            {playedPredictions.map((pred) => {
-              const match = pred.matches as {
-                speeldag: number | null;
-                is_cup_final: boolean;
-                match_datetime: string | null;
-                home_team: { name: string; short_name: string };
-                away_team: { name: string; short_name: string };
-              };
-              const result = resultMap[pred.match_id];
-              let points = 0;
-              let category:
-                | "exact"
-                | "goal_diff"
-                | "result"
-                | "wrong"
-                | "pending" = "pending";
-              if (result) {
-                const calc = calculateMatchPoints(
-                  pred.home_score,
-                  pred.away_score,
-                  result.home_score,
-                  result.away_score,
-                );
-                points = calc.points;
-                category = calc.category;
-              }
-              return (
-                <PredictionCard
-                  key={pred.id}
-                  pred={pred}
-                  match={match}
-                  result={result}
-                  points={points}
-                  category={category}
-                  shouldHide={shouldHide}
-                />
-              );
+          <LivePlayerPredictions
+            predictions={playedPredictions.map((pred) => {
+              const m = pred.matches as { match_datetime: string | null; sofascore_event_id: number | null; home_team: { name: string }; away_team: { name: string } };
+              return { id: pred.id, match_id: pred.match_id, home_score: pred.home_score, away_score: pred.away_score, home_team_name: m.home_team.name, away_team_name: m.away_team.name, match_datetime: m.match_datetime, sofascore_event_id: m.sofascore_event_id };
             })}
-          </div>
+            resultMap={resultMap}
+            shouldHide={shouldHide}
+            section="played"
+          />
         </div>
       )}
 

@@ -2,8 +2,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { calculateMatchPoints } from "@/lib/scoring";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import TeamLogo from "@/components/TeamLogo";
 import ForceScrollTop from "@/components/ForceScrollTop";
+import LiveMatchHeader from "@/components/LiveMatchHeader";
+import LivePredictionList from "@/components/LivePredictionList";
 
 export const revalidate = false;
 
@@ -213,84 +214,31 @@ export default async function MatchDetailPage({
       </div>
 
       {/* Match header */}
-      <div className="glass-card-subtle p-5 md:p-6 mb-6">
-        {/* Mobile — Sporza style: logos centered, names below */}
-        <div className="md:hidden">
-          <div className="flex items-center justify-center gap-4">
-            <div className="flex-1 flex flex-col items-center text-center min-w-0">
-              <TeamLogo name={match.home_team.name} size={48} />
-              <span className="heading-display text-sm text-white mt-2 truncate max-w-full">
-                {match.home_team.name}
-              </span>
-            </div>
-            <div className="flex flex-col items-center shrink-0">
-              {result ? (
-                <>
-                  <span className="text-[10px] text-gray-500 uppercase tracking-wider">einde</span>
-                  <span className="heading-display text-3xl text-white mt-0.5">
-                    {result.home_score} - {result.away_score}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-[10px] text-gray-500 uppercase tracking-wider">
-                    {match.match_datetime
-                      ? new Date(match.match_datetime).toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" })
-                      : ""}
-                  </span>
-                  <span className="heading-display text-2xl text-gray-600 mt-0.5">VS</span>
-                </>
-              )}
-            </div>
-            <div className="flex-1 flex flex-col items-center text-center min-w-0">
-              <TeamLogo name={match.away_team.name} size={48} />
-              <span className="heading-display text-sm text-white mt-2 truncate max-w-full">
-                {match.away_team.name}
-              </span>
-            </div>
-          </div>
-        </div>
+      <LiveMatchHeader
+        matchId={match.id}
+        homeTeamName={match.home_team.name}
+        awayTeamName={match.away_team.name}
+        matchDatetime={match.match_datetime}
+        sofascoreEventId={match.sofascore_event_id}
+        result={result ? { home_score: result.home_score, away_score: result.away_score } : null}
+        speeldag={match.speeldag}
+        isCupFinal={match.is_cup_final}
+        formattedTime={match.match_datetime ? new Date(match.match_datetime).toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" }) : undefined}
+        formattedDate={match.match_datetime ? new Date(match.match_datetime).toLocaleDateString("nl-BE", { dateStyle: "long" }) : undefined}
+      />
 
-        {/* Desktop — horizontal: logo + name | score | name + logo */}
-        <div className="hidden md:block">
-          <div className="flex items-center justify-center gap-8">
-            <div className="flex items-center gap-3 flex-1 justify-end">
-              <TeamLogo name={match.home_team.name} size={32} />
-              <span className="heading-display text-3xl text-white text-right">{match.home_team.name}</span>
+      {result ? (
+        <>
+          {/* Stats row */}
+          <div className="flex items-center gap-6 md:gap-10 mb-8 px-2">
+            <div className="text-center">
+              <div className="heading-display text-3xl text-cb-blue font-bold">
+                {predictionCount}
+              </div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
+                Voorspellingen
+              </div>
             </div>
-            {result ? (
-              <span className="heading-display text-3xl text-cb-blue shrink-0">
-                {result.home_score} - {result.away_score}
-              </span>
-            ) : (
-              <span className="text-xl text-gray-600 heading-display shrink-0">VS</span>
-            )}
-            <div className="flex items-center gap-3 flex-1">
-              <span className="heading-display text-3xl text-white">{match.away_team.name}</span>
-              <TeamLogo name={match.away_team.name} size={32} />
-            </div>
-          </div>
-        </div>
-
-        <p className="text-center text-xs text-gray-500 mt-4">
-          {match.is_cup_final ? "Bekerfinale" : `Speeldag ${match.speeldag}`}
-          {match.match_datetime &&
-            ` — ${new Date(match.match_datetime).toLocaleDateString("nl-BE", { dateStyle: "long" })}`}
-        </p>
-      </div>
-
-      {/* Stats row */}
-      <div className="flex items-center gap-6 md:gap-10 mb-8 px-2">
-        <div className="text-center">
-          <div className="heading-display text-3xl text-cb-blue font-bold">
-            {predictionCount}
-          </div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">
-            Voorspellingen
-          </div>
-        </div>
-        {result && (
-          <>
             <div className="stat-divider" />
             <div className="text-center">
               <div className="heading-display text-3xl text-white font-bold">
@@ -309,62 +257,76 @@ export default async function MatchDetailPage({
                 Correct
               </div>
             </div>
-          </>
-        )}
-      </div>
-
-      {/* Predictions */}
-      <h2 className="heading-display text-xl text-gray-400 mb-3">
-        VOORSPELLINGEN
-      </h2>
-
-      <div className="space-y-2">
-        {predWithPoints.length === 0 ? (
-          <div className="glass-card-subtle p-12 text-center text-gray-600 text-sm">
-            Nog geen voorspellingen voor deze wedstrijd.
           </div>
-        ) : (
-          predWithPoints.map((pred) => (
-            <div key={pred.id} className="glass-card-subtle p-3 md:p-4">
-              <div className="flex items-center justify-between gap-2 md:gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-gray-200 font-medium truncate">
-                    {pred.display_name}
-                  </div>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                    <span>
-                      <span className="text-gray-500">Prono: </span>
-                      <span className="text-gray-300 font-bold">
-                        {shouldHide ? (
-                          <span className="blur-sm select-none">?-?</span>
-                        ) : (
-                          <>{pred.home_score}-{pred.away_score}</>
-                        )}
-                      </span>
-                    </span>
-                    {result && (
-                      <span>
-                        <span className="text-gray-500">Uitslag: </span>
-                        <span className="text-gray-300 font-bold">
-                          {result.home_score}-{result.away_score}
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-                  {getCategoryBadge(pred.category)}
-                  <span
-                    className={`heading-display text-lg w-10 text-right ${getCategoryPointColor(pred.category)}`}
-                  >
-                    {result ? `+${pred.points}` : "—"}
-                  </span>
-                </div>
+
+          {/* Predictions */}
+          <h2 className="heading-display text-xl text-gray-400 mb-3">
+            VOORSPELLINGEN
+          </h2>
+
+          <div className="space-y-2">
+            {predWithPoints.length === 0 ? (
+              <div className="glass-card-subtle p-12 text-center text-gray-600 text-sm">
+                Nog geen voorspellingen voor deze wedstrijd.
               </div>
-            </div>
-          ))
-        )}
-      </div>
+            ) : (
+              predWithPoints.map((pred) => (
+                <div key={pred.id} className="glass-card-subtle p-3 md:p-4">
+                  <div className="flex items-center justify-between gap-2 md:gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-gray-200 font-medium truncate">
+                        {pred.display_name}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                        <span>
+                          <span className="text-gray-500">Prono: </span>
+                          <span className="text-gray-300 font-bold">
+                            {shouldHide ? (
+                              <span className="blur-sm select-none">?-?</span>
+                            ) : (
+                              <>{pred.home_score}-{pred.away_score}</>
+                            )}
+                          </span>
+                        </span>
+                        <span>
+                          <span className="text-gray-500">Uitslag: </span>
+                          <span className="text-gray-300 font-bold">
+                            {result.home_score}-{result.away_score}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+                      {getCategoryBadge(pred.category)}
+                      <span
+                        className={`heading-display text-lg w-10 text-right ${getCategoryPointColor(pred.category)}`}
+                      >
+                        +{pred.points}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      ) : (
+        <LivePredictionList
+          predictions={predWithPoints.map(p => ({
+            id: p.id,
+            home_score: p.home_score,
+            away_score: p.away_score,
+            display_name: p.display_name,
+            user_id: p.user_id,
+            rank: p.rank,
+          }))}
+          matchId={match.id}
+          sofascoreEventId={match.sofascore_event_id}
+          matchDatetime={match.match_datetime}
+          hasResult={false}
+          shouldHide={shouldHide}
+        />
+      )}
     </div>
   );
 }

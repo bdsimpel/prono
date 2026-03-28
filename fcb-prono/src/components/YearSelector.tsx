@@ -20,6 +20,8 @@ interface YearSelectorProps {
   editionScores: EditionScore[];
   alltimeScores: AlltimeScore[];
   currentStandings: CurrentStanding[];
+  showLiveIndicator?: boolean;
+  liveUserIds?: Set<string>;
 }
 
 function getRankColor(rank: number): string {
@@ -36,6 +38,8 @@ export default function YearSelector({
   editionScores,
   alltimeScores,
   currentStandings,
+  showLiveIndicator,
+  liveUserIds,
 }: YearSelectorProps) {
   const currentEdition = editions.find((e) => e.is_current);
   const [selectedView, setSelectedView] = useState<ViewType>("current");
@@ -105,6 +109,7 @@ export default function YearSelector({
           {currentEdition ? currentEdition.year : "2026"}
         </button>
 
+
         {/* All-Time button */}
         <button
           onClick={() => setSelectedView("alltime")}
@@ -163,6 +168,13 @@ export default function YearSelector({
         )}
 
       </div>
+
+      {showLiveIndicator && selectedView === "current" && (
+        <div className="flex items-center gap-1.5 mb-4">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 live-pulse" />
+          <span className="text-xs text-red-400 font-medium">Live scores verwerkt</span>
+        </div>
+      )}
 
       {/* Min years filter dropdown (all-time only) */}
       {selectedView === "alltime" && availableYearCounts.length > 1 && (
@@ -262,7 +274,7 @@ export default function YearSelector({
                           {row.display_name}
                         </a>
                       </td>
-                      <td className="text-right px-2 py-3 text-sm font-bold text-white">
+                      <td className={`text-right px-2 py-3 text-sm font-bold ${liveUserIds?.has(row.user_id) ? 'text-red-400' : 'text-white'}`}>
                         <a href={`/player/${row.user_id}`} className="block">
                           {row.total_score}
                         </a>
@@ -319,7 +331,7 @@ export default function YearSelector({
                     <span className="flex-1 text-sm font-medium text-gray-200 truncate">
                       {row.display_name}
                     </span>
-                    <span className="text-sm font-bold text-white shrink-0">
+                    <span className={`text-sm font-bold shrink-0 ${liveUserIds?.has(row.user_id) ? 'text-red-400' : 'text-white'}`}>
                       {row.total_score}
                     </span>
                     <svg

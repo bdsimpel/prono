@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import InfoModal from "@/components/InfoModal";
-import YearSelector from "@/components/YearSelector";
+import LiveLeaderboard from "@/components/LiveLeaderboard";
 import ErelijstModal from "@/components/ErelijstModal";
 import ActivityFeed from "@/components/ActivityFeed";
 
@@ -18,6 +18,9 @@ export default async function KlassementPage() {
     { data: editionScores },
     { data: alltimeScores },
     { data: activityEvents },
+    { data: allMatches },
+    { data: allResults },
+    { data: allPredictions },
   ] = await Promise.all([
     supabase.from("players").select("id, display_name, matched_historical_name"),
     supabase.from("player_scores").select("*"),
@@ -27,6 +30,9 @@ export default async function KlassementPage() {
     supabase.from("edition_scores").select("*"),
     supabase.from("alltime_scores").select("*"),
     supabase.from("activity_events").select("*").neq("type", "points").order("created_at", { ascending: false }).limit(6),
+    supabase.from("matches").select("id, sofascore_event_id, match_datetime"),
+    supabase.from("results").select("match_id"),
+    supabase.from("predictions").select("user_id, match_id, home_score, away_score"),
   ]);
 
   const scoreMap: Record<
@@ -217,11 +223,23 @@ export default async function KlassementPage() {
           />
         </div>
 
-        <YearSelector
+        <LiveLeaderboard
           editions={editions ?? []}
           editionScores={editionScores ?? []}
           alltimeScores={augmentedAlltime}
           currentStandings={standings}
+          matches={(allMatches ?? []).map(m => ({
+            id: m.id,
+            sofascore_event_id: m.sofascore_event_id,
+            match_datetime: m.match_datetime,
+          }))}
+          predictions={(allPredictions ?? []).map(p => ({
+            user_id: p.user_id,
+            match_id: p.match_id,
+            home_score: p.home_score,
+            away_score: p.away_score,
+          }))}
+          resultMatchIds={(allResults ?? []).map(r => r.match_id)}
         />
       </section>
     </div>

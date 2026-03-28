@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     .single()
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { results, answers } = await request.json()
+  const { results, answers, sofascoreIds } = await request.json()
   const serviceClient = await createServiceClient()
 
   // Save match results
@@ -36,10 +36,21 @@ export async function POST(request: Request) {
     const { error } = await serviceClient
       .from('results')
       .upsert(
-        { match_id: parseInt(matchId), home_score: home, away_score: away },
+        { match_id: parseInt(matchId), home_score: home, away_score: away, source: 'manual' },
         { onConflict: 'match_id' }
       )
     if (!error) resultsSaved++
+  }
+
+  // Save SofaScore event IDs
+  if (sofascoreIds && typeof sofascoreIds === 'object') {
+    for (const [matchId, eventId] of Object.entries(sofascoreIds) as [string, string][]) {
+      const id = eventId ? parseInt(eventId) : null
+      await serviceClient
+        .from('matches')
+        .update({ sofascore_event_id: id || null })
+        .eq('id', parseInt(matchId))
+    }
   }
 
   // Save extra question answers

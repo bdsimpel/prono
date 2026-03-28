@@ -39,6 +39,7 @@ export default function AdminPage() {
   const router = useRouter()
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [results, setResults] = useState<Record<number, { home: string; away: string }>>({})
+  const [sofascoreIds, setSofascoreIds] = useState<Record<number, string>>({})
   const [extraQuestions, setExtraQuestions] = useState<{ id: number; question_key: string; question_label: string }[]>([])
   const [footballPlayers, setFootballPlayers] = useState<FootballPlayer[]>([])
   const [teams, setTeams] = useState<Team[]>([])
@@ -46,6 +47,7 @@ export default function AdminPage() {
   const [players, setPlayers] = useState<PlayerPayment[]>([])
   const [paymentFilter, setPaymentFilter] = useState<'all' | PaymentStatus>('all')
   const [saving, setSaving] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [message, setMessage] = useState('')
@@ -105,6 +107,12 @@ export default function AdminPage() {
     }
     setResults(resultMap)
 
+    const sfIds: Record<number, string> = {}
+    for (const m of matchesRes.data || []) {
+      if (m.sofascore_event_id) sfIds[m.id] = String(m.sofascore_event_id)
+    }
+    setSofascoreIds(sfIds)
+
     setExtraQuestions(questionsRes.data || [])
     setFootballPlayers(playersRes.data || [])
     setTeams(teamsRes.data || [])
@@ -147,7 +155,7 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/save-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ results, answers: extraAnswers }),
+        body: JSON.stringify({ results, answers: extraAnswers, sofascoreIds }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -247,6 +255,26 @@ export default function AdminPage() {
           </span>
         ) : 'Alles opslaan & herberekenen'}
       </button>
+      <button
+        onClick={async () => {
+          setSyncing(true)
+          try {
+            const res = await fetch('/api/admin/recalculate-stats', { method: 'POST' })
+            if (res.ok) showMessage('Playoff stats herberekend!')
+            else showMessage('Kon stats niet herberekenen', true)
+          } catch { showMessage('Kon stats niet herberekenen', true) }
+          setSyncing(false)
+        }}
+        disabled={syncing}
+        className="btn-secondary py-3 px-8 mb-8 w-full md:w-auto ml-0 md:ml-3 disabled:opacity-40"
+      >
+        {syncing ? (
+          <span className="flex items-center gap-2">
+            <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+            Syncing...
+          </span>
+        ) : 'Herbereken playoff stats'}
+      </button>
 
       {/* Match results */}
       <h2 className="heading-display text-xl text-gray-400 mb-3">UITSLAGEN INVOEREN</h2>
@@ -261,34 +289,56 @@ export default function AdminPage() {
               {groupMatches.map((match) => {
                 const r = results[match.id] || { home: '', away: '' }
                 return (
-                  <div key={match.id} className="glass-card-subtle p-3 flex items-center gap-1.5 md:gap-2">
-                    <span className="flex-1 text-right text-xs md:text-sm truncate flex items-center justify-end gap-1 md:gap-1.5 text-gray-300 min-w-0">
-                      <span className="truncate">{match.home_team.name}</span>
-                      <span className="shrink-0"><TeamLogo name={match.home_team.name} /></span>
-                    </span>
-                    <input
-                      ref={el => { inputRefs.current[`admin-${match.id}-home`] = el }}
-                      type="text"
-                      inputMode="numeric"
-                      value={r.home}
-                      onChange={(e) => handleScoreInput(match.id, 'home', e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      className="w-9 h-9 md:w-10 md:h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold text-sm focus:outline-none focus:border-cb-blue transition-colors shrink-0"
-                    />
-                    <span className="text-gray-600 text-xs shrink-0">-</span>
-                    <input
-                      ref={el => { inputRefs.current[`admin-${match.id}-away`] = el }}
-                      type="text"
-                      inputMode="numeric"
-                      value={r.away}
-                      onChange={(e) => handleScoreInput(match.id, 'away', e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      className="w-9 h-9 md:w-10 md:h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold text-sm focus:outline-none focus:border-cb-blue transition-colors shrink-0"
-                    />
-                    <span className="flex-1 text-left text-xs md:text-sm truncate flex items-center gap-1 md:gap-1.5 text-gray-300 min-w-0">
-                      <span className="shrink-0"><TeamLogo name={match.away_team.name} /></span>
-                      <span className="truncate">{match.away_team.name}</span>
-                    </span>
+                  <div key={match.id} className="glass-card-subtle p-3">
+                    <div className="flex items-center gap-1.5 md:gap-2">
+                      <span className="flex-1 text-right text-xs md:text-sm truncate flex items-center justify-end gap-1 md:gap-1.5 text-gray-300 min-w-0">
+                        <span className="truncate">{match.home_team.name}</span>
+                        <span className="shrink-0"><TeamLogo name={match.home_team.name} /></span>
+                      </span>
+                      <input
+                        ref={el => { inputRefs.current[`admin-${match.id}-home`] = el }}
+                        type="text"
+                        inputMode="numeric"
+                        value={r.home}
+                        onChange={(e) => handleScoreInput(match.id, 'home', e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        className="w-9 h-9 md:w-10 md:h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold text-sm focus:outline-none focus:border-cb-blue transition-colors shrink-0"
+                      />
+                      <span className="text-gray-600 text-xs shrink-0">-</span>
+                      <input
+                        ref={el => { inputRefs.current[`admin-${match.id}-away`] = el }}
+                        type="text"
+                        inputMode="numeric"
+                        value={r.away}
+                        onChange={(e) => handleScoreInput(match.id, 'away', e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        className="w-9 h-9 md:w-10 md:h-10 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-white font-bold text-sm focus:outline-none focus:border-cb-blue transition-colors shrink-0"
+                      />
+                      <span className="flex-1 text-left text-xs md:text-sm truncate flex items-center gap-1 md:gap-1.5 text-gray-300 min-w-0">
+                        <span className="shrink-0"><TeamLogo name={match.away_team.name} /></span>
+                        <span className="truncate">{match.away_team.name}</span>
+                      </span>
+                      {/* Desktop: SofaScore ID inline */}
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="SofaScore ID"
+                        value={sofascoreIds[match.id] || ''}
+                        onChange={(e) => setSofascoreIds(prev => ({ ...prev, [match.id]: e.target.value.replace(/\D/g, '') }))}
+                        className="hidden md:block w-28 h-9 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-gray-500 text-[10px] focus:outline-none focus:border-cb-blue transition-colors shrink-0 placeholder:text-gray-700"
+                      />
+                    </div>
+                    {/* Mobile: SofaScore ID below, right-aligned */}
+                    <div className="md:hidden mt-1.5 flex justify-end">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="SofaScore ID"
+                        value={sofascoreIds[match.id] || ''}
+                        onChange={(e) => setSofascoreIds(prev => ({ ...prev, [match.id]: e.target.value.replace(/\D/g, '') }))}
+                        className="w-24 h-6 text-center bg-cb-dark border border-white/[0.06] rounded text-gray-600 text-[9px] focus:outline-none focus:border-cb-blue transition-colors placeholder:text-gray-700"
+                      />
+                    </div>
                   </div>
                 )
               })}
