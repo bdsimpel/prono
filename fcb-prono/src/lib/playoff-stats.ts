@@ -257,12 +257,14 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
     { data: allTeams },
     { data: allQuestions },
     { data: allEvents },
+    { data: allFootballPlayers },
   ] = await Promise.all([
     serviceClient.from('matches').select('id, home_team_id, away_team_id, is_cup_final').eq('is_cup_final', false),
     serviceClient.from('results').select('match_id, home_score, away_score'),
     serviceClient.from('teams').select('id, name, standing_rank, points_half'),
     serviceClient.from('extra_questions').select('id, question_key'),
     serviceClient.from('match_events').select('event_type, player_name, football_player_id, team_id'),
+    serviceClient.from('football_players').select('id, name'),
   ])
 
   const matches = allMatches || []
@@ -273,6 +275,10 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
 
   const resultMap: Record<number, { home_score: number; away_score: number }> = {}
   for (const r of results) resultMap[r.match_id] = { home_score: r.home_score, away_score: r.away_score }
+
+  // Map football_player_id → DB name (what players chose in meedoen form)
+  const footballPlayerNameMap: Record<number, string> = {}
+  for (const fp of allFootballPlayers || []) footballPlayerNameMap[fp.id] = fp.name
 
   const leagueMatches = matches.filter(m => !m.is_cup_final)
   const finishedLeagueMatches = leagueMatches.filter(m => resultMap[m.id])
@@ -311,12 +317,13 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
   }
 
   // Aggregate player stats from match_events
+  // Use the football_players DB name (what players chose) as the key, falling back to SofaScore name
   const playerGoals: Record<string, number> = {}
   const playerAssists: Record<string, number> = {}
   const playerCleanSheets: Record<string, number> = {}
 
   for (const e of events) {
-    const key = e.player_name
+    const key = (e.football_player_id && footballPlayerNameMap[e.football_player_id]) || e.player_name
     if (e.event_type === 'goal') playerGoals[key] = (playerGoals[key] || 0) + 1
     if (e.event_type === 'assist') playerAssists[key] = (playerAssists[key] || 0) + 1
     if (e.event_type === 'clean_sheet') playerCleanSheets[key] = (playerCleanSheets[key] || 0) + 1
@@ -362,9 +369,12 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
     // Check if leader is certain: leader's CS >= runner-up's CS + runner-up's remaining matches
     // Find runner-up's max possible
     // Each GK's team has a number of remaining matches
-    const gkTeams: Record<string, number> = {} // player_name → team_id
+    const gkTeams: Record<string, number> = {} // resolved name → team_id
     for (const e of events) {
-      if (e.event_type === 'clean_sheet') gkTeams[e.player_name] = e.team_id
+      if (e.event_type === 'clean_sheet') {
+        const key = (e.football_player_id && footballPlayerNameMap[e.football_player_id]) || e.player_name
+        gkTeams[key] = e.team_id
+      }
     }
 
     let leaderIsCertain = allMatchesPlayed
