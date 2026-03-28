@@ -578,6 +578,7 @@ export default function MeedoenPage() {
             {new Date(deadline).toLocaleString("nl-BE", {
               dateStyle: "long",
               timeStyle: "short",
+              timeZone: "Europe/Brussels",
             })}
           </div>
         )}

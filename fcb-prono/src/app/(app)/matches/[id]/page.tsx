@@ -223,8 +223,8 @@ export default async function MatchDetailPage({
         result={result ? { home_score: result.home_score, away_score: result.away_score } : null}
         speeldag={match.speeldag}
         isCupFinal={match.is_cup_final}
-        formattedTime={match.match_datetime ? new Date(match.match_datetime).toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" }) : undefined}
-        formattedDate={match.match_datetime ? new Date(match.match_datetime).toLocaleDateString("nl-BE", { dateStyle: "long" }) : undefined}
+        formattedTime={match.match_datetime ? new Date(match.match_datetime).toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Brussels" }) : undefined}
+        formattedDate={match.match_datetime ? new Date(match.match_datetime).toLocaleDateString("nl-BE", { dateStyle: "long", timeZone: "Europe/Brussels" }) : undefined}
       />
 
       {result ? (

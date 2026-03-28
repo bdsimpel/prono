@@ -106,26 +106,7 @@ export async function POST(request: Request) {
   }
 
   // Recalculate all scores
-  const { playersUpdated, pointDeltas } = await recalculateScores(serviceClient)
-
-  // Insert points activity events
-  if (pointDeltas.length > 0) {
-    const { data: playerNames } = await serviceClient
-      .from('players')
-      .select('id, display_name')
-      .in('id', pointDeltas.map(d => d.user_id))
-
-    const nameMap: Record<string, string> = {}
-    for (const p of playerNames || []) nameMap[p.id] = p.display_name
-
-    const pointEvents = pointDeltas.map(d => ({
-      type: 'points' as const,
-      message: `${nameMap[d.user_id] || 'Speler'} scoorde ${d.delta} ${d.delta === 1 ? 'punt' : 'punten'}`,
-      metadata: { player_id: d.user_id, points: d.delta },
-    }))
-
-    await serviceClient.from('activity_events').insert(pointEvents)
-  }
+  const { playersUpdated } = await recalculateScores(serviceClient)
 
   revalidatePath('/', 'layout')
 

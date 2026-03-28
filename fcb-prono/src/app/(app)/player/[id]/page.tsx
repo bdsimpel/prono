@@ -388,6 +388,7 @@ export default async function PlayerDetailPage({
     ? new Date(player.created_at).toLocaleDateString("nl-BE", {
         month: "short",
         year: "numeric",
+        timeZone: "Europe/Brussels",
       })
     : null;
 

@@ -5,9 +5,9 @@ export const revalidate = false;
 
 function formatMatchDate(datetime: string) {
   const d = new Date(datetime);
-  const day = d.toLocaleDateString("nl-BE", { weekday: "short" });
-  const date = d.toLocaleDateString("nl-BE", { day: "numeric", month: "short" });
-  const time = d.toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" });
+  const day = d.toLocaleDateString("nl-BE", { weekday: "short", timeZone: "Europe/Brussels" });
+  const date = d.toLocaleDateString("nl-BE", { day: "numeric", month: "short", timeZone: "Europe/Brussels" });
+  const time = d.toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Brussels" });
   return { day, date, time };
 }
 

@@ -28,7 +28,7 @@ function formatRelativeTime(dateStr: string, compact = false): string {
     if (diffHour < 24) return `${diffHour}u`;
     if (diffDay < 7) return `${diffDay}d`;
     if (diffDay < 30) return `${Math.floor(diffDay / 7)}w`;
-    return date.toLocaleDateString("nl-BE", { day: "numeric", month: "short" });
+    return date.toLocaleDateString("nl-BE", { day: "numeric", month: "short", timeZone: "Europe/Brussels" });
   }
 
   if (diffMin < 1) return "net";
@@ -37,7 +37,7 @@ function formatRelativeTime(dateStr: string, compact = false): string {
   if (diffDay === 1) return "gisteren";
   if (diffDay < 7) return `${diffDay}d geleden`;
   if (diffDay < 30) return `${Math.floor(diffDay / 7)}w geleden`;
-  return date.toLocaleDateString("nl-BE", { day: "numeric", month: "short" });
+  return date.toLocaleDateString("nl-BE", { day: "numeric", month: "short", timeZone: "Europe/Brussels" });
 }
 
 function PersonPlusIcon() {
