@@ -1,5 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { recalculateScores } from './recalculate'
+import { fetchAll } from './supabase/fetch-all'
 
 const SOFASCORE_URL = 'https://www.sofascore.com/api/v1/event'
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
@@ -256,14 +257,14 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
     { data: allResults },
     { data: allTeams },
     { data: allQuestions },
-    { data: allEvents },
+    allEvents,
     { data: allFootballPlayers },
   ] = await Promise.all([
     serviceClient.from('matches').select('id, home_team_id, away_team_id, is_cup_final').eq('is_cup_final', false),
     serviceClient.from('results').select('match_id, home_score, away_score'),
     serviceClient.from('teams').select('id, name, standing_rank, points_half'),
     serviceClient.from('extra_questions').select('id, question_key'),
-    serviceClient.from('match_events').select('event_type, player_name, football_player_id, team_id'),
+    fetchAll<{ event_type: string; player_name: string; football_player_id: number | null; team_id: number }>(serviceClient, 'match_events', 'event_type, player_name, football_player_id, team_id'),
     serviceClient.from('football_players').select('id, name'),
   ])
 
@@ -271,7 +272,7 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
   const results = allResults || []
   const teams = allTeams || []
   const questions = allQuestions || []
-  const events = allEvents || []
+  const events = allEvents
 
   const resultMap: Record<number, { home_score: number; away_score: number }> = {}
   for (const r of results) resultMap[r.match_id] = { home_score: r.home_score, away_score: r.away_score }

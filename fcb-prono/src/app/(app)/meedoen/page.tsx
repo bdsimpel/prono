@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { FAVORITE_TEAMS } from "@/lib/teamLogos";
 import type { ExtraQuestion, FootballPlayer, Match, Team } from "@/lib/types";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface MatchWithTeams extends Match {
@@ -149,6 +150,12 @@ export default function MeedoenPage() {
     return saved?.step && saved.step !== "bevestiging" ? saved.step : "regels";
   });
   const [locked, setLocked] = useState<boolean | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (locked) router.replace("/statistieken");
+  }, [locked, router]);
+
   const [matches, setMatches] = useState<MatchWithTeams[]>([]);
   const [questions, setQuestions] = useState<ExtraQuestion[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -367,31 +374,8 @@ export default function MeedoenPage() {
 
   if (locked) {
     return (
-      <div className="max-w-lg mx-auto text-center py-24 px-6">
-        <div className="glass-card-subtle p-10">
-          <svg
-            className="w-12 h-12 text-gray-600 mx-auto mb-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
-            />
-          </svg>
-          <h1 className="heading-display text-3xl mb-3">
-            Inschrijvingen gesloten
-          </h1>
-          <p className="text-gray-500 text-sm">
-            De pronostieken zijn vergrendeld. Je kan niet meer meedoen.
-          </p>
-          <Link href="/" className="inline-block mt-8 btn-primary">
-            Bekijk het klassement
-          </Link>
-        </div>
+      <div className="flex items-center justify-center py-24">
+        <div className="w-6 h-6 border-2 border-cb-blue border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }

@@ -97,7 +97,7 @@ CREATE TABLE settings (
 
 -- Seed settings
 INSERT INTO settings VALUES ('predictions_locked', 'false');
-INSERT INTO settings VALUES ('deadline', '2026-04-01T18:00:00Z');
+INSERT INTO settings VALUES ('deadline', '2026-04-04T18:45:00Z');
 
 -- Seed teams
 INSERT INTO teams (name, short_name, matrix_index, standing_rank, points_half, goals_for, goals_against) VALUES

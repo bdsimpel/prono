@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import InfoModal from "@/components/InfoModal";
 import LiveLeaderboard from "@/components/LiveLeaderboard";
 import ErelijstModal from "@/components/ErelijstModal";
@@ -20,7 +21,7 @@ export default async function KlassementPage() {
     { data: activityEvents },
     { data: allMatches },
     { data: allResults },
-    { data: allPredictions },
+    allPredictions,
   ] = await Promise.all([
     supabase.from("players").select("id, display_name, matched_historical_name"),
     supabase.from("player_scores").select("*"),
@@ -32,7 +33,7 @@ export default async function KlassementPage() {
     supabase.from("activity_events").select("*").neq("type", "points").order("created_at", { ascending: false }).limit(6),
     supabase.from("matches").select("id, sofascore_event_id, match_datetime"),
     supabase.from("results").select("match_id"),
-    supabase.from("predictions").select("user_id, match_id, home_score, away_score"),
+    fetchAll<{ user_id: string; match_id: number; home_score: number; away_score: number }>(supabase, "predictions", "user_id, match_id, home_score, away_score"),
   ]);
 
   const scoreMap: Record<

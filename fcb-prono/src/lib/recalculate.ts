@@ -1,20 +1,21 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { calculateMatchPoints, checkExtraAnswer } from './scoring'
+import { fetchAll } from './supabase/fetch-all'
 
 export async function recalculateScores(serviceClient: SupabaseClient) {
   const [
     { data: allPlayers },
     { data: allResults },
-    { data: allPredictions },
-    { data: allExtraPredictions },
+    allPredictions,
+    allExtraPredictions,
     { data: allExtraAnswers },
     { data: allExtraQuestions },
     { data: oldScores },
   ] = await Promise.all([
     serviceClient.from('players').select('id'),
     serviceClient.from('results').select('*'),
-    serviceClient.from('predictions').select('*'),
-    serviceClient.from('extra_predictions').select('*'),
+    fetchAll<{ user_id: string; match_id: number; home_score: number; away_score: number }>(serviceClient, 'predictions'),
+    fetchAll<{ user_id: string; question_id: number; answer: string }>(serviceClient, 'extra_predictions'),
     serviceClient.from('extra_question_answers').select('*'),
     serviceClient.from('extra_questions').select('*'),
     serviceClient.from('player_scores').select('user_id, total_score, previous_rank'),
