@@ -18,6 +18,8 @@ import type {
   FootballPlayer,
   Edition,
   EditionScore,
+  Subgroup,
+  PlayerSubgroup,
 } from "@/lib/types";
 
 interface PlayerRow {
@@ -41,6 +43,8 @@ interface StatistiekenDashboardProps {
   footballPlayers: FootballPlayer[];
   editions: Edition[];
   editionScores: EditionScore[];
+  subgroups: Subgroup[];
+  playerSubgroups: PlayerSubgroup[];
 }
 
 const TABS = [
@@ -66,6 +70,8 @@ export default function StatistiekenDashboard({
   footballPlayers,
   editions,
   editionScores,
+  subgroups,
+  playerSubgroups,
 }: StatistiekenDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("overzicht");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -231,6 +237,8 @@ export default function StatistiekenDashboard({
                     results={results}
                     predictions={validPredictions}
                     playerScores={playerScores}
+                    subgroups={subgroups}
+                    playerSubgroups={playerSubgroups}
                   />
                 )}
                 {tab.key === "extra" && (
@@ -282,6 +290,8 @@ export default function StatistiekenDashboard({
                 results={results}
                 predictions={validPredictions}
                 playerScores={playerScores}
+                subgroups={subgroups}
+                playerSubgroups={playerSubgroups}
               />
             )}
             {activeTab === "wedstrijden" && (

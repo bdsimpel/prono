@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import type { Edition, EditionScore, AlltimeScore } from "@/lib/types";
+import type { Edition, EditionScore, AlltimeScore, Subgroup, PlayerSubgroup } from "@/lib/types";
 
 interface CurrentStanding {
   rank: number;
@@ -22,6 +22,8 @@ interface YearSelectorProps {
   currentStandings: CurrentStanding[];
   showLiveIndicator?: boolean;
   liveUserIds?: Set<string>;
+  subgroups: Subgroup[];
+  playerSubgroups: PlayerSubgroup[];
 }
 
 function getRankColor(rank: number): string {
@@ -40,14 +42,21 @@ export default function YearSelector({
   currentStandings,
   showLiveIndicator,
   liveUserIds,
+  subgroups,
+  playerSubgroups,
 }: YearSelectorProps) {
   const currentEdition = editions.find((e) => e.is_current);
   const [selectedView, setSelectedView] = useState<ViewType>("current");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [minYearsFilter, setMinYearsFilter] = useState(1);
   const [yearsDropdownOpen, setYearsDropdownOpen] = useState(false);
+  const [selectedSubgroup, setSelectedSubgroup] = useState<number | null>(null);
+  const [subgroupDropdownOpen, setSubgroupDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const yearsDropdownRef = useRef<HTMLDivElement>(null);
+  const subgroupDropdownRef = useRef<HTMLDivElement>(null);
+  const firstMatchRef = useRef<HTMLElement>(null);
 
   const historicalEditions = editions
     .filter((e) => !e.is_current)
@@ -61,6 +70,9 @@ export default function YearSelector({
       }
       if (yearsDropdownRef.current && !yearsDropdownRef.current.contains(e.target as Node)) {
         setYearsDropdownOpen(false);
+      }
+      if (subgroupDropdownRef.current && !subgroupDropdownRef.current.contains(e.target as Node)) {
+        setSubgroupDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -91,7 +103,47 @@ export default function YearSelector({
     [sortedAlltime, minYearsFilter],
   );
 
+  // Filter current standings by subgroup
+  const filteredCurrentStandings = useMemo(() => {
+    if (!selectedSubgroup) return currentStandings;
+    const memberIds = new Set(
+      playerSubgroups
+        .filter((ps) => ps.subgroup_id === selectedSubgroup)
+        .map((ps) => ps.player_id),
+    );
+    const filtered = currentStandings.filter((s) => memberIds.has(s.user_id));
+    let rank = 0;
+    let prevScore = -1;
+    return filtered.map((row, i) => {
+      if (row.total_score !== prevScore) rank = i + 1;
+      prevScore = row.total_score;
+      return { ...row, rank };
+    });
+  }, [currentStandings, selectedSubgroup, playerSubgroups]);
+
+  const matchesSearch = (name: string) =>
+    !searchQuery || name.toLowerCase().includes(searchQuery.toLowerCase());
+
+  // Track if first match ref has been assigned this render
+  const firstMatchAssigned = useRef(false);
+
+  // Auto-scroll to first match when search changes
+  useEffect(() => {
+    firstMatchAssigned.current = false;
+    if (searchQuery && firstMatchRef.current) {
+      firstMatchRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [searchQuery]);
+
+  // Reset search when changing views or filters
+  useEffect(() => {
+    setSearchQuery("");
+  }, [selectedView, selectedSubgroup]);
+
   const selectedHistoricalYear = typeof selectedView === "number" ? selectedView : null;
+
+  // Reset before render so first match ref is assigned to the first matching row
+  firstMatchAssigned.current = false;
 
   return (
     <>
@@ -176,6 +228,62 @@ export default function YearSelector({
         </div>
       )}
 
+      {/* Subgroup filter dropdown (current year only) */}
+      {selectedView === "current" && subgroups.length > 0 && (
+        <div className="flex items-center gap-2 mb-4">
+          <div className="relative" ref={subgroupDropdownRef}>
+            <button
+              onClick={() => setSubgroupDropdownOpen(!subgroupDropdownOpen)}
+              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                selectedSubgroup !== null
+                  ? "bg-cb-blue text-white"
+                  : "text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]"
+              }`}
+            >
+              {selectedSubgroup !== null
+                ? subgroups.find((g) => g.id === selectedSubgroup)?.name ?? "Groep"
+                : "Alle deelnemers"}
+              <svg
+                className={`w-3.5 h-3.5 transition-transform ${subgroupDropdownOpen ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {subgroupDropdownOpen && (
+              <div className="absolute top-full left-0 mt-1 z-20 min-w-[160px] max-h-[60vh] overflow-y-auto py-1 rounded-lg border border-white/[0.08] bg-[#141920] shadow-xl">
+                <button
+                  onClick={() => { setSelectedSubgroup(null); setSubgroupDropdownOpen(false); }}
+                  className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                    selectedSubgroup === null
+                      ? "text-white bg-white/[0.06]"
+                      : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
+                  }`}
+                >
+                  Alle deelnemers
+                </button>
+                {subgroups.map((g) => (
+                    <button
+                      key={g.id}
+                      onClick={() => { setSelectedSubgroup(g.id); setSubgroupDropdownOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                        selectedSubgroup === g.id
+                          ? "text-white bg-white/[0.06]"
+                          : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
+                      }`}
+                    >
+                      {g.name}
+                    </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Min years filter dropdown (all-time only) */}
       {selectedView === "alltime" && availableYearCounts.length > 1 && (
         <div className="flex items-center gap-2 mb-4">
@@ -188,7 +296,7 @@ export default function YearSelector({
                   : "text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]"
               }`}
             >
-              {minYearsFilter <= 1 ? "Alle spelers" : `≥ ${minYearsFilter} jaar`}
+              {minYearsFilter <= 1 ? "Alle deelnemers" : `≥ ${minYearsFilter} jaar`}
               <svg
                 className={`w-3.5 h-3.5 transition-transform ${yearsDropdownOpen ? "rotate-180" : ""}`}
                 fill="none"
@@ -209,7 +317,7 @@ export default function YearSelector({
                       : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
                   }`}
                 >
-                  Alle spelers
+                  Alle deelnemers
                 </button>
                 {availableYearCounts.filter(c => c > 1).map((count) => (
                   <button
@@ -230,10 +338,33 @@ export default function YearSelector({
         </div>
       )}
 
+      {/* Search input (current year only) */}
+      {selectedView === "current" && (
+        <div className="flex items-center gap-2 mb-4 max-w-xs">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Zoek deelnemer..."
+              className="w-full px-4 py-2 pr-8 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors placeholder:text-gray-600"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-sm"
+              >
+                &times;
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Current year table */}
       {selectedView === "current" && (
         <div className="glass-card-subtle overflow-hidden">
-          {currentStandings.length === 0 ? (
+          {filteredCurrentStandings.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               Nog geen spelers geregistreerd.
             </div>
@@ -254,10 +385,21 @@ export default function YearSelector({
                   </tr>
                 </thead>
                 <tbody>
-                  {currentStandings.map((row) => (
+                  {filteredCurrentStandings.map((row, _idx) => {
+                    const isMatch = matchesSearch(row.display_name);
+                    const isFirstMatch = searchQuery && isMatch && !firstMatchAssigned.current;
+                    if (isFirstMatch) firstMatchAssigned.current = true;
+                    return (
                     <tr
                       key={row.user_id}
-                      className="group border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                      ref={isFirstMatch ? (el) => { (firstMatchRef as React.MutableRefObject<HTMLElement | null>).current = el; } : undefined}
+                      className={`group border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors ${
+                        searchQuery
+                          ? isMatch
+                            ? "bg-cb-blue/10 border-l-2 border-l-cb-blue"
+                            : "opacity-40"
+                          : ""
+                      }`}
                     >
                       <td className="px-5 py-3">
                         <a href={`/player/${row.user_id}`} className="block">
@@ -305,7 +447,7 @@ export default function YearSelector({
                         </a>
                       </td>
                     </tr>
-                  ))}
+                  ); })}
                 </tbody>
               </table>
 
@@ -317,11 +459,23 @@ export default function YearSelector({
                   <span className="shrink-0">Score</span>
                   <span className="w-4 shrink-0" />
                 </div>
-                {currentStandings.map((row) => (
+                {(() => { firstMatchAssigned.current = false; return null; })()}
+                {filteredCurrentStandings.map((row) => {
+                  const isMatch = matchesSearch(row.display_name);
+                  const isFirstMatch = searchQuery && isMatch && !firstMatchAssigned.current;
+                  if (isFirstMatch) firstMatchAssigned.current = true;
+                  return (
                   <a
                     key={row.user_id}
+                    ref={isFirstMatch ? (el) => { (firstMatchRef as React.MutableRefObject<HTMLElement | null>).current = el; } : undefined}
                     href={`/player/${row.user_id}`}
-                    className="flex items-center px-4 py-3 gap-3 hover:bg-white/[0.02] transition-colors"
+                    className={`flex items-center px-4 py-3 gap-3 hover:bg-white/[0.02] transition-colors ${
+                      searchQuery
+                        ? isMatch
+                          ? "bg-cb-blue/10 border-l-2 border-l-cb-blue"
+                          : "opacity-40"
+                        : ""
+                    }`}
                   >
                     <span
                       className={`heading-display text-base w-7 text-right shrink-0 ${getRankColor(row.rank)}`}
@@ -344,7 +498,7 @@ export default function YearSelector({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                   </a>
-                ))}
+                  ); })}
               </div>
 
               {/* Legend (desktop only) */}

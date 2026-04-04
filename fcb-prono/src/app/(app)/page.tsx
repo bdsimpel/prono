@@ -22,6 +22,8 @@ export default async function KlassementPage() {
     { data: allMatches },
     { data: allResults },
     allPredictions,
+    { data: subgroups },
+    { data: playerSubgroups },
   ] = await Promise.all([
     supabase.from("players").select("id, display_name, matched_historical_name"),
     supabase.from("player_scores").select("*"),
@@ -34,6 +36,8 @@ export default async function KlassementPage() {
     supabase.from("matches").select("id, sofascore_event_id, match_datetime"),
     supabase.from("results").select("match_id"),
     fetchAll<{ user_id: string; match_id: number; home_score: number; away_score: number }>(supabase, "predictions", "user_id, match_id, home_score, away_score"),
+    supabase.from("subgroups").select("*").order("name"),
+    supabase.from("player_subgroups").select("player_id, subgroup_id"),
   ]);
 
   const scoreMap: Record<
@@ -241,6 +245,8 @@ export default async function KlassementPage() {
             away_score: p.away_score,
           }))}
           resultMatchIds={(allResults ?? []).map(r => r.match_id)}
+          subgroups={(subgroups ?? []) as { id: number; name: string }[]}
+          playerSubgroups={(playerSubgroups ?? []) as { player_id: string; subgroup_id: number }[]}
         />
       </section>
     </div>

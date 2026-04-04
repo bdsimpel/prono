@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     .single()
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { playerId, status } = await request.json()
+  const { playerId, status, skipActivity } = await request.json()
 
   if (!playerId || !['paid', 'unpaid'].includes(status)) {
     return NextResponse.json({ error: 'Ongeldige parameters' }, { status: 400 })
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   }
 
   // Insert payment activity event
-  if (status === 'paid') {
+  if (status === 'paid' && !skipActivity) {
     const { data: player } = await serviceClient
       .from('players')
       .select('display_name')

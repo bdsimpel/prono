@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/supabase/fetch-all";
 import StatistiekenDashboard from "@/components/stats/StatistiekenDashboard";
-import type { Prediction, ExtraPrediction } from "@/lib/types";
+import type { Prediction, ExtraPrediction, Subgroup, PlayerSubgroup } from "@/lib/types";
 
 export const revalidate = 0;
 
@@ -32,6 +32,8 @@ export default async function StatistiekenPage() {
     { data: footballPlayers },
     { data: editions },
     { data: editionScores },
+    { data: subgroups },
+    playerSubgroups,
   ] = await Promise.all([
     supabase.from("players").select("*"),
     supabase.from("player_scores").select("*"),
@@ -51,6 +53,8 @@ export default async function StatistiekenPage() {
     supabase.from("football_players").select("*"),
     supabase.from("editions").select("*").order("year", { ascending: true }),
     supabase.from("edition_scores").select("*"),
+    supabase.from("subgroups").select("*").order("name"),
+    fetchAll<PlayerSubgroup>(supabase, "player_subgroups", "player_id, subgroup_id"),
   ]);
 
   return (
@@ -68,6 +72,8 @@ export default async function StatistiekenPage() {
       footballPlayers={footballPlayers ?? []}
       editions={editions ?? []}
       editionScores={editionScores ?? []}
+      subgroups={(subgroups ?? []) as Subgroup[]}
+      playerSubgroups={playerSubgroups as PlayerSubgroup[]}
     />
   );
 }

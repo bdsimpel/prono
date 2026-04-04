@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { useLiveScores } from '@/lib/live-scores'
 import { calculateMatchPoints } from '@/lib/scoring'
 import YearSelector from '@/components/YearSelector'
-import type { Edition, EditionScore, AlltimeScore } from '@/lib/types'
+import type { Edition, EditionScore, AlltimeScore, Subgroup, PlayerSubgroup } from '@/lib/types'
 
 interface CurrentStanding {
   rank: number
@@ -39,6 +39,8 @@ interface Props {
   matches: MatchForLive[]
   predictions: PredictionForLive[]
   resultMatchIds: number[]
+  subgroups: Subgroup[]
+  playerSubgroups: PlayerSubgroup[]
 }
 
 export default function LiveLeaderboard({
@@ -49,6 +51,8 @@ export default function LiveLeaderboard({
   matches,
   predictions,
   resultMatchIds,
+  subgroups,
+  playerSubgroups,
 }: Props) {
   // Build eventIdMap for matches that are active (started, no DB result, has sofascore ID)
   const [mountTime] = useState(() => Date.now())
@@ -164,6 +168,8 @@ export default function LiveLeaderboard({
       currentStandings={augmentedStandings}
       showLiveIndicator={hasLiveData}
       liveUserIds={liveUserIds}
+      subgroups={subgroups}
+      playerSubgroups={playerSubgroups}
     />
   )
 }

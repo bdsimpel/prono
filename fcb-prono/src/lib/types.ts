@@ -159,3 +159,13 @@ export interface AlltimeScore {
   best_rank: number | null
   best_rank_year: number | null
 }
+
+export interface Subgroup {
+  id: number
+  name: string
+}
+
+export interface PlayerSubgroup {
+  player_id: string
+  subgroup_id: number
+}

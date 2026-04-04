@@ -529,7 +529,10 @@ export default async function PlayerDetailPage({
         </Link>
       )}
       {player.payment_status === "pending" && (
-        <div className="mb-6 px-5 py-4 glass-card-subtle border-cb-blue/20">
+        <Link
+          href={`/betalen/${player.id}`}
+          className="block mb-6 px-5 py-4 glass-card-subtle border-cb-blue/20 hover:border-cb-blue transition-colors"
+        >
           <div className="flex items-center gap-3">
             <span className="text-xl shrink-0">🔍</span>
             <div>
@@ -542,7 +545,7 @@ export default async function PlayerDetailPage({
               </p>
             </div>
           </div>
-        </div>
+        </Link>
       )}
 
       {/* Stats row */}

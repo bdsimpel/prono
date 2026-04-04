@@ -11,6 +11,8 @@ import type {
   Result,
   Prediction,
   PlayerScore,
+  Subgroup,
+  PlayerSubgroup,
 } from "@/lib/types";
 
 interface PlayerRow {
@@ -27,6 +29,8 @@ interface OverzichtTabProps {
   results: Result[];
   predictions: Prediction[];
   playerScores: PlayerScore[];
+  subgroups: Subgroup[];
+  playerSubgroups: PlayerSubgroup[];
 }
 
 const GROUP_BY_OPTIONS = [
@@ -34,6 +38,7 @@ const GROUP_BY_OPTIONS = [
   { key: "speeldag", label: "Speeldag" },
   { key: "po1_ploeg", label: "PO1 ploeg" },
   { key: "categorie", label: "Categorie" },
+  { key: "groep", label: "Groep" },
 ] as const;
 
 type GroupByKey = (typeof GROUP_BY_OPTIONS)[number]["key"];
@@ -45,6 +50,8 @@ export default function OverzichtTab({
   results,
   predictions,
   playerScores,
+  subgroups,
+  playerSubgroups,
 }: OverzichtTabProps) {
   const [groupBy, setGroupBy] = useState<GroupByKey>("favoriete_ploeg");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -355,6 +362,27 @@ export default function OverzichtTab({
     }));
   }, [scoredPredictions]);
 
+  // ── Avg points by subgroup ──
+  const avgByGroup: BarChartItem[] = useMemo(() => {
+    return subgroups.map((g) => {
+      const memberIds = new Set(
+        playerSubgroups
+          .filter((ps) => ps.subgroup_id === g.id)
+          .map((ps) => ps.player_id),
+      );
+      const memberScores = playerScores.filter((s) => memberIds.has(s.user_id));
+      const total = memberScores.reduce((sum, s) => sum + s.total_score, 0);
+      const avg = memberScores.length > 0 ? total / memberScores.length : 0;
+      return {
+        label: g.name,
+        value: Math.round(avg * 10) / 10,
+        details: memberScores.length > 0
+          ? [`${memberScores.length} leden`]
+          : ["Geen leden"],
+      };
+    }).sort((a, b) => b.value - a.value);
+  }, [subgroups, playerSubgroups, playerScores]);
+
   // ── Select chart items based on groupBy ──
   const groupedItems =
     groupBy === "favoriete_ploeg"
@@ -363,7 +391,9 @@ export default function OverzichtTab({
         ? avgBySpeeldag
         : groupBy === "po1_ploeg"
           ? avgByPO1Team
-          : categoryItems;
+          : groupBy === "groep"
+            ? avgByGroup
+            : categoryItems;
 
   const showPercentage = groupBy === "categorie";
   const formatValue =
@@ -376,6 +406,7 @@ export default function OverzichtTab({
     speeldag: "Hoeveel punten verdienen spelers gemiddeld per speeldag?",
     po1_ploeg: "Bij welke ploeg worden de meeste punten gescoord?",
     categorie: "Hoe nauwkeurig zijn de voorspellingen?",
+    groep: "Welke groep scoort gemiddeld het best?",
   };
 
   return (
