@@ -254,10 +254,31 @@ export default function YearSelector({
               </svg>
             </button>
             {subgroupDropdownOpen && (
-              <div className="absolute top-full left-0 mt-1 z-20 min-w-[160px] max-h-[60vh] overflow-y-auto py-1 rounded-lg border border-white/[0.08] bg-[#141920] shadow-xl">
+              <div
+                className="fixed z-50 min-w-[160px] overflow-y-auto py-1 rounded-lg border border-white/[0.08] bg-[#141920] shadow-xl"
+                ref={(el) => {
+                  if (!el) return;
+                  const btn = subgroupDropdownRef.current?.querySelector("button");
+                  if (!btn) return;
+                  const rect = btn.getBoundingClientRect();
+                  const margin = 24;
+                  const spaceBelow = window.innerHeight - rect.bottom - margin;
+                  const spaceAbove = rect.top - margin;
+                  const openDown = spaceBelow >= 200 || spaceBelow >= spaceAbove;
+                  el.style.left = `${rect.left}px`;
+                  el.style.maxHeight = `${openDown ? spaceBelow : spaceAbove}px`;
+                  if (openDown) {
+                    el.style.top = `${rect.bottom + 4}px`;
+                    el.style.bottom = "auto";
+                  } else {
+                    el.style.bottom = `${window.innerHeight - rect.top + 4}px`;
+                    el.style.top = "auto";
+                  }
+                }}
+              >
                 <button
                   onClick={() => { setSelectedSubgroup(null); setSubgroupDropdownOpen(false); }}
-                  className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                  className={`block w-full text-left px-4 py-2 text-sm whitespace-nowrap transition-colors ${
                     selectedSubgroup === null
                       ? "text-white bg-white/[0.06]"
                       : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
@@ -269,7 +290,7 @@ export default function YearSelector({
                     <button
                       key={g.id}
                       onClick={() => { setSelectedSubgroup(g.id); setSubgroupDropdownOpen(false); }}
-                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                      className={`block w-full text-left px-4 py-2 text-sm whitespace-nowrap transition-colors ${
                         selectedSubgroup === g.id
                           ? "text-white bg-white/[0.06]"
                           : "text-gray-400 hover:text-white hover:bg-white/[0.04]"

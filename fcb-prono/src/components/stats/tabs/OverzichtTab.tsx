@@ -370,18 +370,19 @@ export default function OverzichtTab({
           .filter((ps) => ps.subgroup_id === g.id)
           .map((ps) => ps.player_id),
       );
+      const memberPlayers = players.filter((p) => memberIds.has(p.id));
       const memberScores = playerScores.filter((s) => memberIds.has(s.user_id));
       const total = memberScores.reduce((sum, s) => sum + s.total_score, 0);
-      const avg = memberScores.length > 0 ? total / memberScores.length : 0;
+      const avg = memberPlayers.length > 0 ? total / memberPlayers.length : 0;
       return {
         label: g.name,
         value: Math.round(avg * 10) / 10,
-        details: memberScores.length > 0
-          ? [`${memberScores.length} leden`]
-          : ["Geen leden"],
+        details: memberPlayers
+          .map((p) => p.display_name)
+          .sort((a, b) => a.localeCompare(b)),
       };
     }).sort((a, b) => b.value - a.value);
-  }, [subgroups, playerSubgroups, playerScores]);
+  }, [subgroups, playerSubgroups, playerScores, players]);
 
   // ── Select chart items based on groupBy ──
   const groupedItems =
