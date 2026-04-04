@@ -5,8 +5,13 @@ import { recalculateScores } from '@/lib/recalculate'
 import { processMatchEvents } from '@/lib/playoff-stats'
 import type { LiveScore } from '@/lib/live-scores'
 
-const SOFASCORE_URL = 'https://www.sofascore.com/api/v1/event'
-const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+// Primary: SofaScore mobile API (less aggressive bot detection)
+// Fallback: main SofaScore API
+const SOFASCORE_URLS = [
+  'https://api.sofascore.com/api/v1/event',
+  'https://www.sofascore.com/api/v1/event',
+]
+const USER_AGENT = 'SofaScore/6.0.0 (Android 14; en_US) HttpClient'
 
 function parseSofascoreEvent(event: Record<string, unknown>): LiveScore | null {
   try {
@@ -180,29 +185,29 @@ export async function POST(request: Request) {
         scores[MOCK_EVENT_ID] = generateMockScore(MOCK_EVENT_ID)
       }
     } else {
-      const results = await Promise.allSettled(
-        ids.map(id =>
-          fetch(`${SOFASCORE_URL}/${id}`, {
-            headers: { 'User-Agent': USER_AGENT },
-            cache: 'no-store',
-          }).then(async r => {
-            if (!r.ok) {
-              const text = await r.text().catch(() => '')
-              console.error(`[live-scores] SofaScore ${id} returned ${r.status}: ${text.slice(0, 200)}`)
-              return null
-            }
-            return r.json()
-          })
-        )
-      )
+      async function fetchEvent(id: number) {
+        for (const baseUrl of SOFASCORE_URLS) {
+          try {
+            const r = await fetch(`${baseUrl}/${id}`, {
+              headers: { 'User-Agent': USER_AGENT },
+              cache: 'no-store',
+            })
+            if (r.ok) return r.json()
+            console.error(`[live-scores] ${baseUrl}/${id} returned ${r.status}`)
+          } catch (e) {
+            console.error(`[live-scores] ${baseUrl}/${id} failed:`, e)
+          }
+        }
+        return null
+      }
+
+      const results = await Promise.allSettled(ids.map(fetchEvent))
 
       for (let i = 0; i < ids.length; i++) {
         const r = results[i]
         if (r.status === 'fulfilled' && r.value?.event) {
           const parsed = parseSofascoreEvent(r.value.event)
           if (parsed) scores[ids[i]] = parsed
-        } else if (r.status === 'rejected') {
-          console.error(`[live-scores] SofaScore ${ids[i]} fetch failed:`, r.reason)
         }
       }
     }

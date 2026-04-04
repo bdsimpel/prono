@@ -2,8 +2,24 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { recalculateScores } from './recalculate'
 import { fetchAll } from './supabase/fetch-all'
 
-const SOFASCORE_URL = 'https://www.sofascore.com/api/v1/event'
-const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+const SOFASCORE_URLS = [
+  'https://api.sofascore.com/api/v1/event',
+  'https://www.sofascore.com/api/v1/event',
+]
+const USER_AGENT = 'SofaScore/6.0.0 (Android 14; en_US) HttpClient'
+
+async function fetchSofascore(path: string): Promise<Response | null> {
+  for (const baseUrl of SOFASCORE_URLS) {
+    try {
+      const r = await fetch(`${baseUrl}${path}`, {
+        headers: { 'User-Agent': USER_AGENT },
+        cache: 'no-store',
+      })
+      if (r.ok) return r
+    } catch { /* try next */ }
+  }
+  return null
+}
 const TOTAL_LEAGUE_MATCHES = 30
 
 // SofaScore full names → DB short names
@@ -61,9 +77,8 @@ interface SofascoreGoal {
 
 async function fetchMatchIncidents(eventId: number): Promise<SofascoreGoal[]> {
   try {
-    const res = await fetch(`${SOFASCORE_URL}/${eventId}/incidents`, {
-      headers: { 'User-Agent': USER_AGENT },
-    })
+    const res = await fetchSofascore(`/${eventId}/incidents`)
+    if (!res) return []
     const data = await res.json()
     const goals = (data.incidents || []).filter(
       (i: { incidentType: string }) => i.incidentType === 'goal'
@@ -82,9 +97,8 @@ async function fetchMatchIncidents(eventId: number): Promise<SofascoreGoal[]> {
 
 async function fetchMatchGKs(eventId: number): Promise<{ homeGK: string | null; awayGK: string | null }> {
   try {
-    const res = await fetch(`${SOFASCORE_URL}/${eventId}/lineups`, {
-      headers: { 'User-Agent': USER_AGENT },
-    })
+    const res = await fetchSofascore(`/${eventId}/lineups`)
+    if (!res) return { homeGK: null, awayGK: null }
     const data = await res.json()
     const homeGK = data.home?.players?.find(
       (p: { player?: { position?: string } }) => p.player?.position === 'G'
@@ -136,9 +150,8 @@ export async function processMatchEvents(
   let sofaHomeTeamId = homeTeamId
   let sofaAwayTeamId = awayTeamId
   try {
-    const eventRes = await fetch(`${SOFASCORE_URL}/${sofascoreEventId}`, {
-      headers: { 'User-Agent': USER_AGENT },
-    })
+    const eventRes = await fetchSofascore(`/${sofascoreEventId}`)
+    if (!eventRes) throw new Error('Could not fetch event')
     const eventData = await eventRes.json()
     const sofaHomeName = eventData.event?.homeTeam?.name || ''
     const sofaAwayName = eventData.event?.awayTeam?.name || ''
