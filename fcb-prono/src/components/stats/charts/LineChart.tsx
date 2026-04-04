@@ -94,11 +94,11 @@ export default function LineChart({
     return PADDING.top + chartH - ((v - yMin) / yRange) * chartH;
   };
 
-  const needsScroll = width > BASE_WIDTH;
+  const needsScroll = pointsNeeded > BASE_WIDTH;
 
   return (
-    <div className="overflow-x-auto md:max-w-lg">
-      <div style={{ minWidth: width }}>
+    <div className={`${needsScroll ? "overflow-x-auto" : ""} md:max-w-lg`}>
+      <div style={needsScroll ? { minWidth: pointsNeeded } : undefined}>
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full"

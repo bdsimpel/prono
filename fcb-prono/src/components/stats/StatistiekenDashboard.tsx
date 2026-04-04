@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import StatsSummaryCards from "./StatsSummaryCards";
 import OverzichtTab from "./tabs/OverzichtTab";
 import ExtraVragenTab from "./tabs/ExtraVragenTab";
@@ -44,10 +44,10 @@ interface StatistiekenDashboardProps {
 }
 
 const TABS = [
-  { key: "overzicht", label: "Overzicht" },
+  { key: "overzicht", label: "Voorspellingen" },
   { key: "extra", label: "Extra vragen" },
   { key: "wedstrijden", label: "Wedstrijden" },
-  { key: "spelers", label: "Spelers" },
+  { key: "spelers", label: "Deelnemers" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -68,17 +68,35 @@ export default function StatistiekenDashboard({
   editionScores,
 }: StatistiekenDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("overzicht");
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pillBarRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
+  const scrollToTab = useCallback((index: number) => {
+    if (!scrollRef.current) return;
+    const containerWidth = scrollRef.current.offsetWidth;
+    scrollRef.current.scrollTo({ left: index * containerWidth, behavior: "smooth" });
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+    const { scrollLeft, offsetWidth } = scrollRef.current;
+    const index = Math.round(scrollLeft / offsetWidth);
+    if (index >= 0 && index < TABS.length) {
+      setActiveTab(TABS[index].key);
+      // Auto-scroll pill bar to center the active pill
+      if (pillBarRef.current) {
+        const pill = pillBarRef.current.children[0]?.children[index] as HTMLElement;
+        if (pill) {
+          const barWidth = pillBarRef.current.offsetWidth;
+          const pillLeft = pill.offsetLeft;
+          const pillWidth = pill.offsetWidth;
+          pillBarRef.current.scrollTo({
+            left: pillLeft - barWidth / 2 + pillWidth / 2,
+            behavior: "smooth",
+          });
+        }
       }
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   // Filter predictions to only include known players
@@ -146,58 +164,22 @@ export default function StatistiekenDashboard({
       </section>
 
       {/* Tab Navigation + Content */}
-      <section className="max-w-7xl mx-auto px-4 md:px-6 pb-16">
-        {/* Tab Bar — dropdown on mobile, inline buttons on desktop */}
-        <div className="mb-6">
-          {/* Mobile dropdown */}
-          <div className="md:hidden relative" ref={dropdownRef}>
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-cb-blue text-white text-sm font-medium transition-colors justify-between w-auto"
-            >
-              {TABS.find((t) => t.key === activeTab)?.label}
-              <svg
-                className={`w-4 h-4 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                strokeWidth={2.5}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {dropdownOpen && (
-              <div className="absolute top-full left-0 mt-1 z-20 py-1 rounded-lg border border-white/[0.08] bg-[#141920] shadow-xl min-w-full">
-                {TABS.map((tab) => (
-                  <button
-                    key={tab.key}
-                    onClick={() => {
-                      setActiveTab(tab.key);
-                      setDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors ${
-                      activeTab === tab.key
-                        ? "text-white bg-white/[0.06]"
-                        : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+      <section className="max-w-7xl mx-auto md:px-6 pb-16">
 
-          {/* Desktop inline buttons */}
-          <div className="hidden md:flex gap-1">
-            {TABS.map((tab) => (
+        {/* Mobile: scrollable pill bar that follows the swipe */}
+        <div ref={pillBarRef} className="md:hidden overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden mb-4 px-4">
+          <div className="flex gap-2 w-max">
+            {TABS.map((tab, i) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`text-base font-medium px-4 py-2.5 rounded-lg whitespace-nowrap transition-all duration-200 ${
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  scrollToTab(i);
+                }}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
                   activeTab === tab.key
                     ? "bg-cb-blue text-white"
-                    : "text-gray-400 hover:text-white hover:bg-white/[0.05]"
+                    : "text-gray-500"
                 }`}
               >
                 {tab.label}
@@ -206,51 +188,136 @@ export default function StatistiekenDashboard({
           </div>
         </div>
 
-        {/* Tab Content */}
-        <div>
-          {activeTab === "overzicht" && (
-            <OverzichtTab
-              players={players}
-              teams={teams}
-              matches={matches}
-              results={results}
-              predictions={validPredictions}
-              playerScores={playerScores}
-            />
-          )}
-          {activeTab === "wedstrijden" && (
-            <WedstrijdenTab
-              players={players}
-              matches={matches}
-              results={results}
-              predictions={validPredictions}
-            />
-          )}
-          {activeTab === "spelers" && (
-            <SpelersTab
-              players={players}
-              playerScores={playerScores}
-              matches={matches}
-              results={results}
-              predictions={validPredictions}
-              editions={editions}
-              editionScores={editionScores}
-            />
-          )}
-          {activeTab === "extra" && (
-            <ExtraVragenTab
-              players={players}
-              playerScores={playerScores}
-              extraQuestions={extraQuestions}
-              extraPredictions={validExtraPredictions}
-              extraAnswers={extraAnswers}
-              teams={teams}
-              results={results}
-              matches={matches}
-              matchEvents={matchEvents}
-              footballPlayers={footballPlayers}
-            />
-          )}
+        {/* Desktop: pill bar */}
+        <div className="hidden md:flex gap-1.5 mb-6">
+          {TABS.map((tab, i) => (
+            <button
+              key={tab.key}
+              onClick={() => {
+                setActiveTab(tab.key);
+                scrollToTab(i);
+              }}
+              className={`py-2.5 px-5 rounded-full text-sm font-medium transition-all duration-200 ${
+                activeTab === tab.key
+                  ? "bg-cb-blue text-white"
+                  : "text-gray-400 border border-white/[0.1] hover:text-white hover:border-white/[0.2]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Mobile: swipeable pages ── */}
+        <div className="md:hidden">
+          {/* Swipeable container */}
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch] [overscroll-behavior-x:contain]"
+            style={{ scrollSnapType: "x mandatory" }}
+          >
+            {TABS.map((tab) => (
+              <div
+                key={tab.key}
+                className="w-full shrink-0 px-4"
+                style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
+              >
+                {tab.key === "overzicht" && (
+                  <OverzichtTab
+                    players={players}
+                    teams={teams}
+                    matches={matches}
+                    results={results}
+                    predictions={validPredictions}
+                    playerScores={playerScores}
+                  />
+                )}
+                {tab.key === "extra" && (
+                  <ExtraVragenTab
+                    players={players}
+                    playerScores={playerScores}
+                    extraQuestions={extraQuestions}
+                    extraPredictions={validExtraPredictions}
+                    extraAnswers={extraAnswers}
+                    teams={teams}
+                    results={results}
+                    matches={matches}
+                    matchEvents={matchEvents}
+                    footballPlayers={footballPlayers}
+                  />
+                )}
+                {tab.key === "wedstrijden" && (
+                  <WedstrijdenTab
+                    players={players}
+                    matches={matches}
+                    results={results}
+                    predictions={validPredictions}
+                  />
+                )}
+                {tab.key === "spelers" && (
+                  <SpelersTab
+                    players={players}
+                    playerScores={playerScores}
+                    matches={matches}
+                    results={results}
+                    predictions={validPredictions}
+                    editions={editions}
+                    editionScores={editionScores}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Desktop: conditional content ── */}
+        <div className="hidden md:block">
+          <div>
+            {activeTab === "overzicht" && (
+              <OverzichtTab
+                players={players}
+                teams={teams}
+                matches={matches}
+                results={results}
+                predictions={validPredictions}
+                playerScores={playerScores}
+              />
+            )}
+            {activeTab === "wedstrijden" && (
+              <WedstrijdenTab
+                players={players}
+                matches={matches}
+                results={results}
+                predictions={validPredictions}
+              />
+            )}
+            {activeTab === "spelers" && (
+              <SpelersTab
+                players={players}
+                playerScores={playerScores}
+                matches={matches}
+                results={results}
+                predictions={validPredictions}
+                editions={editions}
+                editionScores={editionScores}
+              />
+            )}
+            {activeTab === "extra" && (
+              <ExtraVragenTab
+                players={players}
+                playerScores={playerScores}
+                extraQuestions={extraQuestions}
+                extraPredictions={validExtraPredictions}
+                extraAnswers={extraAnswers}
+                teams={teams}
+                results={results}
+                matches={matches}
+                matchEvents={matchEvents}
+                footballPlayers={footballPlayers}
+              />
+            )}
+          </div>
         </div>
       </section>
     </div>

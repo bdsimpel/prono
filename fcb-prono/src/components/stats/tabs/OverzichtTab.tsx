@@ -388,7 +388,7 @@ export default function OverzichtTab({
           Favoriete Ploeg
         </h3>
         <p className="text-xs text-gray-500 mb-4">
-          Hoeveel spelers kozen welke ploeg als favoriet?
+          Hoeveel fans per ploeg?
         </p>
         <div className="glass-card-subtle p-4 md:p-5">
           <HorizontalBarChart
@@ -486,8 +486,8 @@ export default function OverzichtTab({
                 <thead>
                   <tr className="text-[11px] text-gray-500 uppercase tracking-wider border-b border-white/[0.06]">
                     <th className="text-left font-normal px-5 py-3">Ploeg</th>
-                    <th className="text-right font-normal px-3 py-3 w-20">Gem. DV</th>
-                    <th className="text-right font-normal px-3 py-3 w-20">Gem. DT</th>
+                    <th className="text-right font-normal px-3 py-3 w-20">G+</th>
+                    <th className="text-right font-normal px-3 py-3 w-20">G−</th>
                     <th className="text-right font-normal px-3 py-3 w-20 pr-5">Winst%</th>
                   </tr>
                 </thead>
@@ -523,8 +523,8 @@ export default function OverzichtTab({
               <div className="md:hidden divide-y divide-white/[0.04]">
                 <div className="flex items-center px-4 py-2 text-[11px] text-gray-500 uppercase tracking-wider">
                   <span className="flex-1">Ploeg</span>
-                  <span className="w-12 text-right">DV</span>
-                  <span className="w-12 text-right">DT</span>
+                  <span className="w-12 text-right">G+</span>
+                  <span className="w-12 text-right">G−</span>
                   <span className="w-14 text-right">Winst%</span>
                 </div>
                 {teamPopularity.map((row) => (

@@ -155,7 +155,7 @@ export default function WedstrijdenTab({
       </div>
 
       {/* Match cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {speeldagMatches.map((match) => (
           <MatchCard
             key={match.id}
@@ -262,7 +262,7 @@ function MatchCard({
           </div>
           <div className="px-3 md:px-4 shrink-0 text-center">
             {result ? (
-              <span className="text-lg md:text-xl font-bold text-white">
+              <span className="text-lg md:text-xl font-bold text-cb-gold">
                 {result.home_score} - {result.away_score}
               </span>
             ) : (
@@ -345,13 +345,13 @@ function MatchCard({
               {/* Y-axis label */}
               <div className="flex flex-col items-center justify-center mr-1">
                 <span className="text-[10px] text-gray-500 [writing-mode:vertical-lr] rotate-180 tracking-wider">
-                  ← {match.home_team.short_name ?? match.home_team.name} →
+                  ← {match.home_team.name} →
                 </span>
               </div>
               <div className="flex-1">
                 {/* X-axis label */}
                 <div className="text-center text-[10px] text-gray-500 mb-1 ml-7 tracking-wider">
-                  ← {match.away_team.short_name ?? match.away_team.name} →
+                  ← {match.away_team.name} →
                 </div>
                 {/* X-axis headers */}
                 <div className="grid grid-cols-6 gap-1 mb-1 ml-7">
@@ -368,6 +368,9 @@ function MatchCard({
                         const intensity = count > 0 ? 0.15 + (count / maxCell) * 0.85 : 0.05;
                         const scoreKey = `${homeGoals}-${awayGoals}`;
                         const isSelected = selectedScore === scoreKey;
+                        const isActualResult = result
+                          ? Math.min(result.home_score, 5) === homeGoals && Math.min(result.away_score, 5) === awayGoals
+                          : false;
                         return (
                           <div
                             key={awayGoals}
@@ -390,11 +393,13 @@ function MatchCard({
                             }}
                             className={`aspect-square rounded flex items-center justify-center text-[11px] font-medium transition-all ${
                               count > 0 ? "cursor-pointer hover:ring-1 hover:ring-white/30" : ""
-                            } ${isSelected ? "ring-2 ring-cb-gold" : ""}`}
+                            } ${isActualResult ? "ring-2 ring-cb-gold" : ""} ${isSelected && !isActualResult ? "ring-2 ring-white/40" : ""}`}
                             style={{
-                              backgroundColor: `rgba(0, 90, 148, ${intensity})`,
+                              backgroundColor: isActualResult
+                                ? `rgba(201, 168, 76, ${Math.max(0.2, intensity)})`
+                                : `rgba(0, 90, 148, ${intensity})`,
                               color: count > 0
-                                ? intensity > 0.5 ? "white" : "rgba(255,255,255,0.7)"
+                                ? (intensity > 0.5 || isActualResult) ? "white" : "rgba(255,255,255,0.7)"
                                 : "transparent",
                             }}
                           >
@@ -419,12 +424,24 @@ function MatchCard({
 
           {/* Detail panel */}
           <div ref={detailRef}>
-            {selectedScore ? (
+            {selectedScore ? (() => {
+              const [sh, sa] = selectedScore.split("-").map(Number);
+              const isResultCell = result
+                ? Math.min(result.home_score, 5) === sh && Math.min(result.away_score, 5) === sa
+                : false;
+              return (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider">
-                    Score {selectedScore.includes("5") ? selectedScore.replace("5", "5+") : selectedScore}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider">
+                      Score {selectedScore.includes("5") ? selectedScore.replace("5", "5+") : selectedScore}
+                    </p>
+                    {isResultCell && (
+                      <span className="text-[10px] text-cb-gold font-medium px-1.5 py-0.5 rounded bg-cb-gold/10 border border-cb-gold/20">
+                        Uitslag
+                      </span>
+                    )}
+                  </div>
                   <button
                     onClick={() => setSelectedScore(null)}
                     className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
@@ -435,19 +452,8 @@ function MatchCard({
                 <p className="text-sm text-white font-bold mb-2">
                   {selectedPredictions.length} speler{selectedPredictions.length !== 1 ? "s" : ""}
                 </p>
-                {/* Desktop: scrollable */}
-                <div className="hidden md:block space-y-0.5">
-                  {selectedPredictions.map((p) => (
-                    <div key={p.name} className="text-sm text-gray-300 py-1 flex items-center justify-between">
-                      <span>{p.name}</span>
-                      {p.score !== selectedScore && (
-                        <span className="text-xs text-gray-500">{p.score}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {/* Mobile: show 6 + toggle */}
-                <div className="md:hidden space-y-0.5">
+                {/* Player list with show more/less */}
+                <div className="space-y-0.5">
                   {(mobileShowAll ? selectedPredictions : selectedPredictions.slice(0, 6)).map((p) => (
                     <div key={p.name} className="text-sm text-gray-300 py-1 flex items-center justify-between">
                       <span>{p.name}</span>
@@ -472,7 +478,8 @@ function MatchCard({
                   )}
                 </div>
               </div>
-            ) : (
+              );
+            })() : (
               <div className="flex items-center justify-center h-full min-h-[100px] text-center">
                 <p className="text-xs text-gray-500">
                   Klik op een score om te zien wie deze voorspelde.

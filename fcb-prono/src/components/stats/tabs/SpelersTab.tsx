@@ -367,21 +367,50 @@ export default function SpelersTab({
       return { label: sd.label, a: ptsA, b: ptsB };
     });
 
+    // Historical stats
+    const histNameA = playerA.matched_historical_name || playerA.display_name;
+    const histNameB = playerB.matched_historical_name || playerB.display_name;
+    const histA = editionScores.filter((es) => es.player_name.toLowerCase() === histNameA.toLowerCase());
+    const histB = editionScores.filter((es) => es.player_name.toLowerCase() === histNameB.toLowerCase());
+    const editionsA = histA.length;
+    const editionsB = histB.length;
+    const bestRankA = histA.length > 0 ? Math.min(...histA.map((h) => h.rank)) : null;
+    const bestRankB = histB.length > 0 ? Math.min(...histB.map((h) => h.rank)) : null;
+    // All-time Z-score with correction (same as leaderboard: <3 years → ×years/3)
+    function computeCorrectedZScore(hist: typeof histA) {
+      const withZ = hist.filter((h) => h.z_score != null);
+      if (withZ.length === 0) return null;
+      const avgZ = withZ.reduce((sum, h) => sum + (h.z_score ?? 0), 0) / withZ.length;
+      const factor = withZ.length >= 3 ? 1 : withZ.length / 3;
+      return Math.round(avgZ * factor * 100) / 100;
+    }
+    const zScoreA = computeCorrectedZScore(histA);
+    const zScoreB = computeCorrectedZScore(histB);
+
+    const rows: { label: string; a: number | string; b: number | string }[] = [
+      { label: "Totaal", a: scoreA?.total_score ?? 0, b: scoreB?.total_score ?? 0 },
+      { label: "Wedstrijden", a: scoreA?.match_score ?? 0, b: scoreB?.match_score ?? 0 },
+      { label: "Extra vragen", a: scoreA?.extra_score ?? 0, b: scoreB?.extra_score ?? 0 },
+      { label: "Exacte scores", a: scoreA?.exact_matches ?? 0, b: scoreB?.exact_matches ?? 0 },
+      { label: "Doelverschil", a: scoreA?.correct_goal_diffs ?? 0, b: scoreB?.correct_goal_diffs ?? 0 },
+      { label: "Juist resultaat", a: scoreA?.correct_results ?? 0, b: scoreB?.correct_results ?? 0 },
+      { label: "Gem. per wedstrijd", a: Math.round(avgA * 10) / 10, b: Math.round(avgB * 10) / 10 },
+    ];
+
+    // Add historical rows if any data exists
+    if (editionsA > 0 || editionsB > 0) {
+      rows.push({ label: "Edities", a: editionsA, b: editionsB });
+      rows.push({ label: "Beste ranking", a: bestRankA != null ? `#${bestRankA}` : "—", b: bestRankB != null ? `#${bestRankB}` : "—" });
+      rows.push({ label: "Gem. Z-score", a: zScoreA ?? "—", b: zScoreB ?? "—" });
+    }
+
     return {
       playerA: playerA.display_name,
       playerB: playerB.display_name,
-      rows: [
-        { label: "Totaal", a: scoreA?.total_score ?? 0, b: scoreB?.total_score ?? 0 },
-        { label: "Wedstrijden", a: scoreA?.match_score ?? 0, b: scoreB?.match_score ?? 0 },
-        { label: "Extra vragen", a: scoreA?.extra_score ?? 0, b: scoreB?.extra_score ?? 0 },
-        { label: "Exacte scores", a: scoreA?.exact_matches ?? 0, b: scoreB?.exact_matches ?? 0 },
-        { label: "Doelverschil", a: scoreA?.correct_goal_diffs ?? 0, b: scoreB?.correct_goal_diffs ?? 0 },
-        { label: "Juist resultaat", a: scoreA?.correct_results ?? 0, b: scoreB?.correct_results ?? 0 },
-        { label: "Gem. per wedstrijd", a: Math.round(avgA * 10) / 10, b: Math.round(avgB * 10) / 10 },
-      ],
+      rows,
       sdComparison,
     };
-  }, [selectedIds, playerScores, players, playerMatchPoints, playedMatches, speeldagen]);
+  }, [selectedIds, playerScores, players, playerMatchPoints, playedMatches, speeldagen, editionScores]);
 
   // Profiel data (when exactly 1 player selected)
   const profiel = useMemo(() => {
@@ -389,7 +418,8 @@ export default function SpelersTab({
     const pid = selectedIds[0];
     const score = playerScores.find((s) => s.user_id === pid);
     const player = players.find((p) => p.id === pid);
-    if (!player || !score) return null;
+    if (!player) return null;
+    const s = score ?? { total_score: 0, match_score: 0, extra_score: 0, exact_matches: 0, correct_goal_diffs: 0, correct_results: 0 };
 
     const pPoints = playerMatchPoints.get(pid);
     const matchesPlayed = playedMatches.length;
@@ -399,13 +429,13 @@ export default function SpelersTab({
     // Rank
     const sorted = [...playerScores].sort((a, b) => b.total_score - a.total_score);
     let rank = 1;
-    for (const s of sorted) {
-      if (s.user_id === pid) break;
-      if (s.total_score > (score.total_score)) rank++;
+    for (const ps of sorted) {
+      if (ps.user_id === pid) break;
+      if (ps.total_score > s.total_score) rank++;
     }
 
     // Category breakdown
-    const totalCategorized = score.exact_matches + score.correct_goal_diffs + score.correct_results;
+    const totalCategorized = s.exact_matches + s.correct_goal_diffs + s.correct_results;
     const wrongCount = matchesPlayed > 0 ? matchesPlayed - totalCategorized : 0;
 
     // Average comparison
@@ -426,14 +456,14 @@ export default function SpelersTab({
       name: player.display_name,
       rank,
       totalPlayers: players.length,
-      totalScore: score.total_score,
-      matchScore: score.match_score,
-      extraScore: score.extra_score,
+      totalScore: s.total_score,
+      matchScore: s.match_score,
+      extraScore: s.extra_score,
       avgPerMatch: Math.round(avgPerMatch * 10) / 10,
       avgTotal: Math.round(avgTotal * 10) / 10,
-      exact: score.exact_matches,
-      goalDiff: score.correct_goal_diffs,
-      correctResult: score.correct_results,
+      exact: s.exact_matches,
+      goalDiff: s.correct_goal_diffs,
+      correctResult: s.correct_results,
       wrong: wrongCount,
       bestSd,
       worstSd,
@@ -451,7 +481,7 @@ export default function SpelersTab({
 
   return (
     <div>
-      <h3 className="text-xl font-semibold text-white mb-1">Spelers</h3>
+      <h3 className="text-xl font-semibold text-white mb-1">Deelnemers</h3>
       <p className="text-xs text-gray-500 mb-4">
         Selecteer spelers om hun prestaties te vergelijken.
       </p>
@@ -645,12 +675,18 @@ export default function SpelersTab({
       {(
         <div className="glass-card-subtle p-4 md:p-5">
           {selectedIds.length === 0 && !showAverage ? (
-            <div className="flex items-center justify-center py-16 text-center">
+            <div className="flex items-center justify-center py-12 text-center">
               <p className="text-sm text-gray-500">
-                Selecteer spelers hierboven om de grafiek te zien.
+                Selecteer deelnemers hierboven om te vergelijken.
               </p>
             </div>
-          ) : activeSeries.length > 0 && xLabels.length > 0 ? (
+          ) : xLabels.length === 0 ? (
+            <div className="flex items-center justify-center py-12 text-center">
+              <p className="text-sm text-gray-500">
+                {view === "historisch" ? "Geen historische data beschikbaar." : "Nog geen resultaten gespeeld."}
+              </p>
+            </div>
+          ) : activeSeries.length > 0 ? (
             <LineChart
               series={activeSeries}
               xLabels={xLabels}
@@ -664,13 +700,7 @@ export default function SpelersTab({
               invertY={metric === "ranking"}
               yDomain={view === "historisch" && metric === "ranking" ? [0, 100] : undefined}
             />
-          ) : (
-            <div className="flex items-center justify-center py-16 text-center">
-              <p className="text-sm text-gray-500">
-                Nog geen resultaten beschikbaar.
-              </p>
-            </div>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -700,8 +730,10 @@ export default function SpelersTab({
                 </thead>
                 <tbody>
                   {headToHead.rows.map((row) => {
-                    const aWins = row.a > row.b;
-                    const bWins = row.b > row.a;
+                    const numA = typeof row.a === "number" ? row.a : null;
+                    const numB = typeof row.b === "number" ? row.b : null;
+                    const aWins = numA != null && numB != null && numA > numB;
+                    const bWins = numA != null && numB != null && numB > numA;
                     return (
                       <tr key={row.label} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
                         <td className="px-3 md:px-5 py-3 text-sm text-gray-400">{row.label}</td>
