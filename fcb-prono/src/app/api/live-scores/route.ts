@@ -5,13 +5,10 @@ import { recalculateScores } from '@/lib/recalculate'
 import { processMatchEvents } from '@/lib/playoff-stats'
 import type { LiveScore } from '@/lib/live-scores'
 
-// Primary: SofaScore mobile API (less aggressive bot detection)
-// Fallback: main SofaScore API
-const SOFASCORE_URLS = [
-  'https://api.sofascore.com/api/v1/event',
-  'https://www.sofascore.com/api/v1/event',
-]
-const USER_AGENT = 'SofaScore/6.0.0 (Android 14; en_US) HttpClient'
+// Use Cloudflare Worker proxy in production, direct access locally
+const SOFASCORE_BASE = process.env.SOFASCORE_PROXY_URL
+  ? `${process.env.SOFASCORE_PROXY_URL}/event`
+  : 'https://api.sofascore.com/api/v1/event'
 
 function parseSofascoreEvent(event: Record<string, unknown>): LiveScore | null {
   try {
@@ -185,23 +182,18 @@ export async function POST(request: Request) {
         scores[MOCK_EVENT_ID] = generateMockScore(MOCK_EVENT_ID)
       }
     } else {
-      async function fetchEvent(id: number) {
-        for (const baseUrl of SOFASCORE_URLS) {
-          try {
-            const r = await fetch(`${baseUrl}/${id}`, {
-              headers: { 'User-Agent': USER_AGENT },
-              cache: 'no-store',
-            })
-            if (r.ok) return r.json()
-            console.error(`[live-scores] ${baseUrl}/${id} returned ${r.status}`)
-          } catch (e) {
-            console.error(`[live-scores] ${baseUrl}/${id} failed:`, e)
+      const results = await Promise.allSettled(
+        ids.map(async id => {
+          const url = `${SOFASCORE_BASE}/${id}`
+          const r = await fetch(url, { cache: 'no-store' })
+          if (!r.ok) {
+            const text = await r.text().catch(() => '')
+            console.error(`[live-scores] ${url} returned ${r.status}: ${text.slice(0, 200)}`)
+            return null
           }
-        }
-        return null
-      }
-
-      const results = await Promise.allSettled(ids.map(fetchEvent))
+          return r.json()
+        })
+      )
 
       for (let i = 0; i < ids.length; i++) {
         const r = results[i]

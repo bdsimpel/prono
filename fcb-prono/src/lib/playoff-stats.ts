@@ -2,23 +2,20 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { recalculateScores } from './recalculate'
 import { fetchAll } from './supabase/fetch-all'
 
-const SOFASCORE_URLS = [
-  'https://api.sofascore.com/api/v1/event',
-  'https://www.sofascore.com/api/v1/event',
-]
-const USER_AGENT = 'SofaScore/6.0.0 (Android 14; en_US) HttpClient'
+const SOFASCORE_BASE = process.env.SOFASCORE_PROXY_URL
+  ? `${process.env.SOFASCORE_PROXY_URL}/event`
+  : 'https://api.sofascore.com/api/v1/event'
 
 async function fetchSofascore(path: string): Promise<Response | null> {
-  for (const baseUrl of SOFASCORE_URLS) {
-    try {
-      const r = await fetch(`${baseUrl}${path}`, {
-        headers: { 'User-Agent': USER_AGENT },
-        cache: 'no-store',
-      })
-      if (r.ok) return r
-    } catch { /* try next */ }
+  try {
+    const r = await fetch(`${SOFASCORE_BASE}${path}`, { cache: 'no-store' })
+    if (r.ok) return r
+    console.error(`[playoff-stats] ${SOFASCORE_BASE}${path} returned ${r.status}`)
+    return null
+  } catch (e) {
+    console.error(`[playoff-stats] fetch failed:`, e)
+    return null
   }
-  return null
 }
 const TOTAL_LEAGUE_MATCHES = 30
 
