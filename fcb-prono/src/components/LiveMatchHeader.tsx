@@ -10,7 +10,7 @@ interface Props {
   homeTeamName: string
   awayTeamName: string
   matchDatetime: string | null
-  sofascoreEventId: number | null
+  fixtureId: number | null
   result: { home_score: number; away_score: number } | null
   speeldag: number | null
   isCupFinal: boolean
@@ -23,7 +23,7 @@ export default function LiveMatchHeader({
   homeTeamName,
   awayTeamName,
   matchDatetime,
-  sofascoreEventId,
+  fixtureId,
   result,
   speeldag,
   isCupFinal,
@@ -33,10 +33,10 @@ export default function LiveMatchHeader({
   const [mountTime] = useState(() => Date.now())
   const isMock = process.env.NEXT_PUBLIC_LIVE_MOCK === 'true'
   const eventIdMap = useMemo(() => {
-    if (!sofascoreEventId || result) return {}
+    if (!fixtureId || result) return {}
     if (!isMock && matchDatetime && new Date(matchDatetime).getTime() > mountTime) return {}
-    return { [matchId]: sofascoreEventId }
-  }, [matchId, sofascoreEventId, result, matchDatetime, mountTime, isMock])
+    return { [matchId]: fixtureId }
+  }, [matchId, fixtureId, result, matchDatetime, mountTime, isMock])
 
   const liveScores = useLiveScores(eventIdMap)
   const live = liveScores[matchId]

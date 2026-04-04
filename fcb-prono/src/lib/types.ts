@@ -27,6 +27,7 @@ export interface Match {
   match_datetime: string | null
   is_cup_final: boolean
   sofascore_event_id: number | null
+  api_football_fixture_id: number | null
   home_team?: Team
   away_team?: Team
 }

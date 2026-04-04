@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     .single()
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { results, answers, sofascoreIds } = await request.json()
+  const { results, answers, sofascoreIds, fixtureIds } = await request.json()
   const serviceClient = await createServiceClient()
 
   // Save match results
@@ -42,13 +42,24 @@ export async function POST(request: Request) {
     if (!error) resultsSaved++
   }
 
-  // Save SofaScore event IDs
+  // Save SofaScore event IDs (legacy)
   if (sofascoreIds && typeof sofascoreIds === 'object') {
     for (const [matchId, eventId] of Object.entries(sofascoreIds) as [string, string][]) {
       const id = eventId ? parseInt(eventId) : null
       await serviceClient
         .from('matches')
         .update({ sofascore_event_id: id || null })
+        .eq('id', parseInt(matchId))
+    }
+  }
+
+  // Save API-Football fixture IDs
+  if (fixtureIds && typeof fixtureIds === 'object') {
+    for (const [matchId, fId] of Object.entries(fixtureIds) as [string, string][]) {
+      const id = fId ? parseInt(fId) : null
+      await serviceClient
+        .from('matches')
+        .update({ api_football_fixture_id: id || null })
         .eq('id', parseInt(matchId))
     }
   }

@@ -2,69 +2,70 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { recalculateScores } from './recalculate'
 import { fetchAll } from './supabase/fetch-all'
 
-const SOFASCORE_BASE = process.env.SOFASCORE_PROXY_URL
-  ? `${process.env.SOFASCORE_PROXY_URL}/event`
-  : 'https://api.sofascore.com/api/v1/event'
+const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
+const TOTAL_LEAGUE_MATCHES = 30
 
-async function fetchSofascore(path: string): Promise<Response | null> {
+async function fetchApiFootball(path: string): Promise<Response | null> {
   try {
-    const r = await fetch(`${SOFASCORE_BASE}${path}`, { cache: 'no-store' })
+    const r = await fetch(`${API_FOOTBALL_BASE}${path}`, {
+      headers: { 'x-apisports-key': process.env.API_FOOTBALL_KEY || '' },
+      cache: 'no-store',
+    })
     if (r.ok) return r
-    console.error(`[playoff-stats] ${SOFASCORE_BASE}${path} returned ${r.status}`)
+    console.error(`[playoff-stats] API-Football ${path} returned ${r.status}`)
     return null
   } catch (e) {
-    console.error(`[playoff-stats] fetch failed:`, e)
+    console.error(`[playoff-stats] API-Football fetch failed:`, e)
     return null
   }
 }
-const TOTAL_LEAGUE_MATCHES = 30
 
-// SofaScore full names → DB short names
+// API-Football full names → DB short names
 const TEAM_NAME_MAP: Record<string, string> = {
-  'royale union saint-gilloise': 'Union',
+  'union st. gilloise': 'Union',
   'club brugge kv': 'Club Brugge',
-  'sint-truidense vv': 'STVV',
-  'kaa gent': 'Gent',
+  'st. truiden': 'STVV',
+  'gent': 'Gent',
   'kv mechelen': 'Mechelen',
-  'rsc anderlecht': 'Anderlecht',
+  'anderlecht': 'Anderlecht',
 }
 
-function mapSofascoreTeamName(sofaName: string): string | null {
-  return TEAM_NAME_MAP[sofaName.toLowerCase()] ?? null
+function mapApiTeamName(apiName: string): string | null {
+  return TEAM_NAME_MAP[apiName.toLowerCase()] ?? null
 }
 
-// Match SofaScore player name to our football_players DB
+// Match API-Football player name to our football_players DB
 function matchPlayerName(
-  sofaName: string,
+  apiName: string,
   dbPlayers: { id: number; name: string; team: string }[],
   teamName: string
 ): { id: number; name: string } | null {
-  const sofaLower = sofaName.toLowerCase()
+  const apiLower = apiName.toLowerCase()
 
   // Filter to same team first
   const teamPlayers = dbPlayers.filter(p => p.team === teamName)
   const allPlayers = teamPlayers.length > 0 ? teamPlayers : dbPlayers
 
   // Exact match
-  const exact = allPlayers.find(p => p.name.toLowerCase() === sofaLower)
+  const exact = allPlayers.find(p => p.name.toLowerCase() === apiLower)
   if (exact) return { id: exact.id, name: exact.name }
 
-  // DB name contains SofaScore last name
-  const sofaParts = sofaName.split(' ')
-  const sofaLast = sofaParts[sofaParts.length - 1].toLowerCase()
-  if (sofaLast.length >= 3) {
-    const lastNameMatch = allPlayers.find(p => p.name.toLowerCase().includes(sofaLast))
+  // DB name contains API last name
+  const apiParts = apiName.split(' ')
+  const apiLast = apiParts[apiParts.length - 1].toLowerCase()
+  if (apiLast.length >= 3) {
+    const lastNameMatch = allPlayers.find(p => p.name.toLowerCase().includes(apiLast))
     if (lastNameMatch) return { id: lastNameMatch.id, name: lastNameMatch.name }
   }
 
-  // SofaScore name contains DB name
-  const containsMatch = allPlayers.find(p => sofaLower.includes(p.name.toLowerCase()))
+  // API name contains DB name
+  const containsMatch = allPlayers.find(p => apiLower.includes(p.name.toLowerCase()))
   if (containsMatch) return { id: containsMatch.id, name: containsMatch.name }
 
   return null
 }
 
-interface SofascoreGoal {
+interface MatchGoal {
   playerName: string
   assistName: string | null
   minute: number
@@ -72,53 +73,56 @@ interface SofascoreGoal {
   isOwnGoal: boolean
 }
 
-async function fetchMatchIncidents(eventId: number): Promise<SofascoreGoal[]> {
+async function fetchMatchEvents(fixtureId: number): Promise<MatchGoal[]> {
   try {
-    const res = await fetchSofascore(`/${eventId}/incidents`)
+    const res = await fetchApiFootball(`/fixtures/events?fixture=${fixtureId}`)
     if (!res) return []
     const data = await res.json()
-    const goals = (data.incidents || []).filter(
-      (i: { incidentType: string }) => i.incidentType === 'goal'
+    const goals = (data.response || []).filter(
+      (e: { type: string }) => e.type === 'Goal'
     )
-    return goals.map((g: { player?: { name?: string }; assist1?: { name?: string }; time?: number; isHome?: boolean; incidentClass?: string }) => ({
+    return goals.map((g: { player?: { name?: string }; assist?: { name?: string | null }; time?: { elapsed?: number }; team?: { name?: string }; detail?: string; comments?: string }) => ({
       playerName: g.player?.name || 'Unknown',
-      assistName: g.assist1?.name || null,
-      minute: g.time || 0,
-      isHome: g.isHome ?? true,
-      isOwnGoal: g.incidentClass === 'ownGoal',
+      assistName: g.assist?.name || null,
+      minute: g.time?.elapsed || 0,
+      isHome: true, // Will be resolved later via team name matching
+      isOwnGoal: g.detail === 'Own Goal',
+      _teamName: g.team?.name || '', // Store for team matching
     }))
   } catch {
     return []
   }
 }
 
-async function fetchMatchGKs(eventId: number): Promise<{ homeGK: string | null; awayGK: string | null }> {
+async function fetchMatchGKs(fixtureId: number): Promise<{ homeGK: string | null; awayGK: string | null; homeTeamName: string; awayTeamName: string }> {
   try {
-    const res = await fetchSofascore(`/${eventId}/lineups`)
-    if (!res) return { homeGK: null, awayGK: null }
+    const res = await fetchApiFootball(`/fixtures/lineups?fixture=${fixtureId}`)
+    if (!res) return { homeGK: null, awayGK: null, homeTeamName: '', awayTeamName: '' }
     const data = await res.json()
-    const homeGK = data.home?.players?.find(
-      (p: { player?: { position?: string } }) => p.player?.position === 'G'
-    )
-    const awayGK = data.away?.players?.find(
-      (p: { player?: { position?: string } }) => p.player?.position === 'G'
-    )
+    const teams = data.response || []
+    if (teams.length < 2) return { homeGK: null, awayGK: null, homeTeamName: '', awayTeamName: '' }
+
+    const findGK = (team: { startXI?: { player?: { pos?: string; name?: string } }[] }) =>
+      team.startXI?.find((p: { player?: { pos?: string } }) => p.player?.pos === 'G')?.player?.name || null
+
     return {
-      homeGK: homeGK?.player?.name || null,
-      awayGK: awayGK?.player?.name || null,
+      homeGK: findGK(teams[0]),
+      awayGK: findGK(teams[1]),
+      homeTeamName: teams[0].team?.name || '',
+      awayTeamName: teams[1].team?.name || '',
     }
   } catch {
-    return { homeGK: null, awayGK: null }
+    return { homeGK: null, awayGK: null, homeTeamName: '', awayTeamName: '' }
   }
 }
 
 /**
- * Process a single finished match: fetch incidents, store events, check certainty.
+ * Process a single finished match: fetch events, store goals/assists/clean sheets, check certainty.
  */
 export async function processMatchEvents(
   serviceClient: SupabaseClient,
   matchId: number,
-  sofascoreEventId: number,
+  fixtureId: number,
   homeTeamId: number,
   awayTeamId: number,
 ) {
@@ -133,35 +137,28 @@ export async function processMatchEvents(
   const homeTeamName = teamMap[homeTeamId] || ''
   const awayTeamName = teamMap[awayTeamId] || ''
 
-  // Fetch incidents and lineups from SofaScore
+  // Fetch events and lineups from API-Football
   const [goals, gks] = await Promise.all([
-    fetchMatchIncidents(sofascoreEventId),
-    fetchMatchGKs(sofascoreEventId),
+    fetchMatchEvents(fixtureId),
+    fetchMatchGKs(fixtureId),
   ])
 
-  // Determine which SofaScore side maps to which DB team
-  // We know our match has homeTeamId and awayTeamId
-  // SofaScore's isHome refers to their home team
-  // We need to figure out the mapping - use the match's sofascore event to check team names
-  // For simplicity: fetch the event to get SofaScore team names and map them
-  let sofaHomeTeamId = homeTeamId
-  let sofaAwayTeamId = awayTeamId
-  try {
-    const eventRes = await fetchSofascore(`/${sofascoreEventId}`)
-    if (!eventRes) throw new Error('Could not fetch event')
-    const eventData = await eventRes.json()
-    const sofaHomeName = eventData.event?.homeTeam?.name || ''
-    const sofaAwayName = eventData.event?.awayTeam?.name || ''
-    const mappedHome = mapSofascoreTeamName(sofaHomeName)
-    const mappedAway = mapSofascoreTeamName(sofaAwayName)
+  // Determine team mapping: API-Football home/away vs our DB home/away
+  let apiHomeTeamId = homeTeamId
+  let apiAwayTeamId = awayTeamId
 
-    // If SofaScore home = our away team, swap the mapping
+  // Use lineup team names to determine mapping
+  const apiHomeName = gks.homeTeamName
+  const apiAwayName = gks.awayTeamName
+  if (apiHomeName && apiAwayName) {
+    const mappedHome = mapApiTeamName(apiHomeName)
+    const mappedAway = mapApiTeamName(apiAwayName)
+
+    // If API home = our away team, swap the mapping
     if (mappedHome === awayTeamName && mappedAway === homeTeamName) {
-      sofaHomeTeamId = awayTeamId
-      sofaAwayTeamId = homeTeamId
+      apiHomeTeamId = awayTeamId
+      apiAwayTeamId = homeTeamId
     }
-  } catch {
-    // Fall back to assuming same order
   }
 
   const dbPlayers = footballPlayers || []
@@ -177,10 +174,22 @@ export async function processMatchEvents(
   for (const goal of goals) {
     if (goal.isOwnGoal) continue // Skip own goals entirely
 
-    const scorerTeamId = goal.isHome ? sofaHomeTeamId : sofaAwayTeamId
-    const scorerTeamName = teamMap[scorerTeamId] || ''
+    // Determine which team scored based on the goal's team name
+    const goalObj = goal as MatchGoal & { _teamName?: string }
+    const goalTeamName = goalObj._teamName || ''
+    const mappedTeam = mapApiTeamName(goalTeamName)
+    let scorerTeamId: number
+    if (mappedTeam === homeTeamName) {
+      scorerTeamId = homeTeamId
+    } else if (mappedTeam === awayTeamName) {
+      scorerTeamId = awayTeamId
+    } else {
+      // Fallback: use contains matching
+      scorerTeamId = goalTeamName.toLowerCase().includes(homeTeamName.toLowerCase()) ? homeTeamId : awayTeamId
+    }
+    const scorerTeamDbName = teamMap[scorerTeamId] || ''
 
-    const playerMatch = matchPlayerName(goal.playerName, dbPlayers, scorerTeamName)
+    const playerMatch = matchPlayerName(goal.playerName, dbPlayers, scorerTeamDbName)
     events.push({
       match_id: matchId,
       event_type: 'goal',
@@ -191,7 +200,7 @@ export async function processMatchEvents(
     })
 
     if (goal.assistName) {
-      const assistMatch = matchPlayerName(goal.assistName, dbPlayers, scorerTeamName)
+      const assistMatch = matchPlayerName(goal.assistName, dbPlayers, scorerTeamDbName)
       events.push({
         match_id: matchId,
         event_type: 'assist',
@@ -204,7 +213,6 @@ export async function processMatchEvents(
   }
 
   // Clean sheets: use the DB result to check who conceded 0
-  // SofaScore homeGK plays for sofaHomeTeamId, awayGK for sofaAwayTeamId
   const { data: result } = await serviceClient
     .from('results')
     .select('home_score, away_score')
@@ -212,35 +220,32 @@ export async function processMatchEvents(
     .single()
 
   if (result) {
-    // Goals conceded by each SofaScore side:
-    // sofaHomeTeam conceded = goals scored against them
-    // If sofaHomeTeamId === homeTeamId (DB), then sofaHome conceded result.away_score
-    // If sofaHomeTeamId === awayTeamId (DB, swapped), then sofaHome conceded result.home_score
-    const sofaHomeConceded = sofaHomeTeamId === homeTeamId ? result.away_score : result.home_score
-    const sofaAwayConceded = sofaAwayTeamId === homeTeamId ? result.away_score : result.home_score
+    // apiHomeTeam conceded = goals scored against them
+    const apiHomeConceded = apiHomeTeamId === homeTeamId ? result.away_score : result.home_score
+    const apiAwayConceded = apiAwayTeamId === homeTeamId ? result.away_score : result.home_score
 
-    if (sofaHomeConceded === 0 && gks.homeGK) {
-      const gkTeamName = teamMap[sofaHomeTeamId] || ''
+    if (apiHomeConceded === 0 && gks.homeGK) {
+      const gkTeamName = teamMap[apiHomeTeamId] || ''
       const gkMatch = matchPlayerName(gks.homeGK, dbPlayers, gkTeamName)
       events.push({
         match_id: matchId,
         event_type: 'clean_sheet',
         player_name: gks.homeGK,
         football_player_id: gkMatch?.id ?? null,
-        team_id: sofaHomeTeamId,
+        team_id: apiHomeTeamId,
         minute: null,
       })
     }
 
-    if (sofaAwayConceded === 0 && gks.awayGK) {
-      const gkTeamName = teamMap[sofaAwayTeamId] || ''
+    if (apiAwayConceded === 0 && gks.awayGK) {
+      const gkTeamName = teamMap[apiAwayTeamId] || ''
       const gkMatch = matchPlayerName(gks.awayGK, dbPlayers, gkTeamName)
       events.push({
         match_id: matchId,
         event_type: 'clean_sheet',
         player_name: gks.awayGK,
         football_player_id: gkMatch?.id ?? null,
-        team_id: sofaAwayTeamId,
+        team_id: apiAwayTeamId,
         minute: null,
       })
     }
@@ -328,7 +333,7 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
   }
 
   // Aggregate player stats from match_events
-  // Use the football_players DB name (what players chose) as the key, falling back to SofaScore name
+  // Use the football_players DB name (what players chose) as the key, falling back to API name
   const playerGoals: Record<string, number> = {}
   const playerAssists: Record<string, number> = {}
   const playerCleanSheets: Record<string, number> = {}
@@ -378,9 +383,7 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
   if (Object.keys(playerCleanSheets).length > 0) {
     const maxCS = Math.max(...Object.values(playerCleanSheets))
     // Check if leader is certain: leader's CS >= runner-up's CS + runner-up's remaining matches
-    // Find runner-up's max possible
-    // Each GK's team has a number of remaining matches
-    const gkTeams: Record<string, number> = {} // resolved name → team_id
+    const gkTeams: Record<string, number> = {}
     for (const e of events) {
       if (e.event_type === 'clean_sheet') {
         const key = (e.football_player_id && footballPlayerNameMap[e.football_player_id]) || e.player_name
@@ -390,14 +393,12 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
 
     let leaderIsCertain = allMatchesPlayed
     if (!leaderIsCertain) {
-      const leaders = Object.entries(playerCleanSheets).filter(([, cs]) => cs === maxCS)
-      // Check if any non-leader can catch up
       const allGKs = new Set([...Object.keys(playerCleanSheets), ...Object.keys(gkTeams)])
       let anyCanCatchUp = false
 
       for (const gk of allGKs) {
         const currentCS = playerCleanSheets[gk] || 0
-        if (currentCS === maxCS) continue // is a leader
+        if (currentCS === maxCS) continue
         const gkTeamId = gkTeams[gk]
         const remaining = gkTeamId ? (teamStats[gkTeamId]?.remainingMatches ?? 0) : remainingMatches
         if (currentCS + remaining >= maxCS) {
@@ -421,7 +422,6 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
     const maxPoints = Math.max(...teamPoints.map(t => t.points))
     const leaders = teamPoints.filter(t => t.points === maxPoints)
 
-    // Check if leaders are certain: their points >= all others' max possible
     let certain = true
     for (const t of teamPoints) {
       if (t.points === maxPoints) continue
@@ -473,7 +473,6 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
           isCertain = false
           break
         }
-        // Tie possible: check tiebreaker (lower standing_rank wins)
         if (other.maxPossible === leader.totalPoints && other.standingRank < leader.standingRank) {
           isCertain = false
           break
@@ -493,9 +492,9 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
 export async function resyncAllMatchEvents(serviceClient: SupabaseClient) {
   const { data: matches } = await serviceClient
     .from('matches')
-    .select('id, home_team_id, away_team_id, sofascore_event_id, is_cup_final')
+    .select('id, home_team_id, away_team_id, api_football_fixture_id, is_cup_final')
     .eq('is_cup_final', false)
-    .not('sofascore_event_id', 'is', null)
+    .not('api_football_fixture_id', 'is', null)
 
   const { data: results } = await serviceClient
     .from('results')
@@ -508,7 +507,7 @@ export async function resyncAllMatchEvents(serviceClient: SupabaseClient) {
     await processMatchEvents(
       serviceClient,
       match.id,
-      match.sofascore_event_id!,
+      match.api_football_fixture_id!,
       match.home_team_id,
       match.away_team_id,
     )

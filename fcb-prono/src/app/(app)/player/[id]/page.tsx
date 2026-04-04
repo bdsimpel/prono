@@ -599,8 +599,8 @@ export default async function PlayerDetailPage({
           </h3>
           <LivePlayerPredictions
             predictions={currentPredictions.map((pred) => {
-              const m = pred.matches as { match_datetime: string | null; sofascore_event_id: number | null; home_team: { name: string }; away_team: { name: string } };
-              return { id: pred.id, match_id: pred.match_id, home_score: pred.home_score, away_score: pred.away_score, home_team_name: m.home_team.name, away_team_name: m.away_team.name, match_datetime: m.match_datetime, sofascore_event_id: m.sofascore_event_id };
+              const m = pred.matches as { match_datetime: string | null; api_football_fixture_id: number | null; home_team: { name: string }; away_team: { name: string } };
+              return { id: pred.id, match_id: pred.match_id, home_score: pred.home_score, away_score: pred.away_score, home_team_name: m.home_team.name, away_team_name: m.away_team.name, match_datetime: m.match_datetime, api_football_fixture_id: m.api_football_fixture_id };
             })}
             resultMap={resultMap}
             shouldHide={shouldHide}
@@ -617,8 +617,8 @@ export default async function PlayerDetailPage({
           </h3>
           <LivePlayerPredictions
             predictions={upcomingPredictions.map((pred) => {
-              const m = pred.matches as { match_datetime: string | null; sofascore_event_id: number | null; home_team: { name: string }; away_team: { name: string } };
-              return { id: pred.id, match_id: pred.match_id, home_score: pred.home_score, away_score: pred.away_score, home_team_name: m.home_team.name, away_team_name: m.away_team.name, match_datetime: m.match_datetime, sofascore_event_id: m.sofascore_event_id };
+              const m = pred.matches as { match_datetime: string | null; api_football_fixture_id: number | null; home_team: { name: string }; away_team: { name: string } };
+              return { id: pred.id, match_id: pred.match_id, home_score: pred.home_score, away_score: pred.away_score, home_team_name: m.home_team.name, away_team_name: m.away_team.name, match_datetime: m.match_datetime, api_football_fixture_id: m.api_football_fixture_id };
             })}
             resultMap={resultMap}
             shouldHide={shouldHide}
@@ -635,8 +635,8 @@ export default async function PlayerDetailPage({
           </h3>
           <LivePlayerPredictions
             predictions={playedPredictions.map((pred) => {
-              const m = pred.matches as { match_datetime: string | null; sofascore_event_id: number | null; home_team: { name: string }; away_team: { name: string } };
-              return { id: pred.id, match_id: pred.match_id, home_score: pred.home_score, away_score: pred.away_score, home_team_name: m.home_team.name, away_team_name: m.away_team.name, match_datetime: m.match_datetime, sofascore_event_id: m.sofascore_event_id };
+              const m = pred.matches as { match_datetime: string | null; api_football_fixture_id: number | null; home_team: { name: string }; away_team: { name: string } };
+              return { id: pred.id, match_id: pred.match_id, home_score: pred.home_score, away_score: pred.away_score, home_team_name: m.home_team.name, away_team_name: m.away_team.name, match_datetime: m.match_datetime, api_football_fixture_id: m.api_football_fixture_id };
             })}
             resultMap={resultMap}
             shouldHide={shouldHide}

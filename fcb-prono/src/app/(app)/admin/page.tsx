@@ -48,6 +48,7 @@ export default function AdminPage() {
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [results, setResults] = useState<Record<number, { home: string; away: string }>>({})
   const [sofascoreIds, setSofascoreIds] = useState<Record<number, string>>({})
+  const [fixtureIds, setFixtureIds] = useState<Record<number, string>>({})
   const [extraQuestions, setExtraQuestions] = useState<{ id: number; question_key: string; question_label: string }[]>([])
   const [footballPlayers, setFootballPlayers] = useState<FootballPlayer[]>([])
   const [teams, setTeams] = useState<Team[]>([])
@@ -124,10 +125,13 @@ export default function AdminPage() {
     setResults(resultMap)
 
     const sfIds: Record<number, string> = {}
+    const fIds: Record<number, string> = {}
     for (const m of matchesRes.data || []) {
       if (m.sofascore_event_id) sfIds[m.id] = String(m.sofascore_event_id)
+      if (m.api_football_fixture_id) fIds[m.id] = String(m.api_football_fixture_id)
     }
     setSofascoreIds(sfIds)
+    setFixtureIds(fIds)
 
     setExtraQuestions(questionsRes.data || [])
     setFootballPlayers(playersRes.data || [])
@@ -173,7 +177,7 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/save-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ results, answers: extraAnswers, sofascoreIds }),
+        body: JSON.stringify({ results, answers: extraAnswers, sofascoreIds, fixtureIds }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -425,24 +429,24 @@ export default function AdminPage() {
                             <span className="shrink-0"><TeamLogo name={match.away_team.name} /></span>
                             <span className="truncate">{match.away_team.name}</span>
                           </span>
-                          {/* Desktop: SofaScore ID inline */}
+                          {/* Desktop: Fixture ID inline */}
                           <input
                             type="text"
                             inputMode="numeric"
-                            placeholder="SofaScore ID"
-                            value={sofascoreIds[match.id] || ''}
-                            onChange={(e) => setSofascoreIds(prev => ({ ...prev, [match.id]: e.target.value.replace(/\D/g, '') }))}
+                            placeholder="Fixture ID"
+                            value={fixtureIds[match.id] || ''}
+                            onChange={(e) => setFixtureIds(prev => ({ ...prev, [match.id]: e.target.value.replace(/\D/g, '') }))}
                             className="hidden md:block w-28 h-9 text-center bg-cb-dark border border-white/[0.06] rounded-lg text-gray-500 text-[10px] focus:outline-none focus:border-cb-blue transition-colors shrink-0 placeholder:text-gray-700"
                           />
                         </div>
-                        {/* Mobile: SofaScore ID below, right-aligned */}
+                        {/* Mobile: Fixture ID below, right-aligned */}
                         <div className="md:hidden mt-1.5 flex justify-end">
                           <input
                             type="text"
                             inputMode="numeric"
-                            placeholder="SofaScore ID"
-                            value={sofascoreIds[match.id] || ''}
-                            onChange={(e) => setSofascoreIds(prev => ({ ...prev, [match.id]: e.target.value.replace(/\D/g, '') }))}
+                            placeholder="Fixture ID"
+                            value={fixtureIds[match.id] || ''}
+                            onChange={(e) => setFixtureIds(prev => ({ ...prev, [match.id]: e.target.value.replace(/\D/g, '') }))}
                             className="w-24 h-6 text-center bg-cb-dark border border-white/[0.06] rounded text-gray-600 text-[9px] focus:outline-none focus:border-cb-blue transition-colors placeholder:text-gray-700"
                           />
                         </div>

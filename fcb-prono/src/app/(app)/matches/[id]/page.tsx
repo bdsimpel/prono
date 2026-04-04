@@ -219,7 +219,7 @@ export default async function MatchDetailPage({
         homeTeamName={match.home_team.name}
         awayTeamName={match.away_team.name}
         matchDatetime={match.match_datetime}
-        sofascoreEventId={match.sofascore_event_id}
+        fixtureId={match.api_football_fixture_id}
         result={result ? { home_score: result.home_score, away_score: result.away_score } : null}
         speeldag={match.speeldag}
         isCupFinal={match.is_cup_final}
@@ -321,7 +321,7 @@ export default async function MatchDetailPage({
             rank: p.rank,
           }))}
           matchId={match.id}
-          sofascoreEventId={match.sofascore_event_id}
+          fixtureId={match.api_football_fixture_id}
           matchDatetime={match.match_datetime}
           hasResult={false}
           shouldHide={shouldHide}

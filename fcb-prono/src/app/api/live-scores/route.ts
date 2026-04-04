@@ -5,40 +5,116 @@ import { recalculateScores } from '@/lib/recalculate'
 import { processMatchEvents } from '@/lib/playoff-stats'
 import type { LiveScore } from '@/lib/live-scores'
 
-// Use Cloudflare Worker proxy in production, direct access locally
-const SOFASCORE_BASE = process.env.SOFASCORE_PROXY_URL
-  ? `${process.env.SOFASCORE_PROXY_URL}/event`
-  : 'https://api.sofascore.com/api/v1/event'
+const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
 
-function parseSofascoreEvent(event: Record<string, unknown>): LiveScore | null {
+// Server-side cache to avoid redundant API calls when many users poll simultaneously
+let cache: { key: string; data: Record<number, LiveScore>; timestamp: number } | null = null
+const CACHE_TTL = 15_000 // 15 seconds
+
+// Map API-Football status codes to our internal numeric codes (matching SofaScore convention)
+function mapStatusCode(short: string): number {
+  switch (short) {
+    case '1H': return 6
+    case '2H': return 7
+    case 'HT': return 31
+    case 'BT': return 32  // Break time (waiting for extra time)
+    case 'ET': return 41   // Extra time 1st half
+    case '2ET': return 42  // Extra time 2nd half
+    case 'EHT': return 33  // Extra time halftime
+    case 'P': return 50    // Penalties
+    case 'FT': case 'AET': case 'PEN': return 100
+    default: return 0
+  }
+}
+
+function mapStatusType(short: string): string {
+  switch (short) {
+    case 'NS': case 'TBD': case 'PST': case 'CANC': case 'ABD': case 'WO':
+      return 'notstarted'
+    case 'FT': case 'AET': case 'PEN':
+      return 'finished'
+    default:
+      return 'inprogress'
+  }
+}
+
+interface ApiFootballFixture {
+  fixture: {
+    id: number
+    timestamp: number
+    periods: { first: number | null; second: number | null }
+    status: { long: string; short: string; elapsed: number | null; extra: number | null }
+  }
+  teams: {
+    home: { id: number; name: string; winner: boolean | null }
+    away: { id: number; name: string; winner: boolean | null }
+  }
+  goals: { home: number | null; away: number | null }
+  score: {
+    halftime: { home: number | null; away: number | null }
+    fulltime: { home: number | null; away: number | null }
+    extratime: { home: number | null; away: number | null }
+    penalty: { home: number | null; away: number | null }
+  }
+}
+
+function parseApiFootballFixture(f: ApiFootballFixture): LiveScore | null {
   try {
-    const status = event.status as { code: number; description: string; type: string } | undefined
-    const homeScore = event.homeScore as { current?: number; period1?: number; period2?: number } | undefined
-    const awayScore = event.awayScore as { current?: number; period1?: number; period2?: number } | undefined
-    const time = event.time as { initial?: number; max?: number; extra?: number; currentPeriodStartTimestamp?: number } | undefined
-    const homeTeam = event.homeTeam as { name?: string } | undefined
-    const awayTeam = event.awayTeam as { name?: string } | undefined
+    const status = f.fixture.status
+    const statusCode = mapStatusCode(status.short)
+    const statusType = mapStatusType(status.short)
+    const elapsed = status.elapsed ?? 0
+    const nowSec = Math.floor(Date.now() / 1000)
 
-    if (!status) return null
+    // Synthesize currentPeriodStartTimestamp from elapsed minute so calcMatchMinute() works
+    let timeInitial = 0
+    let currentPeriodStartTimestamp: number | null = null
+    if (statusType === 'inprogress' && statusCode !== 31 && statusCode !== 32 && statusCode !== 33) {
+      if (statusCode === 7) {
+        // 2nd half: elapsed is e.g. 67, timeInitial is 2700 (45min in seconds)
+        timeInitial = 2700
+        currentPeriodStartTimestamp = nowSec - ((elapsed - 45) * 60)
+      } else if (statusCode === 41) {
+        // Extra time 1st half
+        timeInitial = 5400
+        currentPeriodStartTimestamp = nowSec - ((elapsed - 90) * 60)
+      } else if (statusCode === 42) {
+        // Extra time 2nd half
+        timeInitial = 6300
+        currentPeriodStartTimestamp = nowSec - ((elapsed - 105) * 60)
+      } else {
+        // 1st half
+        timeInitial = 0
+        currentPeriodStartTimestamp = nowSec - (elapsed * 60)
+      }
+    }
+
+    // Determine winner code
+    let winnerCode: number | null = null
+    if (f.teams.home.winner === true) winnerCode = 1
+    else if (f.teams.away.winner === true) winnerCode = 2
 
     return {
-      homeScore: homeScore?.current ?? null,
-      awayScore: awayScore?.current ?? null,
-      statusType: status.type || 'notstarted',
-      statusCode: status.code || 0,
-      statusDescription: status.description || '',
-      currentPeriodStartTimestamp: (event.currentPeriodStartTimestamp as number) ?? time?.currentPeriodStartTimestamp ?? null,
-      startTimestamp: (event.startTimestamp as number) ?? null,
-      timeInitial: time?.initial ?? 0,
-      timeMax: time?.max ?? 2700,
-      timeExtra: time?.extra ?? 540,
-      homePeriod1: homeScore?.period1 ?? null,
-      homePeriod2: homeScore?.period2 ?? null,
-      awayPeriod1: awayScore?.period1 ?? null,
-      awayPeriod2: awayScore?.period2 ?? null,
-      winnerCode: (event.winnerCode as number) ?? null,
-      homeTeamName: homeTeam?.name ?? null,
-      awayTeamName: awayTeam?.name ?? null,
+      homeScore: f.goals.home,
+      awayScore: f.goals.away,
+      statusType,
+      statusCode,
+      statusDescription: status.long || '',
+      currentPeriodStartTimestamp,
+      startTimestamp: f.fixture.timestamp,
+      timeInitial,
+      timeMax: timeInitial === 0 ? 2700 : 5400,
+      timeExtra: 540,
+      // Period scores for cup final 90-min calculation
+      homePeriod1: f.score.halftime.home,
+      homePeriod2: f.score.fulltime.home !== null && f.score.halftime.home !== null
+        ? f.score.fulltime.home - f.score.halftime.home : null,
+      awayPeriod1: f.score.halftime.away,
+      awayPeriod2: f.score.fulltime.away !== null && f.score.halftime.away !== null
+        ? f.score.fulltime.away - f.score.halftime.away : null,
+      winnerCode,
+      homeTeamName: f.teams.home.name,
+      awayTeamName: f.teams.away.name,
     }
   } catch {
     return null
@@ -176,31 +252,40 @@ export async function POST(request: Request) {
     const scores: Record<number, LiveScore> = {}
 
     if (isMock) {
-      // Only mock match 1's sofascore ID, ignore all others
+      // Only mock match 1's fixture ID, ignore all others
       const MOCK_EVENT_ID = 15858608
       if (ids.includes(MOCK_EVENT_ID)) {
         scores[MOCK_EVENT_ID] = generateMockScore(MOCK_EVENT_ID)
       }
     } else {
-      const results = await Promise.allSettled(
-        ids.map(async id => {
-          const url = `${SOFASCORE_BASE}/${id}`
-          const r = await fetch(url, { cache: 'no-store' })
-          if (!r.ok) {
-            const text = await r.text().catch(() => '')
-            console.error(`[live-scores] ${url} returned ${r.status}: ${text.slice(0, 200)}`)
-            return null
+      // Check cache first
+      const cacheKey = ids.sort().join(',')
+      const now = Date.now()
+      if (cache && cache.key === cacheKey && now - cache.timestamp < CACHE_TTL) {
+        Object.assign(scores, cache.data)
+      } else {
+        // Batch fetch from API-Football (supports comma-separated IDs)
+        const idsParam = ids.join('-')
+        try {
+          const res = await fetch(`${API_FOOTBALL_BASE}/fixtures?ids=${idsParam}`, {
+            headers: { 'x-apisports-key': process.env.API_FOOTBALL_KEY || '' },
+            cache: 'no-store',
+          })
+          if (!res.ok) {
+            console.error(`[live-scores] API-Football returned ${res.status}`)
+          } else {
+            const data = await res.json()
+            for (const fixture of data.response || []) {
+              const parsed = parseApiFootballFixture(fixture)
+              if (parsed) scores[fixture.fixture.id] = parsed
+            }
           }
-          return r.json()
-        })
-      )
-
-      for (let i = 0; i < ids.length; i++) {
-        const r = results[i]
-        if (r.status === 'fulfilled' && r.value?.event) {
-          const parsed = parseSofascoreEvent(r.value.event)
-          if (parsed) scores[ids[i]] = parsed
+        } catch (e) {
+          console.error('[live-scores] API-Football fetch failed:', e)
         }
+
+        // Update cache
+        cache = { key: cacheKey, data: { ...scores }, timestamp: now }
       }
     }
 
@@ -219,17 +304,16 @@ export async function POST(request: Request) {
     if (finishedEvents.length > 0) {
       const serviceClient = await createServiceClient()
 
-      // Find which matches have these sofascore event IDs
+      // Find which matches have these API-Football fixture IDs
       const eventIds = finishedEvents.map(([id]) => Number(id))
       const { data: matchRows } = await serviceClient
         .from('matches')
-        .select('id, sofascore_event_id, home_team_id, away_team_id, speeldag, is_cup_final')
-        .in('sofascore_event_id', eventIds)
+        .select('id, api_football_fixture_id, home_team_id, away_team_id, speeldag, is_cup_final')
+        .in('api_football_fixture_id', eventIds)
 
       if (matchRows && matchRows.length > 0) {
         // Check which already have results
         const matchIds = matchRows.map(m => m.id)
-        // Check which already have results
         const { data: existingResults } = await serviceClient
           .from('results')
           .select('match_id')
@@ -241,7 +325,7 @@ export async function POST(request: Request) {
         for (const matchRow of matchRows) {
           if (existingMatchIds.has(matchRow.id)) continue
 
-          const score = scores[matchRow.sofascore_event_id!]
+          const score = scores[matchRow.api_football_fixture_id!]
           if (!score || score.homeScore === null || score.awayScore === null) continue
 
           // Cup final: use period1 + period2 (90-min score)
@@ -286,11 +370,11 @@ export async function POST(request: Request) {
             })
 
             // League match: process match events (goals, assists, clean sheets)
-            if (!matchRow.is_cup_final && matchRow.sofascore_event_id) {
+            if (!matchRow.is_cup_final && matchRow.api_football_fixture_id) {
               await processMatchEvents(
                 serviceClient,
                 matchRow.id,
-                matchRow.sofascore_event_id,
+                matchRow.api_football_fixture_id,
                 matchRow.home_team_id,
                 matchRow.away_team_id,
               )
@@ -298,14 +382,13 @@ export async function POST(request: Request) {
 
             // Cup final: auto-set bekerwinnaar extra question
             if (matchRow.is_cup_final && score.winnerCode) {
-              // Determine winner name from SofaScore
-              const sofaWinnerName = score.winnerCode === 1 ? score.homeTeamName : score.awayTeamName
-              if (sofaWinnerName) {
-                // Match against DB team names (contains check - SofaScore uses full names like "RSC Anderlecht", DB has "Anderlecht")
+              const winnerName = score.winnerCode === 1 ? score.homeTeamName : score.awayTeamName
+              if (winnerName) {
+                // Match against DB team names (contains check)
                 const dbTeamNames = Object.values(teamMap)
                 const winnerDbName = dbTeamNames.find(
-                  name => sofaWinnerName.toLowerCase().includes(name.toLowerCase())
-                ) || sofaWinnerName
+                  name => winnerName.toLowerCase().includes(name.toLowerCase())
+                ) || winnerName
 
                 // Find bekerwinnaar question and set answer
                 const { data: bekerQuestion } = await serviceClient
@@ -315,7 +398,6 @@ export async function POST(request: Request) {
                   .single()
 
                 if (bekerQuestion) {
-                  // Delete existing answers and insert the winner
                   await serviceClient
                     .from('extra_question_answers')
                     .delete()

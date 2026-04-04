@@ -19,7 +19,7 @@ interface PredictionData {
 interface Props {
   predictions: PredictionData[]
   matchId: number
-  sofascoreEventId: number | null
+  fixtureId: number | null
   matchDatetime: string | null
   hasResult: boolean
   shouldHide: boolean
@@ -78,7 +78,7 @@ function getCategoryPointColor(category: string, isLive: boolean) {
 export default function LivePredictionList({
   predictions,
   matchId,
-  sofascoreEventId,
+  fixtureId,
   matchDatetime,
   hasResult,
   shouldHide,
@@ -87,10 +87,10 @@ export default function LivePredictionList({
   const isMock = process.env.NEXT_PUBLIC_LIVE_MOCK === 'true'
 
   const eventIdMap = useMemo(() => {
-    if (!sofascoreEventId || hasResult) return {}
+    if (!fixtureId || hasResult) return {}
     if (!isMock && matchDatetime && new Date(matchDatetime).getTime() > mountTime) return {}
-    return { [matchId]: sofascoreEventId }
-  }, [matchId, sofascoreEventId, hasResult, matchDatetime, mountTime, isMock])
+    return { [matchId]: fixtureId }
+  }, [matchId, fixtureId, hasResult, matchDatetime, mountTime, isMock])
 
   const liveScores = useLiveScores(eventIdMap)
   const live = liveScores[matchId]

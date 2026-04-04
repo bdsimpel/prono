@@ -20,7 +20,7 @@ interface CurrentStanding {
 
 interface MatchForLive {
   id: number
-  sofascore_event_id: number | null
+  api_football_fixture_id: number | null
   match_datetime: string | null
 }
 
@@ -62,11 +62,11 @@ export default function LiveLeaderboard({
     const resultSet = new Set(resultMatchIds)
     for (const m of matches) {
       if (
-        m.sofascore_event_id &&
+        m.api_football_fixture_id &&
         !resultSet.has(m.id) &&
         (isMock || (m.match_datetime && new Date(m.match_datetime).getTime() <= mountTime))
       ) {
-        map[m.id] = m.sofascore_event_id
+        map[m.id] = m.api_football_fixture_id
       }
     }
     return map

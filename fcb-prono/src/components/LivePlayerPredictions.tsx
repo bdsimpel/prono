@@ -15,7 +15,7 @@ interface PredictionData {
   home_team_name: string
   away_team_name: string
   match_datetime: string | null
-  sofascore_event_id: number | null
+  api_football_fixture_id: number | null
 }
 
 interface Props {
@@ -88,11 +88,11 @@ export default function LivePlayerPredictions({
     const map: Record<number, number> = {}
     for (const p of predictions) {
       if (
-        p.sofascore_event_id &&
+        p.api_football_fixture_id &&
         !resultMap[p.match_id] &&
         (isMock || (p.match_datetime && new Date(p.match_datetime).getTime() <= mountTime))
       ) {
-        map[p.match_id] = p.sofascore_event_id
+        map[p.match_id] = p.api_football_fixture_id
       }
     }
     return map

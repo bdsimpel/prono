@@ -14,7 +14,7 @@ export interface LiveMatchData {
   match_datetime: string | null
   speeldag: number | null
   is_cup_final: boolean
-  sofascore_event_id: number | null
+  api_football_fixture_id: number | null
   formatted?: { day: string; date: string; time: string }
 }
 
@@ -39,11 +39,11 @@ export default function LiveMatchList({ matches, resultMap, variant }: Props) {
     const map: Record<number, number> = {}
     for (const m of matches) {
       if (
-        m.sofascore_event_id &&
+        m.api_football_fixture_id &&
         !resultMap[m.id] &&
         (isMock || (m.match_datetime && new Date(m.match_datetime).getTime() <= mountTime))
       ) {
-        map[m.id] = m.sofascore_event_id
+        map[m.id] = m.api_football_fixture_id
       }
     }
     return map

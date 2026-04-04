@@ -33,7 +33,7 @@ export default async function KlassementPage() {
     supabase.from("edition_scores").select("*"),
     supabase.from("alltime_scores").select("*"),
     supabase.from("activity_events").select("*").neq("type", "points").order("created_at", { ascending: false }).limit(6),
-    supabase.from("matches").select("id, sofascore_event_id, match_datetime"),
+    supabase.from("matches").select("id, api_football_fixture_id, match_datetime"),
     supabase.from("results").select("match_id"),
     fetchAll<{ user_id: string; match_id: number; home_score: number; away_score: number }>(supabase, "predictions", "user_id, match_id, home_score, away_score"),
     supabase.from("subgroups").select("*").order("name"),
@@ -235,7 +235,7 @@ export default async function KlassementPage() {
           currentStandings={standings}
           matches={(allMatches ?? []).map(m => ({
             id: m.id,
-            sofascore_event_id: m.sofascore_event_id,
+            api_football_fixture_id: m.api_football_fixture_id,
             match_datetime: m.match_datetime,
           }))}
           predictions={(allPredictions ?? []).map(p => ({

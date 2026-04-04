@@ -49,7 +49,7 @@ export function useLiveScores(eventIdMap: Record<number, number>): Record<number
       const data = await res.json()
       const liveScores: Record<number, LiveScore> = data.scores || {}
 
-      // Map back from sofascore_event_id to match_id
+      // Map back from api_football_fixture_id to match_id
       const mapped: Record<number, LiveScore> = {}
       for (const [matchId, eventId] of Object.entries(parsed)) {
         if (liveScores[eventId]) {
