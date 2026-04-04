@@ -1,5 +1,3 @@
-export const runtime = 'edge'
-
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/server'
@@ -186,8 +184,15 @@ export async function POST(request: Request) {
         ids.map(id =>
           fetch(`${SOFASCORE_URL}/${id}`, {
             headers: { 'User-Agent': USER_AGENT },
-            next: { revalidate: 15 },
-          }).then(r => r.json())
+            cache: 'no-store',
+          }).then(async r => {
+            if (!r.ok) {
+              const text = await r.text().catch(() => '')
+              console.error(`[live-scores] SofaScore ${id} returned ${r.status}: ${text.slice(0, 200)}`)
+              return null
+            }
+            return r.json()
+          })
         )
       )
 
@@ -196,6 +201,8 @@ export async function POST(request: Request) {
         if (r.status === 'fulfilled' && r.value?.event) {
           const parsed = parseSofascoreEvent(r.value.event)
           if (parsed) scores[ids[i]] = parsed
+        } else if (r.status === 'rejected') {
+          console.error(`[live-scores] SofaScore ${ids[i]} fetch failed:`, r.reason)
         }
       }
     }
@@ -337,7 +344,8 @@ export async function POST(request: Request) {
       { scores, saved },
       { headers: { 'Cache-Control': 'no-store, max-age=0' } }
     )
-  } catch {
+  } catch (err) {
+    console.error('[live-scores] Unhandled error:', err)
     return NextResponse.json({ scores: {}, saved: [] })
   }
 }
