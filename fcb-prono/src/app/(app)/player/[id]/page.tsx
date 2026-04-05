@@ -447,6 +447,11 @@ export default async function PlayerDetailPage({
             <h1 className="heading-display text-2xl md:text-3xl text-white">
               {player.display_name}
             </h1>
+            {player.tagline && (
+              <p className="text-sm text-gray-400 italic mt-1">
+                &ldquo;{player.tagline}&rdquo;
+              </p>
+            )}
             <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5 flex-wrap">
               {player.payment_status === "paid" && (
                 <svg
