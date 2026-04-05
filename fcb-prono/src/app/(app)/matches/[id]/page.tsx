@@ -156,9 +156,9 @@ export default async function MatchDetailPage({
   });
 
   if (result) {
-    predWithPoints.sort((a, b) => b.points - a.points || a.rank - b.rank);
+    predWithPoints.sort((a, b) => b.points - a.points || a.rank - b.rank || a.display_name.localeCompare(b.display_name));
   } else {
-    predWithPoints.sort((a, b) => a.rank - b.rank);
+    predWithPoints.sort((a, b) => a.rank - b.rank || a.display_name.localeCompare(b.display_name));
   }
 
   const predictionCount = predWithPoints.length;
