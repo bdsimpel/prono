@@ -315,7 +315,7 @@ export default function MeedoenPage() {
     }));
 
     try {
-      const res = await fetch("/api/submit", {
+      const res = await fetch("/api/emily", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
