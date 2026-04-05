@@ -57,6 +57,44 @@ export default async function StatistiekenPage() {
     fetchAll<PlayerSubgroup>(supabase, "player_subgroups", "player_id, subgroup_id"),
   ]);
 
+  // Augment editionScores with current year data from playerScores
+  const currentEdition = (editions ?? []).find(e => e.is_current);
+  const allEditionScores = [...(editionScores ?? [])];
+
+  if (currentEdition && (playerScores ?? []).length > 0) {
+    const scores = (playerScores ?? []).map(s => s.total_score);
+    const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const stdev = scores.length > 1
+      ? Math.sqrt(scores.reduce((sum, s) => sum + (s - mean) ** 2, 0) / (scores.length - 1)) || 1
+      : 1;
+
+    // Sort by total_score desc to compute ranks
+    const sorted = [...(playerScores ?? [])].sort((a, b) => b.total_score - a.total_score);
+
+    for (let i = 0; i < sorted.length; i++) {
+      const s = sorted[i];
+      const player = (players ?? []).find(p => p.id === s.user_id);
+      if (!player) continue;
+      const rank = i + 1;
+      const zScore = (s.total_score - mean) / stdev;
+      const percentile = Math.round((1 - rank / sorted.length) * 100);
+      const pointsPct = currentEdition.max_points
+        ? Math.round((s.total_score / currentEdition.max_points) * 10000) / 100
+        : null;
+
+      allEditionScores.push({
+        id: 0,
+        edition_id: currentEdition.id,
+        player_name: player.matched_historical_name || player.display_name,
+        rank,
+        total_score: s.total_score,
+        z_score: Math.round(zScore * 100) / 100,
+        percentile,
+        points_pct: pointsPct,
+      });
+    }
+  }
+
   return (
     <StatistiekenDashboard
       players={players ?? []}
@@ -71,7 +109,7 @@ export default async function StatistiekenPage() {
       matchEvents={matchEvents}
       footballPlayers={footballPlayers ?? []}
       editions={editions ?? []}
-      editionScores={editionScores ?? []}
+      editionScores={allEditionScores}
       subgroups={(subgroups ?? []) as Subgroup[]}
       playerSubgroups={playerSubgroups as PlayerSubgroup[]}
     />

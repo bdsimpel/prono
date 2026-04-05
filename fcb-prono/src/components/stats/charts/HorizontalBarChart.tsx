@@ -34,7 +34,7 @@ export default function HorizontalBarChart({
   const [openDetail, setOpenDetail] = useState<string | null>(null);
   const hasMore = items.length > defaultVisible;
   const visible = expanded ? items : items.slice(0, defaultVisible);
-  const maxValue = items[0]?.value ?? 1;
+  const maxValue = Math.max(...items.map(i => i.value), 1);
   const computedTotal = total ?? items.reduce((sum, i) => sum + i.value, 0);
   const hasDetails = items.some((i) => i.details && i.details.length > 0);
 
@@ -107,7 +107,7 @@ export default function HorizontalBarChart({
                   style={{
                     width: `${widthPct}%`,
                     opacity: 1,
-                    backgroundColor: item.icon ? barColor : inactiveBarColor,
+                    backgroundColor: (!item.icon && items.some(i => i.icon)) ? inactiveBarColor : barColor,
                   }}
                 />
               </div>

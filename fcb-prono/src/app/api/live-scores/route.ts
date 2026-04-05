@@ -43,7 +43,7 @@ interface ApiFootballFixture {
     id: number
     timestamp: number
     periods: { first: number | null; second: number | null }
-    status: { long: string; short: string; elapsed: number | null; extra: number | null }
+    status: { long: string; short: string; elapsed: number | null; extra: number | null }  // extra = added time minutes (e.g. 3 for 90+3')
   }
   teams: {
     home: { id: number; name: string; winner: boolean | null }
@@ -64,28 +64,30 @@ function parseApiFootballFixture(f: ApiFootballFixture): LiveScore | null {
     const statusCode = mapStatusCode(status.short)
     const statusType = mapStatusType(status.short)
     const elapsed = status.elapsed ?? 0
+    const extra = status.extra ?? 0
+    const totalMinutes = elapsed + extra // e.g. 90 + 3 = 93 during 90+3'
     const nowSec = Math.floor(Date.now() / 1000)
 
-    // Synthesize currentPeriodStartTimestamp from elapsed minute so calcMatchMinute() works
+    // Synthesize currentPeriodStartTimestamp from elapsed+extra so calcMatchMinute() works
     let timeInitial = 0
     let currentPeriodStartTimestamp: number | null = null
     if (statusType === 'inprogress' && statusCode !== 31 && statusCode !== 32 && statusCode !== 33) {
       if (statusCode === 7) {
-        // 2nd half: elapsed is e.g. 67, timeInitial is 2700 (45min in seconds)
+        // 2nd half: totalMinutes is e.g. 93 for 90+3'
         timeInitial = 2700
-        currentPeriodStartTimestamp = nowSec - ((elapsed - 45) * 60)
+        currentPeriodStartTimestamp = nowSec - ((totalMinutes - 45) * 60)
       } else if (statusCode === 41) {
         // Extra time 1st half
         timeInitial = 5400
-        currentPeriodStartTimestamp = nowSec - ((elapsed - 90) * 60)
+        currentPeriodStartTimestamp = nowSec - ((totalMinutes - 90) * 60)
       } else if (statusCode === 42) {
         // Extra time 2nd half
         timeInitial = 6300
-        currentPeriodStartTimestamp = nowSec - ((elapsed - 105) * 60)
+        currentPeriodStartTimestamp = nowSec - ((totalMinutes - 105) * 60)
       } else {
         // 1st half
         timeInitial = 0
-        currentPeriodStartTimestamp = nowSec - (elapsed * 60)
+        currentPeriodStartTimestamp = nowSec - (totalMinutes * 60)
       }
     }
 

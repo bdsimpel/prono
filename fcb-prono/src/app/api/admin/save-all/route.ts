@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // Insert result activity events for saved matches
+  // Insert result activity events only for newly saved matches (skip duplicates)
   const savedMatchIds = Object.entries(results)
     .filter(([, score]) => {
       const s = score as { home: string; away: string }
@@ -95,21 +95,32 @@ export async function POST(request: Request) {
     .map(([matchId]) => parseInt(matchId))
 
   if (savedMatchIds.length > 0) {
-    const [{ data: matchRows }, { data: teamRows }] = await Promise.all([
+    const [{ data: matchRows }, { data: teamRows }, { data: existingEvents }] = await Promise.all([
       serviceClient.from('matches').select('id, speeldag, home_team_id, away_team_id, is_cup_final').in('id', savedMatchIds),
       serviceClient.from('teams').select('id, name'),
+      serviceClient.from('activity_events').select('metadata').eq('type', 'result'),
     ])
+
+    // Find which matches already have activity events
+    const existingMatchIds = new Set(
+      (existingEvents || [])
+        .map(e => (e.metadata as { match_id?: number })?.match_id)
+        .filter(Boolean)
+    )
+
     const teamMap: Record<number, string> = {}
     for (const t of teamRows || []) teamMap[t.id] = t.name
 
-    const resultEvents = (matchRows || []).map(m => {
-      const s = results[String(m.id)] as { home: string; away: string }
-      return {
-        type: 'result' as const,
-        message: `${teamMap[m.home_team_id]} ${s.home} - ${s.away} ${teamMap[m.away_team_id]}`,
-        metadata: { match_id: m.id, speeldag: m.speeldag },
-      }
-    })
+    const resultEvents = (matchRows || [])
+      .filter(m => !existingMatchIds.has(m.id))
+      .map(m => {
+        const s = results[String(m.id)] as { home: string; away: string }
+        return {
+          type: 'result' as const,
+          message: `${teamMap[m.home_team_id]} ${s.home} - ${s.away} ${teamMap[m.away_team_id]}`,
+          metadata: { match_id: m.id, speeldag: m.speeldag },
+        }
+      })
 
     if (resultEvents.length > 0) {
       await serviceClient.from('activity_events').insert(resultEvents)

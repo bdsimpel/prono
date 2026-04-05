@@ -36,6 +36,7 @@ interface OverzichtTabProps {
 const GROUP_BY_OPTIONS = [
   { key: "favoriete_ploeg", label: "Favoriete ploeg" },
   { key: "speeldag", label: "Speeldag" },
+  { key: "wedstrijd", label: "Per wedstrijd" },
   { key: "po1_ploeg", label: "PO1 ploeg" },
   { key: "categorie", label: "Categorie" },
   { key: "groep", label: "Groep" },
@@ -339,6 +340,32 @@ export default function OverzichtTab({
       .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
   }, [scoredPredictions, matchMap]);
 
+  // ── Avg points per match ──
+  const avgByMatch: BarChartItem[] = useMemo(() => {
+    const groups: Record<number, { total: number; count: number; label: string; sortKey: number }> = {};
+    for (const sp of scoredPredictions) {
+      const match = matchMap.get(sp.match_id);
+      if (!match) continue;
+      if (!groups[sp.match_id]) {
+        const label = match.is_cup_final
+          ? `${match.home_team.name} - ${match.away_team.name} (Beker)`
+          : `${match.home_team.name} - ${match.away_team.name}`;
+        const sortKey = match.match_datetime ? new Date(match.match_datetime).getTime() : 0;
+        groups[sp.match_id] = { total: 0, count: 0, label, sortKey };
+      }
+      groups[sp.match_id].total += sp.points;
+      groups[sp.match_id].count += 1;
+    }
+    return Object.values(groups)
+      .map(({ total, count, label, sortKey }) => ({
+        label,
+        value: Math.round((total / count) * 10) / 10,
+        sortKey,
+      }))
+      .sort((a, b) => a.sortKey - b.sortKey)
+      .map(({ label, value }) => ({ label, value }));
+  }, [scoredPredictions, matchMap]);
+
   // ── Prediction category breakdown ──
   const categoryItems: BarChartItem[] = useMemo(() => {
     const counts: Record<string, number> = {
@@ -390,11 +417,13 @@ export default function OverzichtTab({
       ? avgByFavoriteTeam
       : groupBy === "speeldag"
         ? avgBySpeeldag
-        : groupBy === "po1_ploeg"
-          ? avgByPO1Team
-          : groupBy === "groep"
-            ? avgByGroup
-            : categoryItems;
+        : groupBy === "wedstrijd"
+          ? avgByMatch
+          : groupBy === "po1_ploeg"
+            ? avgByPO1Team
+            : groupBy === "groep"
+              ? avgByGroup
+              : categoryItems;
 
   const showPercentage = groupBy === "categorie";
   const formatValue =
@@ -405,6 +434,7 @@ export default function OverzichtTab({
   const groupBySubtitle: Record<GroupByKey, string> = {
     favoriete_ploeg: "Scoren fans van bepaalde ploegen beter?",
     speeldag: "Hoeveel punten verdienen spelers gemiddeld per speeldag?",
+    wedstrijd: "Hoeveel punten verdienen spelers gemiddeld per wedstrijd?",
     po1_ploeg: "Bij welke ploeg worden de meeste punten gescoord?",
     categorie: "Hoe nauwkeurig zijn de voorspellingen?",
     groep: "Welke groep scoort gemiddeld het best?",

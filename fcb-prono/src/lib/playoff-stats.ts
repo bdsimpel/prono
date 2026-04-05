@@ -393,15 +393,15 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
 
     let leaderIsCertain = allMatchesPlayed
     if (!leaderIsCertain) {
-      const allGKs = new Set([...Object.keys(playerCleanSheets), ...Object.keys(gkTeams)])
+      // Check if ANY team's GK (even ones with 0 clean sheets) could catch up
       let anyCanCatchUp = false
-
-      for (const gk of allGKs) {
-        const currentCS = playerCleanSheets[gk] || 0
-        if (currentCS === maxCS) continue
-        const gkTeamId = gkTeams[gk]
-        const remaining = gkTeamId ? (teamStats[gkTeamId]?.remainingMatches ?? 0) : remainingMatches
-        if (currentCS + remaining >= maxCS) {
+      for (const t of teams) {
+        const teamRemaining = teamStats[t.id]?.remainingMatches ?? 0
+        // Find this team's known GK clean sheets (if any)
+        const teamGK = Object.entries(gkTeams).find(([, tid]) => tid === t.id)?.[0]
+        const currentCS = teamGK ? (playerCleanSheets[teamGK] || 0) : 0
+        if (currentCS === maxCS) continue // already a leader
+        if (currentCS + teamRemaining >= maxCS) {
           anyCanCatchUp = true
           break
         }

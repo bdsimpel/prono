@@ -79,6 +79,7 @@ interface RankingRow {
   icon: React.ReactNode | null;
   stat: number;
   statLabel: string;
+  gamesPlayed?: number;
   predCount: number;
   predPct: number;
   predNames: string[];
@@ -141,22 +142,24 @@ export default function ExtraVragenTab({
 
   // Team stats (shared across team questions)
   const teamStats = useMemo(() => {
-    const stats: Record<number, { points: number; goalsFor: number; goalsAgainst: number }> = {};
+    const stats: Record<number, { points: number; goalsFor: number; goalsAgainst: number; played: number }> = {};
     for (const t of teams) {
-      stats[t.id] = { points: 0, goalsFor: 0, goalsAgainst: 0 };
+      stats[t.id] = { points: 0, goalsFor: 0, goalsAgainst: 0, played: 0 };
     }
     for (const r of results) {
       const match = matchById.get(r.match_id);
-      if (!match) continue;
+      if (!match || match.is_cup_final) continue;
       const hid = match.home_team_id;
       const aid = match.away_team_id;
       if (stats[hid]) {
+        stats[hid].played++;
         stats[hid].goalsFor += r.home_score;
         stats[hid].goalsAgainst += r.away_score;
         if (r.home_score > r.away_score) stats[hid].points += 3;
         else if (r.home_score === r.away_score) stats[hid].points += 1;
       }
       if (stats[aid]) {
+        stats[aid].played++;
         stats[aid].goalsFor += r.away_score;
         stats[aid].goalsAgainst += r.home_score;
         if (r.away_score > r.home_score) stats[aid].points += 3;
@@ -248,7 +251,8 @@ export default function ExtraVragenTab({
         const pct = totalPreds > 0 ? Math.round((teamPreds.length / totalPreds) * 100) : 0;
         return {
           key: t.name, label: t.name, icon: <TeamLogo name={t.name} size={18} />,
-          stat, statLabel, predCount: teamPreds.length, predPct: pct, predNames: teamPreds,
+          stat, statLabel, gamesPlayed: qKey !== "bekerwinnaar" ? s.played : undefined,
+          predCount: teamPreds.length, predPct: pct, predNames: teamPreds,
           isCorrect: correctAns.includes(t.name.toLowerCase().trim()),
         };
       }).sort((a, b) => {
@@ -322,6 +326,7 @@ function QuestionCard({
   const [showAll, setShowAll] = useState(false);
   const { rows, others, isTeamQ, totalPreds } = data;
   const statLabel = STAT_LABELS[question.question_key] ?? "";
+  const showGamesPlayed = rows.some(r => r.gamesPlayed != null);
 
   // Compute ranks with ties (same stat = same rank)
   const ranks = useMemo(() => {
@@ -360,6 +365,17 @@ function QuestionCard({
         </div>
       </div>
 
+      {/* Column headers */}
+      {(statLabel || showGamesPlayed) && (
+        <div className="flex items-center px-4 py-1.5 text-[10px] text-gray-600 uppercase tracking-wider">
+          <span className="w-5 shrink-0" />
+          <div className="flex-1 ml-2" />
+          {showGamesPlayed && <span className="w-6 text-center shrink-0">#G</span>}
+          {statLabel && <span className="shrink-0 w-[4.5rem] text-right">{statLabel}</span>}
+          <span className="min-w-[2.5rem] ml-2" />
+        </div>
+      )}
+
       {/* Rows */}
       <div className="divide-y divide-white/[0.04]">
         {visibleRows.map((row, i) => {
@@ -384,8 +400,13 @@ function QuestionCard({
                     )}
                   </div>
                 </div>
+                {showGamesPlayed && (
+                  <span className="text-xs text-gray-500 w-6 text-center shrink-0">
+                    {row.gamesPlayed ?? ""}
+                  </span>
+                )}
                 {statLabel && (
-                  <span className="text-sm font-bold text-white shrink-0 whitespace-nowrap ml-2">
+                  <span className="text-sm font-bold text-white shrink-0 whitespace-nowrap w-[4.5rem] text-right">
                     {row.statLabel}
                   </span>
                 )}
