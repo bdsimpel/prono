@@ -56,7 +56,6 @@ export default function YearSelector({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const yearsDropdownRef = useRef<HTMLDivElement>(null);
   const subgroupDropdownRef = useRef<HTMLDivElement>(null);
-  const firstMatchRef = useRef<HTMLElement>(null);
 
   const historicalEditions = editions
     .filter((e) => !e.is_current)
@@ -124,18 +123,6 @@ export default function YearSelector({
   const matchesSearch = (name: string) =>
     !searchQuery || name.toLowerCase().includes(searchQuery.toLowerCase());
 
-  // Track if first match ref has been assigned this render
-  const firstMatchAssigned = useRef(false);
-
-  // Auto-scroll to first match when search changes
-  useEffect(() => {
-    firstMatchAssigned.current = false;
-    if (searchQuery) {
-      requestAnimationFrame(() => {
-        firstMatchRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
-    }
-  }, [searchQuery]);
 
   // Reset search when changing views or filters
   useEffect(() => {
@@ -143,9 +130,6 @@ export default function YearSelector({
   }, [selectedView, selectedSubgroup]);
 
   const selectedHistoricalYear = typeof selectedView === "number" ? selectedView : null;
-
-  // Reset before render so first match ref is assigned to the first matching row
-  firstMatchAssigned.current = false;
 
   return (
     <>
@@ -408,21 +392,13 @@ export default function YearSelector({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCurrentStandings.map((row, _idx) => {
+                  {filteredCurrentStandings.map((row) => {
                     const isMatch = matchesSearch(row.display_name);
-                    const isFirstMatch = searchQuery && isMatch && !firstMatchAssigned.current;
-                    if (isFirstMatch) firstMatchAssigned.current = true;
+                    if (searchQuery && !isMatch) return null;
                     return (
                     <tr
                       key={row.user_id}
-                      ref={isFirstMatch ? (el) => { (firstMatchRef as React.MutableRefObject<HTMLElement | null>).current = el; } : undefined}
-                      className={`group border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors ${
-                        searchQuery
-                          ? isMatch
-                            ? "bg-cb-blue/10 border-l-2 border-l-cb-blue"
-                            : "opacity-40"
-                          : ""
-                      }`}
+                      className="group border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
                     >
                       <td className="px-5 py-3">
                         <a href={`/player/${row.user_id}`} className="block">
@@ -482,23 +458,14 @@ export default function YearSelector({
                   <span className="shrink-0">Score</span>
                   <span className="w-4 shrink-0" />
                 </div>
-                {(() => { firstMatchAssigned.current = false; return null; })()}
                 {filteredCurrentStandings.map((row) => {
                   const isMatch = matchesSearch(row.display_name);
-                  const isFirstMatch = searchQuery && isMatch && !firstMatchAssigned.current;
-                  if (isFirstMatch) firstMatchAssigned.current = true;
+                  if (searchQuery && !isMatch) return null;
                   return (
                   <a
                     key={row.user_id}
-                    ref={isFirstMatch ? (el) => { (firstMatchRef as React.MutableRefObject<HTMLElement | null>).current = el; } : undefined}
                     href={`/player/${row.user_id}`}
-                    className={`flex items-center px-4 py-3 gap-3 hover:bg-white/[0.02] transition-colors ${
-                      searchQuery
-                        ? isMatch
-                          ? "bg-cb-blue/10 border-l-2 border-l-cb-blue"
-                          : "opacity-40"
-                        : ""
-                    }`}
+                    className="flex items-center px-4 py-3 gap-3 hover:bg-white/[0.02] transition-colors"
                   >
                     <span
                       className={`heading-display text-base w-7 text-right shrink-0 ${getRankColor(row.rank)}`}
