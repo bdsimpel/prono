@@ -130,8 +130,10 @@ export default function YearSelector({
   // Auto-scroll to first match when search changes
   useEffect(() => {
     firstMatchAssigned.current = false;
-    if (searchQuery && firstMatchRef.current) {
-      firstMatchRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (searchQuery) {
+      requestAnimationFrame(() => {
+        firstMatchRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
     }
   }, [searchQuery]);
 
