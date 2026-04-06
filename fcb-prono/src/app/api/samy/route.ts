@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       }))
 
     if (predRows.length > 0) {
-      const { error: predError } = await serviceClient.from('predictions').insert(predRows)
+      const { error: predError } = await serviceClient.from('predictions').upsert(predRows, { onConflict: 'user_id,match_id' })
       if (predError) return NextResponse.json({ error: predError.message }, { status: 500 })
     }
 
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       }))
 
     if (extraRows.length > 0) {
-      const { error: extraError } = await serviceClient.from('extra_predictions').insert(extraRows)
+      const { error: extraError } = await serviceClient.from('extra_predictions').upsert(extraRows, { onConflict: 'user_id,question_id' })
       if (extraError) return NextResponse.json({ error: extraError.message }, { status: 500 })
     }
 
