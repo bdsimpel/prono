@@ -295,7 +295,12 @@ export default async function PlayerDetailPage({
     })
     .sort((a, b) => b.year - a.year);
 
-  // Add current year to history if player has a score
+  // Compute best rank from historical editions only (before current year)
+  const bestRank = playerHistory.length > 0
+    ? Math.min(...playerHistory.map((h) => h.rank))
+    : null;
+
+  // Add current year to history for display
   const currentEdition = (editions || []).find((e) => e.is_current);
   if (playerScore && playerScore.total_score > 0 && rank > 0 && currentEdition) {
     playerHistory.unshift({
@@ -305,10 +310,6 @@ export default async function PlayerDetailPage({
       player_count: currentEdition.player_count ?? (allScores?.length ?? 0),
     });
   }
-
-  const bestRank = playerHistory.length > 0
-    ? Math.min(...playerHistory.map((h) => h.rank))
-    : null;
 
   const gamesPlayed = (predictions || []).filter(
     (p) => resultMap[p.match_id],
