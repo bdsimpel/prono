@@ -73,7 +73,7 @@ export default function SamyPage() {
     const byGoals = [...footballPlayers].sort((a, b) => b.goals - a.goals)
     const byAssists = [...footballPlayers].sort((a, b) => b.assists - a.assists)
     const byCS = [...footballPlayers]
-      .filter(p => p.position === 'Goalkeeper')
+      .filter(p => p.position === 'GK')
       .sort((a, b) => (b.clean_sheets ?? 0) - (a.clean_sheets ?? 0))
     return {
       goals: byGoals.map(p => ({ name: p.name, team: p.team, stat: p.goals })),
