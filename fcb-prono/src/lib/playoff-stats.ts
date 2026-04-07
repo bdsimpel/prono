@@ -196,7 +196,7 @@ export async function processMatchEvents(
     events.push({
       match_id: matchId,
       event_type: 'goal',
-      player_name: goal.playerName,
+      player_name: playerMatch?.name ?? goal.playerName,
       football_player_id: playerMatch?.id ?? null,
       team_id: scorerTeamId,
       minute: goal.minute || null,
@@ -208,7 +208,7 @@ export async function processMatchEvents(
       events.push({
         match_id: matchId,
         event_type: 'assist',
-        player_name: goal.assistName,
+        player_name: assistMatch?.name ?? goal.assistName,
         football_player_id: assistMatch?.id ?? null,
         team_id: scorerTeamId,
         minute: goal.minute || null,
@@ -235,7 +235,7 @@ export async function processMatchEvents(
       events.push({
         match_id: matchId,
         event_type: 'clean_sheet',
-        player_name: gks.homeGK,
+        player_name: gkMatch?.name ?? gks.homeGK,
         football_player_id: gkMatch?.id ?? null,
         team_id: apiHomeTeamId,
         minute: null,
@@ -249,7 +249,7 @@ export async function processMatchEvents(
       events.push({
         match_id: matchId,
         event_type: 'clean_sheet',
-        player_name: gks.awayGK,
+        player_name: gkMatch?.name ?? gks.awayGK,
         football_player_id: gkMatch?.id ?? null,
         team_id: apiAwayTeamId,
         minute: null,
