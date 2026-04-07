@@ -273,7 +273,7 @@ export default function ExtraVragenTab({
             predNames: playerPreds, isCorrect: correctAns.includes(p.name.toLowerCase().trim()),
           };
         })
-        .sort((a, b) => b.stat - a.stat || a.label.localeCompare(b.label));
+        .sort((a, b) => b.stat - a.stat || b.predCount - a.predCount || a.label.localeCompare(b.label));
     }
 
     // Others

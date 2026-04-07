@@ -69,6 +69,7 @@ interface MatchGoal {
   playerName: string
   assistName: string | null
   minute: number
+  seq: number
   isHome: boolean
   isOwnGoal: boolean
 }
@@ -81,10 +82,11 @@ async function fetchMatchEvents(fixtureId: number): Promise<MatchGoal[]> {
     const goals = (data.response || []).filter(
       (e: { type: string }) => e.type === 'Goal'
     )
-    return goals.map((g: { player?: { name?: string }; assist?: { name?: string | null }; time?: { elapsed?: number }; team?: { name?: string }; detail?: string; comments?: string }) => ({
+    return goals.map((g: { player?: { name?: string }; assist?: { name?: string | null }; time?: { elapsed?: number }; team?: { name?: string }; detail?: string; comments?: string }, idx: number) => ({
       playerName: g.player?.name || 'Unknown',
       assistName: g.assist?.name || null,
       minute: g.time?.elapsed || 0,
+      seq: idx + 1,
       isHome: true, // Will be resolved later via team name matching
       isOwnGoal: g.detail === 'Own Goal',
       _teamName: g.team?.name || '', // Store for team matching
@@ -169,6 +171,7 @@ export async function processMatchEvents(
     football_player_id: number | null
     team_id: number
     minute: number | null
+    seq: number
   }[] = []
 
   for (const goal of goals) {
@@ -197,6 +200,7 @@ export async function processMatchEvents(
       football_player_id: playerMatch?.id ?? null,
       team_id: scorerTeamId,
       minute: goal.minute || null,
+      seq: goal.seq,
     })
 
     if (goal.assistName) {
@@ -208,6 +212,7 @@ export async function processMatchEvents(
         football_player_id: assistMatch?.id ?? null,
         team_id: scorerTeamId,
         minute: goal.minute || null,
+        seq: goal.seq,
       })
     }
   }
@@ -234,6 +239,7 @@ export async function processMatchEvents(
         football_player_id: gkMatch?.id ?? null,
         team_id: apiHomeTeamId,
         minute: null,
+        seq: 0,
       })
     }
 
@@ -247,6 +253,7 @@ export async function processMatchEvents(
         football_player_id: gkMatch?.id ?? null,
         team_id: apiAwayTeamId,
         minute: null,
+        seq: 0,
       })
     }
   }
@@ -255,7 +262,7 @@ export async function processMatchEvents(
   if (events.length > 0) {
     await serviceClient
       .from('match_events')
-      .upsert(events, { onConflict: 'match_id,event_type,player_name,minute', ignoreDuplicates: true })
+      .upsert(events, { onConflict: 'match_id,event_type,player_name,seq', ignoreDuplicates: true })
   }
 
   // Check certainty and update extra question answers

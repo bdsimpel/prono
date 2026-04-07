@@ -414,6 +414,30 @@ export async function POST(request: Request) {
           }
         }
 
+        // Re-process events for recently auto-saved matches (catch late-arriving API data)
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+        const { data: recentResults } = await serviceClient
+          .from('results')
+          .select('match_id')
+          .eq('source', 'auto')
+          .gte('entered_at', tenMinutesAgo)
+          .not('match_id', 'in', `(${saved.join(',') || '0'})`)
+
+        if (recentResults && recentResults.length > 0) {
+          const recentMatchIds = recentResults.map(r => r.match_id)
+          const { data: recentMatches } = await serviceClient
+            .from('matches')
+            .select('id, api_football_fixture_id, home_team_id, away_team_id, is_cup_final')
+            .in('id', recentMatchIds)
+            .eq('is_cup_final', false)
+            .not('api_football_fixture_id', 'is', null)
+
+          for (const m of recentMatches || []) {
+            await processMatchEvents(serviceClient, m.id, m.api_football_fixture_id!, m.home_team_id, m.away_team_id)
+          }
+          if (recentMatches && recentMatches.length > 0) needsRecalc = true
+        }
+
         if (needsRecalc) {
           await recalculateScores(serviceClient)
           revalidatePath('/', 'layout')

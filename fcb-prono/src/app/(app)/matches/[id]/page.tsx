@@ -5,6 +5,7 @@ import Link from "next/link";
 import ForceScrollTop from "@/components/ForceScrollTop";
 import LiveMatchHeader from "@/components/LiveMatchHeader";
 import LivePredictionList from "@/components/LivePredictionList";
+import MatchPredictionList from "@/components/MatchPredictionList";
 
 export const revalidate = false;
 
@@ -264,51 +265,12 @@ export default async function MatchDetailPage({
             VOORSPELLINGEN
           </h2>
 
-          <div className="space-y-2">
-            {predWithPoints.length === 0 ? (
-              <div className="glass-card-subtle p-12 text-center text-gray-600 text-sm">
-                Nog geen voorspellingen voor deze wedstrijd.
-              </div>
-            ) : (
-              predWithPoints.map((pred) => (
-                <div key={pred.id} className="glass-card-subtle p-3 md:p-4">
-                  <div className="flex items-center justify-between gap-2 md:gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm text-gray-200 font-medium truncate">
-                        {pred.display_name}
-                      </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                        <span>
-                          <span className="text-gray-500">Prono: </span>
-                          <span className="text-gray-300 font-bold">
-                            {shouldHide ? (
-                              <span className="blur-sm select-none">?-?</span>
-                            ) : (
-                              <>{pred.home_score}-{pred.away_score}</>
-                            )}
-                          </span>
-                        </span>
-                        <span>
-                          <span className="text-gray-500">Uitslag: </span>
-                          <span className="text-gray-300 font-bold">
-                            {result.home_score}-{result.away_score}
-                          </span>
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-                      {getCategoryBadge(pred.category)}
-                      <span
-                        className={`heading-display text-lg w-10 text-right ${getCategoryPointColor(pred.category)}`}
-                      >
-                        +{pred.points}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <MatchPredictionList
+            predictions={predWithPoints}
+            resultHome={result.home_score}
+            resultAway={result.away_score}
+            shouldHide={shouldHide}
+          />
         </>
       ) : (
         <LivePredictionList

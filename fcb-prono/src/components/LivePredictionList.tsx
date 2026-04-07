@@ -84,6 +84,7 @@ export default function LivePredictionList({
   shouldHide,
 }: Props) {
   const [mountTime] = useState(() => Date.now())
+  const [search, setSearch] = useState('')
   const isMock = process.env.NEXT_PUBLIC_LIVE_MOCK === 'true'
 
   const eventIdMap = useMemo(() => {
@@ -118,6 +119,12 @@ export default function LivePredictionList({
     withPoints.sort((a, b) => b.points - a.points || a.rank - b.rank)
     return withPoints
   }, [predictions, hasLiveScore, live])
+
+  const filtered = useMemo(() => {
+    if (!search) return augmented
+    const q = search.toLowerCase()
+    return augmented.filter(p => p.display_name.toLowerCase().includes(q))
+  }, [augmented, search])
 
   // Stats
   const predictionCount = augmented.length
@@ -160,18 +167,40 @@ export default function LivePredictionList({
         )}
       </div>
 
-      {/* Predictions */}
+      {/* Search + Predictions */}
       <h2 className="heading-display text-xl text-gray-400 mb-3">
         VOORSPELLINGEN
       </h2>
 
+      {augmented.length > 10 && (
+        <div className="mb-3 max-w-xs">
+          <div className="relative">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Zoek deelnemer..."
+              className="w-full px-4 py-2 pr-8 bg-cb-dark border border-white/[0.06] rounded-lg text-white text-sm focus:outline-none focus:border-cb-blue transition-colors placeholder:text-gray-600"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-sm"
+              >
+                &times;
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
-        {augmented.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="glass-card-subtle p-12 text-center text-gray-600 text-sm">
-            Nog geen voorspellingen voor deze wedstrijd.
+            {search ? 'Geen resultaten gevonden.' : 'Nog geen voorspellingen voor deze wedstrijd.'}
           </div>
         ) : (
-          augmented.map((pred) => (
+          filtered.map((pred) => (
             <div key={pred.id} className="glass-card-subtle p-3 md:p-4">
               <div className="flex items-center justify-between gap-2 md:gap-4">
                 <div className="flex-1 min-w-0">
