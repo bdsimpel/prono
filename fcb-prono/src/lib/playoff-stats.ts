@@ -5,6 +5,51 @@ import { fetchAll } from './supabase/fetch-all'
 const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
 const TOTAL_LEAGUE_MATCHES = 30
 
+/**
+ * Check if the clean sheet leader is mathematically certain.
+ * Ties count as winners — only block if someone can EXCEED the leader's count.
+ */
+export function isCleanSheetLeaderCertain(
+  maxCS: number,
+  teams: { id: number; remainingMatches: number }[],
+  gkTeams: Record<string, number>, // gkName → teamId
+  playerCleanSheets: Record<string, number>,
+): boolean {
+  // Check if any non-leader can exceed maxCS
+  for (const t of teams) {
+    const teamGK = Object.entries(gkTeams).find(([, tid]) => tid === t.id)?.[0]
+    const currentCS = teamGK ? (playerCleanSheets[teamGK] || 0) : 0
+    if (currentCS === maxCS) continue
+    if (currentCS + t.remainingMatches > maxCS) return false
+  }
+  // If multiple GKs are tied, check if any could pull ahead (diverge)
+  const tiedGKs = Object.entries(playerCleanSheets).filter(([, cs]) => cs === maxCS)
+  if (tiedGKs.length > 1 && tiedGKs.some(([name]) => {
+    const teamId = gkTeams[name]
+    return teamId != null && (teams.find(t => t.id === teamId)?.remainingMatches ?? 0) > 0
+  })) return false
+  return true
+}
+
+/**
+ * Check if the best team leader is mathematically certain.
+ * Ties count as winners — only block if someone can EXCEED the leader's points.
+ */
+export function isBestTeamLeaderCertain(
+  teamPoints: { points: number; remaining: number }[],
+): boolean {
+  const maxPoints = Math.max(...teamPoints.map(t => t.points))
+  const leaders = teamPoints.filter(t => t.points === maxPoints)
+  // Check if any non-leader can exceed maxPoints
+  for (const t of teamPoints) {
+    if (t.points === maxPoints) continue
+    if (t.points + t.remaining * 3 > maxPoints) return false
+  }
+  // If multiple leaders are tied, check if any could pull ahead
+  if (leaders.length > 1 && leaders.some(t => t.remaining > 0)) return false
+  return true
+}
+
 async function fetchApiFootball(path: string): Promise<Response | null> {
   try {
     const r = await fetch(`${API_FOOTBALL_BASE}${path}`, {
@@ -398,24 +443,8 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
       }
     }
 
-    let leaderIsCertain = allMatchesPlayed
-    if (!leaderIsCertain) {
-      // Check if ANY team's GK (even ones with 0 clean sheets) could catch up
-      let anyCanCatchUp = false
-      for (const t of teams) {
-        const teamRemaining = teamStats[t.id]?.remainingMatches ?? 0
-        // Find this team's known GK clean sheets (if any)
-        const teamGK = Object.entries(gkTeams).find(([, tid]) => tid === t.id)?.[0]
-        const currentCS = teamGK ? (playerCleanSheets[teamGK] || 0) : 0
-        if (currentCS === maxCS) continue // already a leader
-        if (currentCS + teamRemaining >= maxCS) {
-          anyCanCatchUp = true
-          break
-        }
-      }
-
-      leaderIsCertain = !anyCanCatchUp
-    }
+    const teamsWithRemaining = teams.map(t => ({ id: t.id, remainingMatches: teamStats[t.id]?.remainingMatches ?? 0 }))
+    const leaderIsCertain = allMatchesPlayed || isCleanSheetLeaderCertain(maxCS, teamsWithRemaining, gkTeams, playerCleanSheets)
 
     if (leaderIsCertain) {
       const topCS = Object.entries(playerCleanSheets).filter(([, cs]) => cs === maxCS).map(([name]) => name)
@@ -428,15 +457,7 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
     const teamPoints = teams.map(t => ({ id: t.id, name: t.name, points: teamStats[t.id]?.points ?? 0, remaining: teamStats[t.id]?.remainingMatches ?? 0 }))
     const maxPoints = Math.max(...teamPoints.map(t => t.points))
     const leaders = teamPoints.filter(t => t.points === maxPoints)
-
-    let certain = true
-    for (const t of teamPoints) {
-      if (t.points === maxPoints) continue
-      if (t.points + t.remaining * 3 >= maxPoints) {
-        certain = false
-        break
-      }
-    }
+    const certain = isBestTeamLeaderCertain(teamPoints)
 
     if (certain && leaders.length > 0) {
       await setAnswers('beste_ploeg_poi', leaders.map(t => t.name))
