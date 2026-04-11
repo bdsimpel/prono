@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import LiveMatchList from "@/components/LiveMatchList";
+import MatchesContent from "@/components/MatchesContent";
 
 export const revalidate = false;
 
@@ -9,13 +9,6 @@ function formatMatchDate(datetime: string) {
   const date = d.toLocaleDateString("nl-BE", { day: "numeric", month: "short", timeZone: "Europe/Brussels" });
   const time = d.toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Brussels" });
   return { day, date, time };
-}
-
-function withFormatted<T extends { match_datetime: string | null }>(matches: T[]) {
-  return matches.map(m => ({
-    ...m,
-    formatted: m.match_datetime ? formatMatchDate(m.match_datetime) : undefined,
-  }));
 }
 
 export default async function MatchesPage() {
@@ -42,19 +35,8 @@ export default async function MatchesPage() {
     };
   }
 
-  const played: typeof matches = [];
-  const upcoming: typeof matches = [];
-
-  for (const m of matches || []) {
-    if (resultMap[m.id]) {
-      played!.push(m);
-    } else {
-      upcoming!.push(m);
-    }
-  }
-
   const totalMatches = matches?.length ?? 0;
-  const playedCount = played?.length ?? 0;
+  const playedCount = (matches || []).filter((m) => resultMap[m.id]).length;
 
   // Group matches by "round" (speeldag or cup final)
   type MatchRound = { label: string; key: string; matches: NonNullable<typeof matches>; firstDatetime: number };
@@ -73,23 +55,20 @@ export default async function MatchesPage() {
   }
   const rounds = Array.from(roundsMap.values()).sort((a, b) => a.firstDatetime - b.firstDatetime);
 
-  // Find the "current" round:
-  // A round becomes current 2 days before its first match.
-  // It stays current until 2 days before the NEXT round's first match.
-  const now = Date.now();
-  const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
-  let currentRound: MatchRound | null = rounds[0] ?? null;
-  for (let i = 0; i < rounds.length; i++) {
-    const activatesAt = rounds[i].firstDatetime - TWO_DAYS;
-    if (now >= activatesAt) {
-      currentRound = rounds[i];
-    }
-  }
-
-  // Separate current round matches from the rest
-  const currentRoundMatchIds = new Set(currentRound?.matches.map(m => m.id) ?? []);
-  const upcomingFiltered = upcoming?.filter(m => !currentRoundMatchIds.has(m.id)) ?? [];
-  const playedFiltered = played?.filter(m => !currentRoundMatchIds.has(m.id)) ?? [];
+  // Pre-format dates server-side and shape for client component
+  const formattedRounds = rounds.map((r) => ({
+    ...r,
+    matches: r.matches.map((m) => ({
+      id: m.id,
+      home_team: { name: m.home_team.name },
+      away_team: { name: m.away_team.name },
+      match_datetime: m.match_datetime,
+      speeldag: m.speeldag,
+      is_cup_final: m.is_cup_final,
+      api_football_fixture_id: m.api_football_fixture_id,
+      formatted: m.match_datetime ? formatMatchDate(m.match_datetime) : undefined,
+    })),
+  }));
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
@@ -132,36 +111,7 @@ export default async function MatchesPage() {
         </div>
       </div>
 
-      {/* Current round */}
-      {currentRound && (
-        <div className="mb-10">
-          <h2 className="heading-display text-xl text-white mb-3 flex items-center gap-2">
-            <span className="w-1.5 h-5 bg-cb-blue rounded-full" />
-            {currentRound.label}
-          </h2>
-          <LiveMatchList matches={withFormatted(currentRound.matches)} resultMap={resultMap} variant="current" />
-        </div>
-      )}
-
-      {/* Upcoming matches */}
-      {upcomingFiltered.length > 0 && (
-        <div className="mb-10">
-          <h2 className="heading-display text-xl text-gray-400 mb-3">
-            KOMENDE WEDSTRIJDEN
-          </h2>
-          <LiveMatchList matches={withFormatted(upcomingFiltered)} resultMap={resultMap} variant="upcoming" />
-        </div>
-      )}
-
-      {/* Played matches */}
-      {playedFiltered.length > 0 && (
-        <div>
-          <h2 className="heading-display text-xl text-gray-400 mb-3">
-            GESPEELD
-          </h2>
-          <LiveMatchList matches={withFormatted(playedFiltered)} resultMap={resultMap} variant="played" />
-        </div>
-      )}
+      <MatchesContent rounds={formattedRounds} resultMap={resultMap} />
 
       {(!matches || matches.length === 0) && (
         <div className="glass-card-subtle p-12 text-center text-gray-500">

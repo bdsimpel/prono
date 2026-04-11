@@ -3,7 +3,7 @@ import { calculateMatchPoints, checkExtraAnswer } from "@/lib/scoring";
 import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import LivePlayerPredictions from "@/components/LivePlayerPredictions";
+import PlayerPredictionsContent from "@/components/PlayerPredictionsContent";
 
 export const revalidate = false;
 
@@ -316,11 +316,10 @@ export default async function PlayerDetailPage({
   ).length;
 
   // Group predictions by round (same logic as matches page)
-  type PredWithMatch = NonNullable<typeof predictions>[number];
   type PredRound = {
     label: string;
     key: string;
-    predictions: PredWithMatch[];
+    predictions: { id: number; match_id: number; home_score: number; away_score: number; home_team_name: string; away_team_name: string; match_datetime: string | null; api_football_fixture_id: number | null }[];
     firstDatetime: number;
   };
   const roundsMap = new Map<string, PredRound>();
@@ -329,6 +328,7 @@ export default async function PlayerDetailPage({
       speeldag: number | null;
       is_cup_final: boolean;
       match_datetime: string | null;
+      api_football_fixture_id: number | null;
       home_team: { name: string; short_name: string };
       away_team: { name: string; short_name: string };
     };
@@ -346,44 +346,25 @@ export default async function PlayerDetailPage({
           : Infinity,
       });
     }
-    roundsMap.get(key)!.predictions.push(pred);
+    roundsMap.get(key)!.predictions.push({
+      id: pred.id,
+      match_id: pred.match_id,
+      home_score: pred.home_score,
+      away_score: pred.away_score,
+      home_team_name: match.home_team.name,
+      away_team_name: match.away_team.name,
+      match_datetime: match.match_datetime,
+      api_football_fixture_id: match.api_football_fixture_id,
+    });
     if (match.match_datetime) {
       const t = new Date(match.match_datetime).getTime();
       if (t < roundsMap.get(key)!.firstDatetime)
         roundsMap.get(key)!.firstDatetime = t;
     }
   }
-  const rounds = Array.from(roundsMap.values()).sort(
+  const predRounds = Array.from(roundsMap.values()).sort(
     (a, b) => a.firstDatetime - b.firstDatetime,
   );
-
-  // Find current round (activates 2 days before first match)
-  const now = Date.now();
-  const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
-  let currentRound: PredRound | null = rounds[0] ?? null;
-  for (let i = 0; i < rounds.length; i++) {
-    const activatesAt = rounds[i].firstDatetime - TWO_DAYS;
-    if (now >= activatesAt) {
-      currentRound = rounds[i];
-    }
-  }
-
-  const currentRoundKeys = new Set(currentRound ? [currentRound.key] : []);
-  const currentPredictions = currentRound?.predictions ?? [];
-  const upcomingPredictions = rounds
-    .filter(
-      (r) =>
-        !currentRoundKeys.has(r.key) &&
-        r.predictions.some((p) => !resultMap[p.match_id]),
-    )
-    .flatMap((r) => r.predictions);
-  const playedPredictions = rounds
-    .filter(
-      (r) =>
-        !currentRoundKeys.has(r.key) &&
-        r.predictions.every((p) => resultMap[p.match_id]),
-    )
-    .flatMap((r) => r.predictions);
 
   const memberSince = player.created_at
     ? new Date(player.created_at).toLocaleDateString("nl-BE", {
@@ -596,66 +577,12 @@ export default async function PlayerDetailPage({
       )}
 
       {/* Match predictions */}
-      {/* Current round */}
-      {currentRound && currentPredictions.length > 0 && (
-        <div className="mb-8">
-          <h3 className="heading-display text-lg text-white mb-3 flex items-center gap-2">
-            <span className="w-1.5 h-5 bg-cb-blue rounded-full" />
-            {currentRound.label}
-          </h3>
-          <LivePlayerPredictions
-            predictions={currentPredictions.map((pred) => {
-              const m = pred.matches as { match_datetime: string | null; api_football_fixture_id: number | null; home_team: { name: string }; away_team: { name: string } };
-              return { id: pred.id, match_id: pred.match_id, home_score: pred.home_score, away_score: pred.away_score, home_team_name: m.home_team.name, away_team_name: m.away_team.name, match_datetime: m.match_datetime, api_football_fixture_id: m.api_football_fixture_id };
-            })}
-            resultMap={resultMap}
-            shouldHide={shouldHide}
-            section="current"
-          />
-        </div>
-      )}
-
-      {/* Upcoming predictions */}
-      {upcomingPredictions.length > 0 && (
-        <div className="mb-8">
-          <h3 className="heading-display text-lg text-gray-400 mb-3">
-            KOMENDE WEDSTRIJDEN
-          </h3>
-          <LivePlayerPredictions
-            predictions={upcomingPredictions.map((pred) => {
-              const m = pred.matches as { match_datetime: string | null; api_football_fixture_id: number | null; home_team: { name: string }; away_team: { name: string } };
-              return { id: pred.id, match_id: pred.match_id, home_score: pred.home_score, away_score: pred.away_score, home_team_name: m.home_team.name, away_team_name: m.away_team.name, match_datetime: m.match_datetime, api_football_fixture_id: m.api_football_fixture_id };
-            })}
-            resultMap={resultMap}
-            shouldHide={shouldHide}
-            section="upcoming"
-          />
-        </div>
-      )}
-
-      {/* Played predictions */}
-      {playedPredictions.length > 0 && (
-        <div className="mb-10">
-          <h3 className="heading-display text-lg text-gray-400 mb-3">
-            GESPEELD
-          </h3>
-          <LivePlayerPredictions
-            predictions={playedPredictions.map((pred) => {
-              const m = pred.matches as { match_datetime: string | null; api_football_fixture_id: number | null; home_team: { name: string }; away_team: { name: string } };
-              return { id: pred.id, match_id: pred.match_id, home_score: pred.home_score, away_score: pred.away_score, home_team_name: m.home_team.name, away_team_name: m.away_team.name, match_datetime: m.match_datetime, api_football_fixture_id: m.api_football_fixture_id };
-            })}
-            resultMap={resultMap}
-            shouldHide={shouldHide}
-            section="played"
-          />
-        </div>
-      )}
-
-      {(!predictions || predictions.length === 0) && (
-        <div className="glass-card-subtle p-12 text-center text-gray-600 text-sm mb-10">
-          Geen voorspellingen
-        </div>
-      )}
+      <PlayerPredictionsContent
+        rounds={predRounds}
+        resultMap={resultMap}
+        shouldHide={shouldHide}
+        hasPredictions={!!predictions && predictions.length > 0}
+      />
 
       {/* Extra questions */}
       <div className="mb-4">

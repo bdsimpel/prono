@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import TeamLogo from "@/components/TeamLogo";
 import type { Team, Match, Result, Prediction } from "@/lib/types";
+import { useCurrentRound } from "@/hooks/useCurrentRound";
 
 interface PlayerRow {
   id: string;
@@ -66,20 +67,19 @@ export default function WedstrijdenTab({
     return [...map.values()].sort((a, b) => a.firstDatetime - b.firstDatetime);
   }, [matches]);
 
-  // Determine current speeldag (2 days before first match)
-  const currentSpeeldagKey = useMemo(() => {
-    const now = Date.now();
-    const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
-    let current = speeldagen[0]?.key ?? "";
-    for (const sd of speeldagen) {
-      if (now >= sd.firstDatetime - TWO_DAYS) {
-        current = sd.key;
-      }
-    }
-    return current;
-  }, [speeldagen]);
+  // Determine current speeldag (2 days before first match, updates on tab focus)
+  const { currentRoundKey } = useCurrentRound(speeldagen);
 
-  const [selectedKey, setSelectedKey] = useState<string>(currentSpeeldagKey);
+  const [selectedKey, setSelectedKey] = useState<string>(currentRoundKey ?? speeldagen[0]?.key ?? "");
+
+  // Sync dropdown when current round changes (e.g. on tab focus)
+  const [prevRoundKey, setPrevRoundKey] = useState(currentRoundKey);
+  if (currentRoundKey !== prevRoundKey) {
+    setPrevRoundKey(currentRoundKey);
+    if (currentRoundKey && selectedKey === prevRoundKey) {
+      setSelectedKey(currentRoundKey);
+    }
+  }
 
   const selectedSpeeldag = speeldagen.find((s) => s.key === selectedKey);
 
