@@ -148,63 +148,66 @@ export default function ReeksenTab({
         )}
       </div>
 
-      {/* Active streaks */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-1.5 h-5 bg-cb-gold rounded-full" />
-          <h3 className="heading-display text-lg text-white flex-1">
-            ACTIEVE REEKSEN
-          </h3>
-          <StatsLegend />
+      {/* Leaderboards side by side on desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+        {/* Active streaks */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1.5 h-5 bg-cb-gold rounded-full" />
+            <h3 className="heading-display text-lg text-white flex-1">
+              ACTIEVE REEKSEN
+            </h3>
+            <StatsLegend />
+          </div>
+          <div className="glass-card-subtle p-2 md:p-4">
+            {visibleActive.length > 0 ? (
+              <div className="divide-y divide-white/[0.04]">
+                {visibleActive.map((s, i) => (
+                  <PlayerStreakCard
+                    key={s.userId}
+                    rank={i + 1}
+                    userId={s.userId}
+                    displayName={s.displayName}
+                    streak={s.currentStreak}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-600 text-sm py-8">
+                {query ? "Geen resultaten" : "Geen actieve reeksen"}
+              </p>
+            )}
+          </div>
         </div>
-        <div className="glass-card-subtle p-2 md:p-4">
-          {visibleActive.length > 0 ? (
-            <div className="divide-y divide-white/[0.04]">
-              {visibleActive.map((s, i) => (
-                <PlayerStreakCard
-                  key={s.userId}
-                  rank={i + 1}
-                  userId={s.userId}
-                  displayName={s.displayName}
-                  streak={s.currentStreak}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-gray-600 text-sm py-8">
-              {query ? "Geen resultaten" : "Geen actieve reeksen"}
-            </p>
-          )}
-        </div>
-      </div>
 
-      {/* Longest streaks ever */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-1.5 h-5 bg-cb-blue rounded-full" />
-          <h3 className="heading-display text-lg text-white flex-1">
-            LANGSTE REEKSEN OOIT
-          </h3>
-          <StatsLegend />
-        </div>
-        <div className="glass-card-subtle p-2 md:p-4">
-          {visibleLongest.length > 0 ? (
-            <div className="divide-y divide-white/[0.04]">
-              {visibleLongest.map((s, i) => (
-                <PlayerStreakCard
-                  key={s.userId}
-                  rank={i + 1}
-                  userId={s.userId}
-                  displayName={s.displayName}
-                  streak={s.longestStreak}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-gray-600 text-sm py-8">
-              {query ? "Geen resultaten" : "Nog geen reeksen"}
-            </p>
-          )}
+        {/* Longest streaks ever */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1.5 h-5 bg-cb-blue rounded-full" />
+            <h3 className="heading-display text-lg text-white flex-1">
+              LANGSTE REEKSEN OOIT
+            </h3>
+            <StatsLegend />
+          </div>
+          <div className="glass-card-subtle p-2 md:p-4">
+            {visibleLongest.length > 0 ? (
+              <div className="divide-y divide-white/[0.04]">
+                {visibleLongest.map((s, i) => (
+                  <PlayerStreakCard
+                    key={s.userId}
+                    rank={i + 1}
+                    userId={s.userId}
+                    displayName={s.displayName}
+                    streak={s.longestStreak}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-600 text-sm py-8">
+                {query ? "Geen resultaten" : "Nog geen reeksen"}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
