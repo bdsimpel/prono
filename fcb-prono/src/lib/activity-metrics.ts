@@ -74,10 +74,21 @@ export async function generateMetricEvents({
       }
     }
 
-    if (exactPlayerIds.length >= 1 && exactPlayerIds.length <= 5) {
+    const home = teamMap[match.home_team_id] || '?'
+    const away = teamMap[match.away_team_id] || '?'
+
+    if (exactPlayerIds.length === 0) {
+      events.push({
+        type: 'rare_exact',
+        message: `Niemand had ${home} - ${away} exact voorspeld!`,
+        metadata: {
+          match_id: match.id,
+          speeldag: match.speeldag,
+          player_ids: [],
+        },
+      })
+    } else if (exactPlayerIds.length <= 5) {
       const names = exactPlayerIds.map((id) => nameMap[id] || 'Speler')
-      const home = teamMap[match.home_team_id] || '?'
-      const away = teamMap[match.away_team_id] || '?'
       const verb = exactPlayerIds.length === 1 ? 'had' : 'hadden'
 
       events.push({
