@@ -6,7 +6,7 @@ import PlayerStreakCard from "@/components/streaks/PlayerStreakCard";
 import InfoPopover from "@/components/streaks/InfoPopover";
 import type { Match, Result, Prediction, Team } from "@/lib/types";
 
-const DEFAULT_VISIBLE = 10;
+const DEFAULT_CAP = 15;
 const FLAME_PATH = "M12.963 2.286a.75.75 0 0 0-1.071-.136 9.742 9.742 0 0 0-3.539 6.176 7.547 7.547 0 0 1-1.705-1.715.75.75 0 0 0-1.152-.082A9 9 0 1 0 15.68 4.534a7.46 7.46 0 0 1-2.717-2.248ZM15.75 14.25a3.75 3.75 0 1 1-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 0 1 1.925-3.546 3.75 3.75 0 0 1 3.255 3.718Z";
 
 function FlameInfo() {
@@ -116,12 +116,28 @@ export default function ReeksenTab({
     return sorted.filter((s) => s.displayName.toLowerCase().includes(query));
   }, [streakData, query]);
 
-  const visibleActive = showAllActive || query
+  // Show top DEFAULT_CAP, but include all ties at the cutoff streak length
+  const capList = (list: typeof streakData, getStreak: (s: typeof streakData[number]) => Streak) => {
+    if (list.length === 0) return list;
+    // Filter out zero-streaks
+    const nonZero = list.filter((s) => getStreak(s).length > 0);
+    if (nonZero.length <= DEFAULT_CAP) return nonZero;
+    const cutoffLength = getStreak(nonZero[DEFAULT_CAP - 1]).length;
+    let end = DEFAULT_CAP;
+    while (end < nonZero.length && getStreak(nonZero[end]).length === cutoffLength) end++;
+    return nonZero.slice(0, end);
+  };
+
+  const visibleActive = query
     ? activeStreaks
-    : activeStreaks.slice(0, DEFAULT_VISIBLE);
-  const visibleLongest = showAllLongest || query
+    : showAllActive
+      ? activeStreaks
+      : capList(activeStreaks, (s) => s.currentStreak);
+  const visibleLongest = query
     ? longestStreaks
-    : longestStreaks.slice(0, DEFAULT_VISIBLE);
+    : showAllLongest
+      ? longestStreaks
+      : capList(longestStreaks, (s) => s.longestStreak);
   return (
     <div className="space-y-8">
       {/* Search */}
@@ -173,7 +189,7 @@ export default function ReeksenTab({
               {query ? "Geen resultaten" : "Geen actieve reeksen"}
             </p>
           )}
-          {!query && !showAllActive && activeStreaks.length > DEFAULT_VISIBLE && (
+          {!query && !showAllActive && activeStreaks.length > visibleActive.length && (
             <button
               onClick={() => setShowAllActive(true)}
               className="w-full mt-2 py-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
@@ -212,7 +228,7 @@ export default function ReeksenTab({
               {query ? "Geen resultaten" : "Nog geen reeksen"}
             </p>
           )}
-          {!query && !showAllLongest && longestStreaks.length > DEFAULT_VISIBLE && (
+          {!query && !showAllLongest && longestStreaks.length > visibleLongest.length && (
             <button
               onClick={() => setShowAllLongest(true)}
               className="w-full mt-2 py-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"

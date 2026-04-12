@@ -71,7 +71,7 @@ export default function StreakDetail({ label, streak, isLive, baseStreak }: Stre
             </button>
           </>
         ) : (
-          <span className="heading-display text-2xl text-gray-600">0</span>
+          <span className={`heading-display text-2xl ${isLive ? 'text-red-400' : 'text-gray-600'}`}>0</span>
         )}
       </div>
       {expanded && streak.length > 0 && (
