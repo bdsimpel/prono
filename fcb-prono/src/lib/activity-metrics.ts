@@ -52,9 +52,24 @@ export async function generateMetricEvents({
   const speeldag = (matches || [])[0]?.speeldag
 
   // --- Rare exact predictions (per match) ---
+  // Check which matches already have rare_exact events (skip those)
+  const { data: existingRareExact } = await serviceClient
+    .from('activity_events')
+    .select('metadata')
+    .eq('type', 'rare_exact')
+
+  const existingRareExactMatchIds = new Set(
+    (existingRareExact || [])
+      .map((e) => (e.metadata as { match_id?: number })?.match_id)
+      .filter(Boolean),
+  )
+
   for (const match of matches || []) {
     const result = resultMap[match.id]
     if (!result) continue
+
+    // Skip if rare_exact already exists for this match
+    if (existingRareExactMatchIds.has(match.id)) continue
 
     const { data: predictions } = await serviceClient
       .from('predictions')
