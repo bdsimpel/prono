@@ -2,7 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { calculateMatchPoints } from './scoring'
 
 interface MetricEvent {
-  type: 'rare_exact' | 'speeldag_top' | 'standings_top3' | 'standings_leader'
+  type: 'rare_exact' | 'speeldag_top' | 'standings_top3' | 'standings_leader' | 'no_zero' | 'streak'
   message: string
   metadata: Record<string, unknown>
 }
@@ -100,6 +100,117 @@ export async function generateMetricEvents({
           player_ids: exactPlayerIds,
         },
       })
+    }
+  }
+
+  // --- No more zero-point players check ---
+  // Check if nobody has 0 points anymore (only fire once — skip if event already exists)
+  const { data: allPlayerScores } = await serviceClient
+    .from('player_scores')
+    .select('user_id, total_score')
+
+  const zeroCount = (allPlayerScores || []).filter((s) => s.total_score === 0).length
+  if (zeroCount === 0 && (allPlayerScores || []).length > 0) {
+    const { count: existingNoZero } = await serviceClient
+      .from('activity_events')
+      .select('*', { count: 'exact', head: true })
+      .eq('type', 'no_zero')
+
+    if (!existingNoZero || existingNoZero === 0) {
+      events.push({
+        type: 'no_zero',
+        message: 'Iedereen heeft gescoord! Niemand staat nog op 0 punten.',
+        metadata: { speeldag },
+      })
+    }
+  }
+
+  // --- Streak check (consecutive matches with points) ---
+  if (speeldag != null) {
+    // Get all matches with results, ordered by match_datetime
+    const { data: allMatchesOrdered } = await serviceClient
+      .from('matches')
+      .select('id, match_datetime')
+      .not('speeldag', 'is', null)
+      .order('match_datetime', { ascending: true })
+
+    const { data: allResults } = await serviceClient
+      .from('results')
+      .select('match_id')
+
+    const resultMatchIds = new Set((allResults || []).map((r) => r.match_id))
+    const completedMatches = (allMatchesOrdered || []).filter((m) => resultMatchIds.has(m.id))
+
+    if (completedMatches.length >= 5) {
+      // Get all predictions for completed matches
+      const completedIds = completedMatches.map((m) => m.id)
+      const { data: allPreds } = await serviceClient
+        .from('predictions')
+        .select('user_id, match_id, home_score, away_score')
+        .in('match_id', completedIds)
+
+      const { data: allResultData } = await serviceClient
+        .from('results')
+        .select('match_id, home_score, away_score')
+        .in('match_id', completedIds)
+
+      const resMap: Record<number, { home_score: number; away_score: number }> = {}
+      for (const r of allResultData || []) resMap[r.match_id] = r
+
+      // Compute per-player per-match points
+      const playerMatchPoints = new Map<string, Map<number, number>>()
+      for (const pred of allPreds || []) {
+        const res = resMap[pred.match_id]
+        if (!res) continue
+        const calc = calculateMatchPoints(
+          pred.home_score,
+          pred.away_score,
+          res.home_score,
+          res.away_score,
+        )
+        if (!playerMatchPoints.has(pred.user_id)) playerMatchPoints.set(pred.user_id, new Map())
+        playerMatchPoints.get(pred.user_id)!.set(pred.match_id, calc.points)
+      }
+
+      // Compute current streak for each player (from latest match backwards)
+      const streakPlayers: { user_id: string; streak: number }[] = []
+      for (const [userId, matchPts] of playerMatchPoints) {
+        let streak = 0
+        for (let i = completedMatches.length - 1; i >= 0; i--) {
+          const pts = matchPts.get(completedMatches[i].id) ?? 0
+          if (pts > 0) streak++
+          else break
+        }
+        if (streak >= 5) {
+          streakPlayers.push({ user_id: userId, streak })
+        }
+      }
+
+      if (streakPlayers.length > 0 && streakPlayers.length <= 5) {
+        streakPlayers.sort((a, b) => b.streak - a.streak)
+        const streakLines = streakPlayers.map(
+          (s) => `${nameMap[s.user_id] || 'Speler'} (${s.streak})`,
+        )
+
+        // Delete old streak events for this speeldag before inserting
+        await serviceClient
+          .from('activity_events')
+          .delete()
+          .eq('type', 'streak')
+          .eq('metadata->>speeldag', String(speeldag))
+
+        events.push({
+          type: 'streak',
+          message: `Op een reeks! ${joinNames(streakLines)} ${streakPlayers.length === 1 ? 'match' : 'matches'} op rij gescoord!`,
+          metadata: {
+            speeldag,
+            streaks: streakPlayers.map((s) => ({
+              player_id: s.user_id,
+              streak: s.streak,
+            })),
+          },
+        })
+      }
     }
   }
 

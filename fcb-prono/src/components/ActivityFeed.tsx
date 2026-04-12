@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 
 interface ActivityEvent {
   id: number;
-  type: "signup" | "result" | "payment" | "points" | "lock" | "extra_answer" | "rare_exact" | "speeldag_top" | "standings_top3" | "standings_leader";
+  type: "signup" | "result" | "payment" | "points" | "lock" | "extra_answer" | "rare_exact" | "speeldag_top" | "standings_top3" | "standings_leader" | "no_zero" | "streak";
   message: string;
   metadata: Record<string, unknown>;
   created_at: string;
@@ -138,6 +138,29 @@ function CrownIcon() {
   );
 }
 
+function PartyIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5.8 11.3 2 22l10.7-3.8" />
+      <path d="M4 3h.01" />
+      <path d="M22 8h.01" />
+      <path d="M15 2h.01" />
+      <path d="M22 20h.01" />
+      <path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10" />
+      <path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.63-.69 1.04-1.3.92-.6-.12-1.01-.69-.93-1.3l.34-2.9" />
+      <path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98-.63.11-1.04.69-.92 1.3.12.6.69 1.01 1.3.93l2.9-.34" />
+    </svg>
+  );
+}
+
+function FlameIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+    </svg>
+  );
+}
+
 const typeIcons: Record<ActivityEvent["type"], () => React.ReactNode> = {
   signup: () => <PersonPlusIcon />,
   result: () => <FootballIcon />,
@@ -149,6 +172,8 @@ const typeIcons: Record<ActivityEvent["type"], () => React.ReactNode> = {
   speeldag_top: () => <TrophyIcon />,
   standings_top3: () => <PodiumIcon />,
   standings_leader: () => <CrownIcon />,
+  no_zero: () => <PartyIcon />,
+  streak: () => <FlameIcon />,
 };
 
 export default function ActivityFeed({

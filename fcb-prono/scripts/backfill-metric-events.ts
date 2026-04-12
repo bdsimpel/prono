@@ -17,7 +17,7 @@ function joinNames(names: string[]): string {
 }
 
 interface BackfillEvent {
-  type: 'rare_exact' | 'speeldag_top' | 'standings_top3' | 'standings_leader'
+  type: 'rare_exact' | 'speeldag_top' | 'standings_top3' | 'standings_leader' | 'no_zero' | 'streak'
   message: string
   metadata: Record<string, unknown>
   created_at: string
@@ -365,6 +365,93 @@ async function main() {
   }
   console.log(`Standings top 3 events: ${events.filter(e => e.type === 'standings_top3').length}`)
   console.log(`Standings leader events: ${events.filter(e => e.type === 'standings_leader').length}`)
+
+  // --- No zero check: find the first match after which all players had >0 cumulative points ---
+  // Process all completed matches chronologically, tracking cumulative scores
+  const allMatchesSorted = (matches || [])
+    .filter(m => resultMap[m.id])
+    .sort((a, b) => {
+      const tA = resultMap[a.id]?.entered_at ?? ''
+      const tB = resultMap[b.id]?.entered_at ?? ''
+      return tA.localeCompare(tB)
+    })
+
+  const allPlayerIdSet = new Set((players || []).map(p => p.id))
+  const cumulativeScoreForZero: Record<string, number> = {}
+  let noZeroFired = false
+
+  for (const m of allMatchesSorted) {
+    const r = resultMap[m.id]
+    if (!r) continue
+    const preds = predsByMatch.get(m.id) || []
+    for (const pred of preds) {
+      const calc = calculateMatchPoints(pred.home_score, pred.away_score, r.home_score, r.away_score)
+      cumulativeScoreForZero[pred.user_id] = (cumulativeScoreForZero[pred.user_id] || 0) + calc.points
+    }
+
+    if (!noZeroFired) {
+      const playersWithZero = [...allPlayerIdSet].filter(id => !cumulativeScoreForZero[id] || cumulativeScoreForZero[id] === 0)
+      if (playersWithZero.length === 0) {
+        noZeroFired = true
+        events.push({
+          type: 'no_zero',
+          message: 'Iedereen heeft gescoord! Niemand staat nog op 0 punten.',
+          metadata: { match_id: m.id, speeldag: m.speeldag },
+          created_at: new Date(new Date(r.entered_at).getTime() + 1500).toISOString(),
+        })
+      }
+    }
+  }
+  console.log(`No zero events: ${events.filter(e => e.type === 'no_zero').length}`)
+
+  // --- Streak check: after each match, check for streaks of 5+ ---
+  // Process matches chronologically, compute current streak per player
+  const completedMatchIds: number[] = []
+
+  for (const m of allMatchesSorted) {
+    completedMatchIds.push(m.id)
+    if (completedMatchIds.length < 5) continue
+
+    const r = resultMap[m.id]
+    if (!r) continue
+
+    // Compute current streak for each player (from latest match backwards)
+    const streakPlayers: { user_id: string; streak: number }[] = []
+    for (const playerId of allPlayerIdSet) {
+      let streak = 0
+      for (let i = completedMatchIds.length - 1; i >= 0; i--) {
+        const matchPreds = predsByMatch.get(completedMatchIds[i]) || []
+        const pred = matchPreds.find(p => p.user_id === playerId)
+        if (!pred) break
+        const res = resultMap[completedMatchIds[i]]
+        if (!res) break
+        const calc = calculateMatchPoints(pred.home_score, pred.away_score, res.home_score, res.away_score)
+        if (calc.points > 0) streak++
+        else break
+      }
+      if (streak >= 5) streakPlayers.push({ user_id: playerId, streak })
+    }
+
+    if (streakPlayers.length > 0 && streakPlayers.length <= 5) {
+      streakPlayers.sort((a, b) => b.streak - a.streak)
+      const streakLines = streakPlayers.map(
+        s => `${nameMap[s.user_id] || 'Speler'} (${s.streak})`,
+      )
+
+      events.push({
+        type: 'streak',
+        message: `Op een reeks! ${joinNames(streakLines)} ${streakPlayers.length === 1 ? 'match' : 'matches'} op rij gescoord!`,
+        metadata: {
+          match_id: m.id,
+          speeldag: m.speeldag,
+          streaks: streakPlayers.map(s => ({ player_id: s.user_id, streak: s.streak })),
+        },
+        created_at: new Date(new Date(r.entered_at).getTime() + 1500).toISOString(),
+      })
+    }
+  }
+  console.log(`Streak events: ${events.filter(e => e.type === 'streak').length}`)
+
   console.log(`\nTotal metric events to insert: ${events.length}`)
 
   if (events.length === 0) {
@@ -376,7 +463,7 @@ async function main() {
   await supabase
     .from('activity_events')
     .delete()
-    .in('type', ['rare_exact', 'speeldag_top', 'standings_top3', 'standings_leader'])
+    .in('type', ['rare_exact', 'speeldag_top', 'standings_top3', 'standings_leader', 'no_zero', 'streak'])
   console.log('Deleted existing metric events')
 
   // Insert in batches
