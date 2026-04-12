@@ -93,7 +93,7 @@ export default async function MatchDetailPage({
         .maybeSingle(),
       supabase
         .from("match_events")
-        .select("event_type, player_name, team_id, minute, seq, detail")
+        .select("event_type, player_name, team_id, minute, extra_minute, seq, detail")
         .eq("match_id", id)
         .in("event_type", ["goal", "assist"])
         .order("seq", { ascending: true }),
@@ -117,7 +117,7 @@ export default async function MatchDetailPage({
         playerName: goal.player_name,
         assistName: assist?.player_name ?? null,
         minute: goal.minute ?? 0,
-        extraMinute: null,
+        extraMinute: goal.extra_minute ?? null,
         detail: goal.detail || 'Normal Goal',
         teamId: goal.team_id,
         seq: goal.seq,

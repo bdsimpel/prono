@@ -114,6 +114,7 @@ interface MatchGoal {
   playerName: string
   assistName: string | null
   minute: number
+  extraMinute: number | null
   seq: number
   isHome: boolean
   isOwnGoal: boolean
@@ -128,10 +129,11 @@ async function fetchMatchEvents(fixtureId: number): Promise<MatchGoal[]> {
     const goals = (data.response || []).filter(
       (e: { type: string }) => e.type === 'Goal'
     )
-    return goals.map((g: { player?: { name?: string }; assist?: { name?: string | null }; time?: { elapsed?: number }; team?: { name?: string }; detail?: string; comments?: string }, idx: number) => ({
+    return goals.map((g: { player?: { name?: string }; assist?: { name?: string | null }; time?: { elapsed?: number; extra?: number | null }; team?: { name?: string }; detail?: string; comments?: string }, idx: number) => ({
       playerName: g.player?.name || 'Unknown',
       assistName: g.assist?.name || null,
       minute: g.time?.elapsed || 0,
+      extraMinute: g.time?.extra || null,
       seq: idx + 1,
       isHome: true, // Will be resolved later via team name matching
       isOwnGoal: g.detail === 'Own Goal',
@@ -218,6 +220,7 @@ export async function processMatchEvents(
     football_player_id: number | null
     team_id: number
     minute: number | null
+    extra_minute: number | null
     seq: number
     detail: string | null
   }[] = []
@@ -252,6 +255,7 @@ export async function processMatchEvents(
       football_player_id: playerMatch?.id ?? null,
       team_id: scorerTeamId,
       minute: goal.minute || null,
+      extra_minute: goal.extraMinute || null,
       seq: goal.seq,
       detail: goal.detail || null,
     })
@@ -266,6 +270,7 @@ export async function processMatchEvents(
         football_player_id: assistMatch?.id ?? null,
         team_id: scorerTeamId,
         minute: goal.minute || null,
+        extra_minute: goal.extraMinute || null,
         seq: goal.seq,
         detail: null,
       })
@@ -294,6 +299,7 @@ export async function processMatchEvents(
         football_player_id: gkMatch?.id ?? null,
         team_id: apiHomeTeamId,
         minute: null,
+        extra_minute: null,
         seq: 0,
         detail: null,
       })
@@ -309,6 +315,7 @@ export async function processMatchEvents(
         football_player_id: gkMatch?.id ?? null,
         team_id: apiAwayTeamId,
         minute: null,
+        extra_minute: null,
         seq: 0,
         detail: null,
       })
