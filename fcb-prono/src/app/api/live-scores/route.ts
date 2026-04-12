@@ -4,12 +4,16 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { recalculateScores } from '@/lib/recalculate'
 import { processMatchEvents } from '@/lib/playoff-stats'
 import type { LiveScore } from '@/lib/live-scores'
+import type { GoalEvent } from '@/components/MatchGoalTimeline'
 
 const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
 
 // Server-side cache to avoid redundant API calls when many users poll simultaneously
-let cache: { key: string; data: Record<number, LiveScore>; timestamp: number } | null = null
+let cache: { key: string; data: Record<number, LiveScore>; fixtures: Record<number, ApiFootballFixture>; timestamp: number } | null = null
 const CACHE_TTL = 15_000 // 15 seconds
+
+// Separate cache for events
+let eventsCache: { key: string; data: Record<number, GoalEvent[]>; timestamp: number } | null = null
 
 // Map API-Football status codes to our internal numeric codes (matching SofaScore convention)
 function mapStatusCode(short: string): number {
@@ -240,18 +244,104 @@ function generateMockScore(eventId: number): LiveScore {
   }
 }
 
+function generateMockEvents(eventId: number): GoalEvent[] {
+  const nowSec = Math.floor(Date.now() / 1000)
+  if (mockStartTime === null) return []
+  const offset = (eventId * 13) % 10
+  const e = Math.max(0, nowSec - mockStartTime - offset)
+
+  const events: GoalEvent[] = []
+  // Goal at 1:00 → home 1-0
+  if (e >= 60) {
+    events.push({ playerName: 'Mock Scorer', assistName: 'Mock Assister', minute: 35, extraMinute: null, detail: 'Normal Goal', teamId: 0, seq: 1 })
+  }
+  // Goal at 2:30 → away 1-1
+  if (e >= 150) {
+    events.push({ playerName: 'Away Scorer', assistName: null, minute: 55, extraMinute: null, detail: 'Normal Goal', teamId: 1, seq: 2 })
+  }
+  // Goal at 3:00 → home 2-1
+  if (e >= 180) {
+    events.push({ playerName: 'Home Hero', assistName: 'Key Passer', minute: 72, extraMinute: null, detail: 'Penalty', teamId: 0, seq: 3 })
+  }
+  return events
+}
+
+interface ApiFootballEvent {
+  time: { elapsed: number; extra: number | null }
+  team: { id: number; name: string }
+  player: { id: number | null; name: string | null }
+  assist: { id: number | null; name: string | null }
+  type: string
+  detail: string
+  comments: string | null
+}
+
+async function fetchLiveEvents(
+  fixtureIds: number[],
+  fixtureData: Record<number, ApiFootballFixture>,
+): Promise<Record<number, GoalEvent[]>> {
+  const result: Record<number, GoalEvent[]> = {}
+
+  // Check cache
+  const cacheKey = fixtureIds.sort().join(',')
+  const now = Date.now()
+  if (eventsCache && eventsCache.key === cacheKey && now - eventsCache.timestamp < CACHE_TTL) {
+    return eventsCache.data
+  }
+
+  for (const fixtureId of fixtureIds) {
+    try {
+      const res = await fetch(`${API_FOOTBALL_BASE}/fixtures/events?fixture=${fixtureId}`, {
+        headers: { 'x-apisports-key': process.env.API_FOOTBALL_KEY || '' },
+        cache: 'no-store',
+      })
+      if (!res.ok) continue
+      const data = await res.json()
+      const events: ApiFootballEvent[] = data.response || []
+      const goals = events.filter(e => e.type === 'Goal')
+
+      // Get home team ID from fixture data to determine home/away
+      const fixture = fixtureData[fixtureId]
+      const homeApiTeamId = fixture?.teams.home.id
+
+      // Use teamId = 0 for home, 1 for away (client resolves to actual DB IDs)
+      // Own goals: flip to benefiting team's side
+      result[fixtureId] = goals.map((g, idx) => {
+        const isHome = g.team.id === homeApiTeamId
+        const isOwnGoal = g.detail === 'Own Goal'
+        return {
+          playerName: g.player?.name || 'Unknown',
+          assistName: isOwnGoal ? null : (g.assist?.name || null),
+          minute: g.time.elapsed || 0,
+          extraMinute: g.time.extra || null,
+          detail: g.detail || 'Normal Goal',
+          teamId: (isHome !== isOwnGoal) ? 0 : 1,
+          seq: idx + 1,
+        }
+      })
+    } catch {
+      // Skip this fixture
+    }
+  }
+
+  eventsCache = { key: cacheKey, data: result, timestamp: now }
+  return result
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const ids: number[] = body.ids || []
+    const includeEvents: boolean = body.includeEvents === true
     const isMock = body.mock === true && process.env.NODE_ENV !== 'production'
 
     if (ids.length === 0 || ids.length > 50) {
-      return NextResponse.json({ scores: {}, saved: [] })
+      return NextResponse.json({ scores: {}, events: {}, saved: [] })
     }
 
     // Fetch scores
     const scores: Record<number, LiveScore> = {}
+    const fixtureData: Record<number, ApiFootballFixture> = {}
 
     if (isMock) {
       // Only mock match 1's fixture ID, ignore all others
@@ -265,6 +355,7 @@ export async function POST(request: Request) {
       const now = Date.now()
       if (cache && cache.key === cacheKey && now - cache.timestamp < CACHE_TTL) {
         Object.assign(scores, cache.data)
+        Object.assign(fixtureData, cache.fixtures)
       } else {
         // Batch fetch from API-Football (supports comma-separated IDs)
         const idsParam = ids.join('-')
@@ -280,6 +371,7 @@ export async function POST(request: Request) {
             for (const fixture of data.response || []) {
               const parsed = parseApiFootballFixture(fixture)
               if (parsed) scores[fixture.fixture.id] = parsed
+              fixtureData[fixture.fixture.id] = fixture
             }
           }
         } catch (e) {
@@ -287,7 +379,26 @@ export async function POST(request: Request) {
         }
 
         // Update cache
-        cache = { key: cacheKey, data: { ...scores }, timestamp: now }
+        cache = { key: cacheKey, data: { ...scores }, fixtures: { ...fixtureData }, timestamp: now }
+      }
+    }
+
+    // Fetch live events if requested
+    let liveEvents: Record<number, GoalEvent[]> = {}
+    if (includeEvents) {
+      if (isMock) {
+        const MOCK_EVENT_ID = 15858608
+        if (ids.includes(MOCK_EVENT_ID)) {
+          liveEvents[MOCK_EVENT_ID] = generateMockEvents(MOCK_EVENT_ID)
+        }
+      } else {
+        const activeFixtureIds = ids.filter(id => {
+          const s = scores[id]
+          return s && s.statusType !== 'notstarted'
+        })
+        if (activeFixtureIds.length > 0) {
+          liveEvents = await fetchLiveEvents(activeFixtureIds, fixtureData)
+        }
       }
     }
 
@@ -295,7 +406,7 @@ export async function POST(request: Request) {
     const saved: number[] = []
     if (isMock) {
       return NextResponse.json(
-        { scores, saved },
+        { scores, events: liveEvents, saved },
         { headers: { 'Cache-Control': 'no-store, max-age=0' } }
       )
     }
@@ -446,11 +557,11 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { scores, saved },
+      { scores, events: liveEvents, saved },
       { headers: { 'Cache-Control': 'no-store, max-age=0' } }
     )
   } catch (err) {
     console.error('[live-scores] Unhandled error:', err)
-    return NextResponse.json({ scores: {}, saved: [] })
+    return NextResponse.json({ scores: {}, events: {}, saved: [] })
   }
 }

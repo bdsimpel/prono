@@ -6,6 +6,7 @@ import ForceScrollTop from "@/components/ForceScrollTop";
 import LiveMatchHeader from "@/components/LiveMatchHeader";
 import LivePredictionList from "@/components/LivePredictionList";
 import MatchPredictionList from "@/components/MatchPredictionList";
+import type { GoalEvent } from "@/components/MatchGoalTimeline";
 
 export const revalidate = false;
 
@@ -67,7 +68,7 @@ export default async function MatchDetailPage({
   const { id } = await params;
   const supabase = await createServiceClient();
 
-  const [{ data: match }, { data: resultRow }, { data: predictions }, { data: allScores }, { data: deadlineSetting }] =
+  const [{ data: match }, { data: resultRow }, { data: predictions }, { data: allScores }, { data: deadlineSetting }, { data: matchEvents }] =
     await Promise.all([
       supabase
         .from("matches")
@@ -90,6 +91,12 @@ export default async function MatchDetailPage({
         .select("value")
         .eq("key", "deadline")
         .maybeSingle(),
+      supabase
+        .from("match_events")
+        .select("event_type, player_name, team_id, minute, seq, detail")
+        .eq("match_id", id)
+        .in("event_type", ["goal", "assist"])
+        .order("seq", { ascending: true }),
     ]);
 
   const deadline = deadlineSetting?.value ?? null;
@@ -98,6 +105,25 @@ export default async function MatchDetailPage({
   if (!match) notFound();
 
   const result = resultRow;
+
+  // Pair goals with assists by seq
+  const dbGoalEvents: GoalEvent[] = [];
+  if (matchEvents) {
+    const goals = matchEvents.filter(e => e.event_type === 'goal');
+    const assists = matchEvents.filter(e => e.event_type === 'assist');
+    for (const goal of goals) {
+      const assist = assists.find(a => a.seq === goal.seq);
+      dbGoalEvents.push({
+        playerName: goal.player_name,
+        assistName: assist?.player_name ?? null,
+        minute: goal.minute ?? 0,
+        extraMinute: null,
+        detail: goal.detail || 'Normal Goal',
+        teamId: goal.team_id,
+        seq: goal.seq,
+      });
+    }
+  }
 
   // Build rank map from leaderboard
   const rankMap: Record<string, number> = {};
@@ -167,7 +193,7 @@ export default async function MatchDetailPage({
     (p) => p.category === "exact",
   ).length;
   const correctCount = predWithPoints.filter(
-    (p) => p.category === "result" || p.category === "goal_diff",
+    (p) => p.category === "exact" || p.category === "result" || p.category === "goal_diff",
   ).length;
 
   return (
@@ -219,11 +245,14 @@ export default async function MatchDetailPage({
         matchId={match.id}
         homeTeamName={match.home_team.name}
         awayTeamName={match.away_team.name}
+        homeTeamId={match.home_team_id}
+        awayTeamId={match.away_team_id}
         matchDatetime={match.match_datetime}
         fixtureId={match.api_football_fixture_id}
         result={result ? { home_score: result.home_score, away_score: result.away_score } : null}
         speeldag={match.speeldag}
         isCupFinal={match.is_cup_final}
+        dbGoalEvents={dbGoalEvents}
         formattedTime={match.match_datetime ? new Date(match.match_datetime).toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Brussels" }) : undefined}
         formattedDate={match.match_datetime ? new Date(match.match_datetime).toLocaleDateString("nl-BE", { dateStyle: "long", timeZone: "Europe/Brussels" }) : undefined}
       />

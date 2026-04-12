@@ -13,6 +13,7 @@ interface MatchEvent {
   football_player_id: number | null;
   team_id: number;
   minute: number;
+  detail: string | null;
 }
 
 export default async function StatistiekenPage() {

@@ -4,16 +4,22 @@ import { useMemo, useState } from 'react'
 import TeamLogo from '@/components/TeamLogo'
 import LiveMatchBadge from '@/components/LiveMatchBadge'
 import { useLiveScores } from '@/lib/live-scores'
+import { useLiveEvents } from '@/lib/live-events'
+import MatchGoalTimeline from '@/components/MatchGoalTimeline'
+import type { GoalEvent } from '@/components/MatchGoalTimeline'
 
 interface Props {
   matchId: number
   homeTeamName: string
   awayTeamName: string
+  homeTeamId: number
+  awayTeamId: number
   matchDatetime: string | null
   fixtureId: number | null
   result: { home_score: number; away_score: number } | null
   speeldag: number | null
   isCupFinal: boolean
+  dbGoalEvents?: GoalEvent[]
   formattedTime?: string
   formattedDate?: string
 }
@@ -22,11 +28,14 @@ export default function LiveMatchHeader({
   matchId,
   homeTeamName,
   awayTeamName,
+  homeTeamId,
+  awayTeamId,
   matchDatetime,
   fixtureId,
   result,
   speeldag,
   isCupFinal,
+  dbGoalEvents,
   formattedTime,
   formattedDate,
 }: Props) {
@@ -43,6 +52,20 @@ export default function LiveMatchHeader({
   const hasLiveScore = live && live.homeScore !== null && live.awayScore !== null && !result
   const isLive = hasLiveScore && live.statusType === 'inprogress'
   const liveScoreColor = isLive ? 'text-red-400' : 'text-white'
+
+  // Fetch live events when match is in progress
+  const shouldFetchLiveEvents = !result && fixtureId != null && (isMock || (matchDatetime && new Date(matchDatetime).getTime() <= mountTime))
+  const liveEvents = useLiveEvents(
+    shouldFetchLiveEvents ? fixtureId : null,
+  )
+
+  // Choose goal events: DB events for finished, live events for in-progress
+  // Live events use teamId=0 for home, 1 for away (API convention)
+  // DB events use actual DB team IDs
+  const goalEvents = result ? (dbGoalEvents ?? []) : liveEvents
+  const isLiveSource = !result
+  const homeGoals = goalEvents.filter(e => isLiveSource ? e.teamId === 0 : e.teamId === homeTeamId)
+  const awayGoals = goalEvents.filter(e => isLiveSource ? e.teamId === 1 : e.teamId === awayTeamId)
 
   return (
     <div className="glass-card-subtle p-5 md:p-6 mb-6">
@@ -66,7 +89,7 @@ export default function LiveMatchHeader({
             ) : hasLiveScore ? (
               <>
                 <LiveMatchBadge score={live} />
-                <span className="heading-display text-3xl ${liveScoreColor} mt-0.5">
+                <span className={`heading-display text-3xl ${liveScoreColor} mt-0.5`}>
                   {live.homeScore} - {live.awayScore}
                 </span>
               </>
@@ -102,7 +125,7 @@ export default function LiveMatchHeader({
           ) : hasLiveScore ? (
             <div className="flex flex-col items-center shrink-0">
               <LiveMatchBadge score={live} />
-              <span className="heading-display text-3xl ${liveScoreColor}">
+              <span className={`heading-display text-3xl ${liveScoreColor}`}>
                 {live.homeScore} - {live.awayScore}
               </span>
             </div>
@@ -115,6 +138,8 @@ export default function LiveMatchHeader({
           </div>
         </div>
       </div>
+
+      <MatchGoalTimeline homeGoals={homeGoals} awayGoals={awayGoals} />
 
       <p className="text-center text-xs text-gray-500 mt-4">
         {isCupFinal ? 'Bekerfinale' : `Speeldag ${speeldag}`}

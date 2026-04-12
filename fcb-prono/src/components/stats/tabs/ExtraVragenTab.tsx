@@ -28,6 +28,7 @@ interface MatchEvent {
   football_player_id: number | null;
   team_id: number;
   minute: number;
+  detail: string | null;
 }
 
 interface ExtraVragenTabProps {
@@ -173,6 +174,8 @@ export default function ExtraVragenTab({
   const playerStats = useMemo(() => {
     const stats: Record<string, { name: string; team: string; goals: number; assists: number; cleanSheets: number }> = {};
     for (const ev of matchEvents) {
+      // Own goals don't count for topscorer/assist stats
+      if (ev.detail === "Own Goal") continue;
       const fp = ev.football_player_id ? fpMap.get(ev.football_player_id) : null;
       const name = fp?.name ?? ev.player_name;
       const team = teamMap.get(ev.team_id)?.name ?? fp?.team ?? "";
@@ -186,6 +189,36 @@ export default function ExtraVragenTab({
     }
     return Object.values(stats);
   }, [matchEvents, fpMap, teamMap]);
+
+  // Per-player match breakdown for expand view (goals/assists per match)
+  const playerMatchDetails = useMemo(() => {
+    // matchId → opponent name
+    const matchOpponent = new Map<number, string>();
+    for (const m of matches) {
+      matchOpponent.set(m.id, `${m.home_team.name} - ${m.away_team.name}`);
+    }
+
+    const details = new Map<string, { opponent: string; minute: number; detail: string | null; eventType: string; matchId: number }[]>();
+    for (const ev of matchEvents) {
+      if (ev.detail === "Own Goal") continue;
+      if (ev.event_type !== "goal" && ev.event_type !== "assist" && ev.event_type !== "clean_sheet") continue;
+      const fp = ev.football_player_id ? fpMap.get(ev.football_player_id) : null;
+      const name = fp?.name ?? ev.player_name;
+      if (!details.has(name)) details.set(name, []);
+      details.get(name)!.push({
+        opponent: matchOpponent.get(ev.match_id) ?? "?",
+        minute: ev.minute,
+        detail: ev.detail,
+        eventType: ev.event_type,
+        matchId: ev.match_id,
+      });
+    }
+    // Sort most recent first
+    for (const [, arr] of details) {
+      arr.sort((a, b) => b.matchId - a.matchId || b.minute - a.minute);
+    }
+    return details;
+  }, [matchEvents, matches, fpMap]);
 
   // Pre-compute predictions grouped by question
   const predictionsByQuestion = useMemo(() => {
@@ -304,6 +337,7 @@ export default function ExtraVragenTab({
             question={question}
             data={buildRankingRows(question)}
             fpTeamByName={fpTeamByName}
+            playerMatchDetails={playerMatchDetails}
           />
         ))}
       </div>
@@ -317,10 +351,12 @@ function QuestionCard({
   question,
   data,
   fpTeamByName,
+  playerMatchDetails,
 }: {
   question: ExtraQuestion;
   data: { rows: RankingRow[]; others: { answer: string; count: number; names: string[]; team: string }[]; isTeamQ: boolean; totalPreds: number };
   fpTeamByName: Map<string, string>;
+  playerMatchDetails: Map<string, { opponent: string; minute: number; detail: string | null; eventType: string; matchId: number }[]>;
 }) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
@@ -385,8 +421,8 @@ function QuestionCard({
               <div
                 className={`flex items-center px-4 py-2.5 hover:bg-white/[0.02] transition-colors ${
                   row.isCorrect ? "border-l-2 border-cb-gold" : ""
-                } ${row.predCount > 0 ? "cursor-pointer" : ""}`}
-                onClick={() => row.predCount > 0 && toggleRow(row.key)}
+                } ${(row.predCount > 0 || !isTeamQ) ? "cursor-pointer" : ""}`}
+                onClick={() => (row.predCount > 0 || !isTeamQ) && toggleRow(row.key)}
               >
                 <span className="text-xs text-gray-500 w-5 text-right shrink-0">{ranks[i]}</span>
                 <div className="flex items-center gap-2 flex-1 ml-2 min-w-0">
@@ -411,7 +447,7 @@ function QuestionCard({
                   </span>
                 )}
                 <div className="flex items-center gap-1 shrink-0 ml-2 min-w-[2.5rem] justify-end">
-                  {row.predCount > 0 && (
+                  {(row.predCount > 0 || !isTeamQ) && (
                     <svg
                       className={`w-3 h-3 text-gray-500 transition-transform ${isOpen ? "rotate-180" : ""}`}
                       fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}
@@ -424,13 +460,37 @@ function QuestionCard({
                   </span>
                 </div>
               </div>
-              {isOpen && row.predNames.length > 0 && (
-                <div className="px-4 pb-2 ml-7 flex flex-wrap gap-x-3 gap-y-1">
-                  {row.predNames.map((n) => (
-                    <span key={n} className="text-xs text-gray-400">{n}</span>
-                  ))}
-                </div>
-              )}
+              {isOpen && (() => {
+                const qKey = question.question_key;
+                const eventFilter = qKey === "topscorer_poi" ? "goal" : qKey === "assistenkoning_poi" ? "assist" : qKey === "meeste_clean_sheets_poi" ? "clean_sheet" : null;
+                const matchDetails = !isTeamQ && eventFilter ? (playerMatchDetails.get(row.label) ?? []).filter(d => d.eventType === eventFilter) : [];
+                return (
+                  <>
+                    {matchDetails.length > 0 && (
+                      <div className="px-4 pb-1 ml-7">
+                        <div className="flex flex-wrap gap-x-1 text-[10px] text-gray-500 leading-relaxed">
+                          {matchDetails.map((d, i) => {
+                            const suffix = d.detail === "Penalty" ? " (pen.)" : "";
+                            const minuteStr = eventFilter !== "clean_sheet" ? ` ${d.minute}'${suffix}` : "";
+                            return (
+                              <span key={i}>
+                                {d.opponent}{minuteStr}{i < matchDetails.length - 1 ? " ·" : ""}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {row.predNames.length > 0 && (
+                      <div className="px-4 pb-2 ml-7 flex flex-wrap gap-x-3 gap-y-1">
+                        {row.predNames.map((n) => (
+                          <span key={n} className="text-xs text-gray-400">{n}</span>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           );
         })}

@@ -117,6 +117,7 @@ interface MatchGoal {
   seq: number
   isHome: boolean
   isOwnGoal: boolean
+  detail: string
 }
 
 async function fetchMatchEvents(fixtureId: number): Promise<MatchGoal[]> {
@@ -134,6 +135,7 @@ async function fetchMatchEvents(fixtureId: number): Promise<MatchGoal[]> {
       seq: idx + 1,
       isHome: true, // Will be resolved later via team name matching
       isOwnGoal: g.detail === 'Own Goal',
+      detail: g.detail || 'Normal Goal',
       _teamName: g.team?.name || '', // Store for team matching
     }))
   } catch {
@@ -217,25 +219,30 @@ export async function processMatchEvents(
     team_id: number
     minute: number | null
     seq: number
+    detail: string | null
   }[] = []
 
   for (const goal of goals) {
-    if (goal.isOwnGoal) continue // Skip own goals entirely
-
-    // Determine which team scored based on the goal's team name
+    // Determine which team the API says scored
     const goalObj = goal as MatchGoal & { _teamName?: string }
     const goalTeamName = goalObj._teamName || ''
     const mappedTeam = mapApiTeamName(goalTeamName)
-    let scorerTeamId: number
+    let apiTeamId: number
     if (mappedTeam === homeTeamName) {
-      scorerTeamId = homeTeamId
+      apiTeamId = homeTeamId
     } else if (mappedTeam === awayTeamName) {
-      scorerTeamId = awayTeamId
+      apiTeamId = awayTeamId
     } else {
       // Fallback: use contains matching
-      scorerTeamId = goalTeamName.toLowerCase().includes(homeTeamName.toLowerCase()) ? homeTeamId : awayTeamId
+      apiTeamId = goalTeamName.toLowerCase().includes(homeTeamName.toLowerCase()) ? homeTeamId : awayTeamId
     }
-    const scorerTeamDbName = teamMap[scorerTeamId] || ''
+
+    // Own goals: display on the benefiting team's side (the opposing team)
+    const scorerTeamId = goal.isOwnGoal
+      ? (apiTeamId === homeTeamId ? awayTeamId : homeTeamId)
+      : apiTeamId
+    // Always look up the player in their actual team (apiTeamId), not the benefiting team
+    const scorerTeamDbName = teamMap[apiTeamId] || ''
 
     const playerMatch = matchPlayerName(goal.playerName, dbPlayers, scorerTeamDbName)
     events.push({
@@ -246,9 +253,11 @@ export async function processMatchEvents(
       team_id: scorerTeamId,
       minute: goal.minute || null,
       seq: goal.seq,
+      detail: goal.detail || null,
     })
 
-    if (goal.assistName) {
+    // No assist for own goals
+    if (goal.assistName && !goal.isOwnGoal) {
       const assistMatch = matchPlayerName(goal.assistName, dbPlayers, scorerTeamDbName)
       events.push({
         match_id: matchId,
@@ -258,6 +267,7 @@ export async function processMatchEvents(
         team_id: scorerTeamId,
         minute: goal.minute || null,
         seq: goal.seq,
+        detail: null,
       })
     }
   }
@@ -285,6 +295,7 @@ export async function processMatchEvents(
         team_id: apiHomeTeamId,
         minute: null,
         seq: 0,
+        detail: null,
       })
     }
 
@@ -299,6 +310,7 @@ export async function processMatchEvents(
         team_id: apiAwayTeamId,
         minute: null,
         seq: 0,
+        detail: null,
       })
     }
   }
@@ -331,7 +343,7 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
     serviceClient.from('results').select('match_id, home_score, away_score'),
     serviceClient.from('teams').select('id, name, standing_rank, points_half'),
     serviceClient.from('extra_questions').select('id, question_key'),
-    fetchAll<{ event_type: string; player_name: string; football_player_id: number | null; team_id: number }>(serviceClient, 'match_events', 'event_type, player_name, football_player_id, team_id'),
+    fetchAll<{ event_type: string; player_name: string; football_player_id: number | null; team_id: number; detail: string | null }>(serviceClient, 'match_events', 'event_type, player_name, football_player_id, team_id, detail'),
     serviceClient.from('football_players').select('id, name'),
   ])
 
@@ -391,6 +403,8 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
   const playerCleanSheets: Record<string, number> = {}
 
   for (const e of events) {
+    // Own goals don't count for topscorer/assist stats
+    if (e.detail === 'Own Goal') continue
     const key = (e.football_player_id && footballPlayerNameMap[e.football_player_id]) || e.player_name
     if (e.event_type === 'goal') playerGoals[key] = (playerGoals[key] || 0) + 1
     if (e.event_type === 'assist') playerAssists[key] = (playerAssists[key] || 0) + 1

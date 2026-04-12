@@ -39,7 +39,7 @@ interface StatistiekenDashboardProps {
   extraPredictions: ExtraPrediction[];
   extraAnswers: ExtraQuestionAnswer[];
   teams: Team[];
-  matchEvents: { id: number; match_id: number; event_type: string; player_name: string; football_player_id: number | null; team_id: number; minute: number }[];
+  matchEvents: { id: number; match_id: number; event_type: string; player_name: string; football_player_id: number | null; team_id: number; minute: number; detail: string | null }[];
   footballPlayers: FootballPlayer[];
   editions: Edition[];
   editionScores: EditionScore[];
