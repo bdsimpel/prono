@@ -473,7 +473,7 @@ export default async function PlayerDetailPage({
                   />
                 </svg>
               )}
-              <span>#{rank}</span>
+              <span className={getHistoryRankColor(rank)}>#{rank}</span>
               {playerHistory.length > 0 && (
                 <span>
                   {playerHistory.length} edities
