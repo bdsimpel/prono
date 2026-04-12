@@ -74,27 +74,32 @@ export default function StreakDetail({ label, streak, isLive, baseStreak }: Stre
           <span className={`heading-display text-2xl ${isLive ? 'text-red-400' : 'text-gray-600'}`}>0</span>
         )}
       </div>
-      {expanded && streak.length > 0 && (
-        <div className="flex items-center gap-1.5 mt-1.5">
-          <StreakCounts matches={streak.matches} baseMatches={isLive ? baseStreak?.matches : undefined} />
-          <InfoPopover>
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full bg-cb-gold/20 text-cb-gold text-[9px] font-bold flex items-center justify-center shrink-0">3</span>
-                <span className="text-[11px] text-gray-300">Exact</span>
+      {expanded && streak.length > 0 && (() => {
+        const exact = streak.matches.filter((m) => m.category === "exact").length;
+        const goalDiff = streak.matches.filter((m) => m.category === "goal_diff").length;
+        const result = streak.matches.filter((m) => m.category === "result").length;
+        return (
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <StreakCounts matches={streak.matches} baseMatches={isLive ? baseStreak?.matches : undefined} />
+            <InfoPopover>
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-cb-gold/20 text-cb-gold text-[9px] font-bold flex items-center justify-center shrink-0">{exact}</span>
+                  <span className="text-[11px] text-gray-300">Exact</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-cb-blue/20 text-cb-blue text-[9px] font-bold flex items-center justify-center shrink-0">{goalDiff}</span>
+                  <span className="text-[11px] text-gray-300">Goal verschil</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-400 text-[9px] font-bold flex items-center justify-center shrink-0">{result}</span>
+                  <span className="text-[11px] text-gray-300">Juist resultaat</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full bg-cb-blue/20 text-cb-blue text-[9px] font-bold flex items-center justify-center shrink-0">2</span>
-                <span className="text-[11px] text-gray-300">Goal verschil</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-400 text-[9px] font-bold flex items-center justify-center shrink-0">1</span>
-                <span className="text-[11px] text-gray-300">Juist resultaat</span>
-              </div>
-            </div>
-          </InfoPopover>
-        </div>
-      )}
+            </InfoPopover>
+          </div>
+        );
+      })()}
     </div>
   );
 }
