@@ -51,14 +51,22 @@ export async function POST(request: Request) {
     .map(([matchId]) => parseInt(matchId))
 
   if (savedMatchIds.length > 0) {
-    const [{ data: matches }, { data: teams }] = await Promise.all([
+    const [{ data: matches }, { data: teams }, { data: existingEvents }] = await Promise.all([
       serviceClient.from('matches').select('id, speeldag, home_team_id, away_team_id, is_cup_final').in('id', savedMatchIds),
       serviceClient.from('teams').select('id, name'),
+      serviceClient.from('activity_events').select('metadata').eq('type', 'result'),
     ])
+
+    const existingMatchIds = new Set(
+      (existingEvents || [])
+        .map(e => (e.metadata as { match_id?: number })?.match_id)
+        .filter(Boolean)
+    )
+
     const teamMap: Record<number, string> = {}
     for (const t of teams || []) teamMap[t.id] = t.name
 
-    const resultEvents = (matches || []).map(m => {
+    const resultEvents = (matches || []).filter(m => !existingMatchIds.has(m.id)).map(m => {
       const s = results[String(m.id)] as { home: string; away: string }
       return {
         type: 'result' as const,
