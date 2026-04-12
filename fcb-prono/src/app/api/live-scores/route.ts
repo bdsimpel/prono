@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/server'
 import { recalculateScores } from '@/lib/recalculate'
+import { generateMetricEvents } from '@/lib/activity-metrics'
 import { processMatchEvents } from '@/lib/playoff-stats'
 import type { LiveScore } from '@/lib/live-scores'
 import type { GoalEvent } from '@/components/MatchGoalTimeline'
@@ -554,7 +555,20 @@ export async function POST(request: Request) {
         }
 
         if (needsRecalc) {
-          await recalculateScores(serviceClient)
+          const { pointDeltas } = await recalculateScores(serviceClient)
+
+          // Generate metric events (speeldag top, top 3, all-time leader, etc.)
+          if (saved.length > 0) {
+            const metricEvents = await generateMetricEvents({
+              savedMatchIds: saved,
+              serviceClient,
+              pointDeltas,
+            })
+            if (metricEvents.length > 0) {
+              await serviceClient.from('activity_events').insert(metricEvents)
+            }
+          }
+
           revalidatePath('/', 'layout')
         }
       }
