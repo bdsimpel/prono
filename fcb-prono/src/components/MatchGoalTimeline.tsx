@@ -6,6 +6,7 @@ export interface GoalEvent {
   detail: string // 'Normal Goal' | 'Penalty' | 'Own Goal'
   teamId: number
   seq: number
+  teamName?: string // API-Football team name, used for live event team matching
 }
 
 interface Props {

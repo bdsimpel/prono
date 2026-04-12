@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import TeamLogo from '@/components/TeamLogo'
 import LiveMatchBadge from '@/components/LiveMatchBadge'
 import { useLiveScores } from '@/lib/live-scores'
@@ -60,12 +60,27 @@ export default function LiveMatchHeader({
   )
 
   // Choose goal events: DB events for finished, live events for in-progress
-  // Live events use teamId=0 for home, 1 for away (API convention)
-  // DB events use actual DB team IDs
   const goalEvents = result ? (dbGoalEvents ?? []) : liveEvents
-  const isLiveSource = !result
-  const homeGoals = goalEvents.filter(e => isLiveSource ? e.teamId === 0 : e.teamId === homeTeamId)
-  const awayGoals = goalEvents.filter(e => isLiveSource ? e.teamId === 1 : e.teamId === awayTeamId)
+
+  // For live events, match API team names against our DB team names
+  // API names like "Union St. Gilloise" must match DB names like "Union"
+  const matchTeamName = useCallback((apiName: string | undefined, dbName: string) => {
+    if (!apiName) return false
+    const api = apiName.toLowerCase()
+    const db = dbName.toLowerCase()
+    return api.includes(db) || db.includes(api)
+  }, [])
+
+  const homeGoals = goalEvents.filter(e => {
+    if (result) return e.teamId === homeTeamId
+    if (e.teamName) return matchTeamName(e.teamName, homeTeamName)
+    return e.teamId === 0 // fallback
+  })
+  const awayGoals = goalEvents.filter(e => {
+    if (result) return e.teamId === awayTeamId
+    if (e.teamName) return matchTeamName(e.teamName, awayTeamName)
+    return e.teamId === 1 // fallback
+  })
 
   return (
     <div className="glass-card-subtle p-5 md:p-6 mb-6">

@@ -343,7 +343,7 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
     serviceClient.from('results').select('match_id, home_score, away_score'),
     serviceClient.from('teams').select('id, name, standing_rank, points_half'),
     serviceClient.from('extra_questions').select('id, question_key'),
-    fetchAll<{ event_type: string; player_name: string; football_player_id: number | null; team_id: number; detail: string | null }>(serviceClient, 'match_events', 'event_type, player_name, football_player_id, team_id, detail'),
+    fetchAll<{ match_id: number; event_type: string; player_name: string; football_player_id: number | null; team_id: number; detail: string | null }>(serviceClient, 'match_events', 'match_id, event_type, player_name, football_player_id, team_id, detail'),
     serviceClient.from('football_players').select('id, name'),
   ])
 
@@ -351,7 +351,9 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
   const results = allResults || []
   const teams = allTeams || []
   const questions = allQuestions || []
-  const events = allEvents
+  // Only count league match events for stats (exclude cup final)
+  const leagueMatchIds = new Set(matches.map(m => m.id))
+  const events = allEvents.filter(e => leagueMatchIds.has(e.match_id))
 
   const resultMap: Record<number, { home_score: number; away_score: number }> = {}
   for (const r of results) resultMap[r.match_id] = { home_score: r.home_score, away_score: r.away_score }
@@ -529,13 +531,12 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
 }
 
 /**
- * Resync all match events from scratch for all finished league matches.
+ * Resync all match events from scratch for all finished matches (league + cup final).
  */
 export async function resyncAllMatchEvents(serviceClient: SupabaseClient) {
   const { data: matches } = await serviceClient
     .from('matches')
     .select('id, home_team_id, away_team_id, api_football_fixture_id, is_cup_final')
-    .eq('is_cup_final', false)
     .not('api_football_fixture_id', 'is', null)
 
   const { data: results } = await serviceClient

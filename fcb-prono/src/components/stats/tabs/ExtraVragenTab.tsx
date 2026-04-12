@@ -170,12 +170,18 @@ export default function ExtraVragenTab({
     return stats;
   }, [results, matchById, teams]);
 
+  // Exclude cup final from stats (only league matches count for extra questions)
+  const cupFinalMatchIds = useMemo(() => {
+    return new Set(matches.filter(m => m.is_cup_final).map(m => m.id));
+  }, [matches]);
+
   // Player stats from match_events (shared across player questions)
   const playerStats = useMemo(() => {
     const stats: Record<string, { name: string; team: string; goals: number; assists: number; cleanSheets: number }> = {};
     for (const ev of matchEvents) {
-      // Own goals don't count for topscorer/assist stats
+      // Own goals and cup final events don't count for stats
       if (ev.detail === "Own Goal") continue;
+      if (cupFinalMatchIds.has(ev.match_id)) continue;
       const fp = ev.football_player_id ? fpMap.get(ev.football_player_id) : null;
       const name = fp?.name ?? ev.player_name;
       const team = teamMap.get(ev.team_id)?.name ?? fp?.team ?? "";

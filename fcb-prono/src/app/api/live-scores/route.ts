@@ -304,11 +304,15 @@ async function fetchLiveEvents(
       const fixture = fixtureData[fixtureId]
       const homeApiTeamId = fixture?.teams.home.id
 
-      // Use teamId = 0 for home, 1 for away (client resolves to actual DB IDs)
+      // Include team name so client can match against DB home/away
       // Own goals: flip to benefiting team's side
       result[fixtureId] = goals.map((g, idx) => {
         const isHome = g.team.id === homeApiTeamId
         const isOwnGoal = g.detail === 'Own Goal'
+        // For own goals, the benefiting team is the opposite
+        const effectiveTeamName = isOwnGoal
+          ? (isHome ? fixture?.teams.away.name : fixture?.teams.home.name)
+          : g.team.name
         return {
           playerName: g.player?.name || 'Unknown',
           assistName: isOwnGoal ? null : (g.assist?.name || null),
@@ -317,6 +321,7 @@ async function fetchLiveEvents(
           detail: g.detail || 'Normal Goal',
           teamId: (isHome !== isOwnGoal) ? 0 : 1,
           seq: idx + 1,
+          teamName: effectiveTeamName || undefined,
         }
       })
     } catch {
@@ -482,8 +487,8 @@ export async function POST(request: Request) {
               metadata: { match_id: matchRow.id, speeldag: matchRow.speeldag, auto_saved: true },
             })
 
-            // League match: process match events (goals, assists, clean sheets)
-            if (!matchRow.is_cup_final && matchRow.api_football_fixture_id) {
+            // Process match events (goals, assists, clean sheets) for timeline display
+            if (matchRow.api_football_fixture_id) {
               await processMatchEvents(
                 serviceClient,
                 matchRow.id,
@@ -540,7 +545,6 @@ export async function POST(request: Request) {
             .from('matches')
             .select('id, api_football_fixture_id, home_team_id, away_team_id, is_cup_final')
             .in('id', recentMatchIds)
-            .eq('is_cup_final', false)
             .not('api_football_fixture_id', 'is', null)
 
           for (const m of recentMatches || []) {
