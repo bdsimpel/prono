@@ -1,5 +1,7 @@
 import TeamLogo from "@/components/TeamLogo";
 import { calculateMatchPoints, checkExtraAnswer } from "@/lib/scoring";
+import { computePlayerStreak } from "@/lib/streaks";
+import PlayerStatsLive from "@/components/PlayerStatsLive";
 import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -315,6 +317,27 @@ export default async function PlayerDetailPage({
     (p) => resultMap[p.match_id],
   ).length;
 
+  // Compute streak data
+  const matchesForStreaks = (predictions || []).map((p) => {
+    const m = p.matches as { speeldag: number | null; match_datetime: string | null; is_cup_final: boolean };
+    return { id: p.match_id, speeldag: m.speeldag, match_datetime: m.match_datetime };
+  });
+  const predsForStreaks = (predictions || []).map((p) => ({
+    id: p.id,
+    user_id: p.user_id,
+    match_id: p.match_id,
+    home_score: p.home_score,
+    away_score: p.away_score,
+    created_at: p.created_at,
+  }));
+  const streakData = computePlayerStreak(
+    id,
+    player.display_name,
+    predsForStreaks,
+    allResults || [],
+    matchesForStreaks,
+  );
+
   // Group predictions by round (same logic as matches page)
   type PredRound = {
     label: string;
@@ -535,46 +558,26 @@ export default async function PlayerDetailPage({
         </Link>
       )}
 
-      {/* Stats row */}
-      {playerScore && (
-        <div className="flex items-center justify-center md:justify-start gap-4 md:gap-10 mb-8 md:mb-10 px-1 md:px-2">
-          <div className="text-center">
-            <div className="heading-display text-2xl md:text-3xl text-cb-blue font-bold">
-              {playerScore.total_score}
-            </div>
-            <div className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-0.5">
-              Score
-            </div>
-          </div>
-          <div className="stat-divider" />
-          <div className="text-center">
-            <div className="heading-display text-2xl md:text-3xl text-white font-bold">
-              {gamesPlayed}
-            </div>
-            <div className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-0.5">
-              Gespeeld
-            </div>
-          </div>
-          <div className="stat-divider" />
-          <div className="text-center">
-            <div className="heading-display text-2xl md:text-3xl text-white font-bold">
-              {playerScore.exact_matches}
-            </div>
-            <div className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-0.5">
-              Exact
-            </div>
-          </div>
-          <div className="stat-divider" />
-          <div className="text-center">
-            <div className="heading-display text-2xl md:text-3xl text-white font-bold">
-              {playerScore.exact_matches + playerScore.correct_goal_diffs + playerScore.correct_results}
-            </div>
-            <div className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-0.5">
-              Correct
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Live stats + streaks */}
+      <PlayerStatsLive
+        userId={id}
+        displayName={player.display_name}
+        playerScore={playerScore}
+        gamesPlayed={gamesPlayed}
+        streakData={streakData}
+        predictions={(predictions || []).map((p) => {
+          const m = p.matches as { speeldag: number | null; match_datetime: string | null; api_football_fixture_id: number | null };
+          return {
+            match_id: p.match_id,
+            home_score: p.home_score,
+            away_score: p.away_score,
+            api_football_fixture_id: m.api_football_fixture_id,
+            match_datetime: m.match_datetime,
+            speeldag: m.speeldag,
+          };
+        })}
+        resultMap={resultMap}
+      />
 
       {/* Match predictions */}
       <PlayerPredictionsContent

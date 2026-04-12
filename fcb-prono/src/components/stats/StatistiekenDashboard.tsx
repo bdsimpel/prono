@@ -6,6 +6,7 @@ import OverzichtTab from "./tabs/OverzichtTab";
 import ExtraVragenTab from "./tabs/ExtraVragenTab";
 import WedstrijdenTab from "./tabs/WedstrijdenTab";
 import SpelersTab from "./tabs/SpelersTab";
+import ReeksenTab from "./tabs/ReeksenTab";
 import type {
   Team,
   Match,
@@ -52,6 +53,7 @@ const TABS = [
   { key: "extra", label: "Extra vragen" },
   { key: "wedstrijden", label: "Wedstrijden" },
   { key: "spelers", label: "Deelnemers" },
+  { key: "reeksen", label: "Reeksen" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -274,6 +276,14 @@ export default function StatistiekenDashboard({
                     editionScores={editionScores}
                   />
                 )}
+                {tab.key === "reeksen" && (
+                  <ReeksenTab
+                    players={players}
+                    matches={matches}
+                    results={results}
+                    predictions={validPredictions}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -311,6 +321,14 @@ export default function StatistiekenDashboard({
                 predictions={validPredictions}
                 editions={editions}
                 editionScores={editionScores}
+              />
+            )}
+            {activeTab === "reeksen" && (
+              <ReeksenTab
+                players={players}
+                matches={matches}
+                results={results}
+                predictions={validPredictions}
               />
             )}
             {activeTab === "extra" && (
