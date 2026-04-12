@@ -12,7 +12,7 @@ interface ActivityEvent {
 }
 
 const PAGE_SIZE = 5;
-const MAX_EVENTS = 20;
+const MAX_EVENTS = 15;
 
 function formatRelativeTime(dateStr: string, compact = false): string {
   const now = new Date();
@@ -181,37 +181,46 @@ export default function ActivityFeed({
 }: {
   events: ActivityEvent[];
 }) {
-  const [events, setEvents] = useState(initialEvents.slice(0, PAGE_SIZE));
+  const [allEvents, setAllEvents] = useState(initialEvents);
+  const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(
-    initialEvents.length > PAGE_SIZE && initialEvents.length <= MAX_EVENTS,
+  const [fullyLoaded, setFullyLoaded] = useState(
+    initialEvents.length <= PAGE_SIZE,
   );
 
-  async function loadMore() {
-    if (loading || !hasMore) return;
-    setLoading(true);
-    try {
-      const supabase = createClient();
-      const lastEvent = events[events.length - 1];
-      const { data } = await supabase
-        .from("activity_events")
-        .select("*")
-        .neq("type", "points")
-        .neq("type", "payment")
-        .order("created_at", { ascending: false })
-        .lt("created_at", lastEvent.created_at)
-        .limit(PAGE_SIZE + 1);
+  const events = expanded ? allEvents : allEvents.slice(0, PAGE_SIZE);
+  const canExpand = allEvents.length > PAGE_SIZE || !fullyLoaded;
 
-      if (data && data.length > 0) {
-        const page = data.slice(0, PAGE_SIZE);
-        const newTotal = events.length + page.length;
-        setEvents((prev) => [...prev, ...page]);
-        setHasMore(data.length > PAGE_SIZE && newTotal < MAX_EVENTS);
-      } else {
-        setHasMore(false);
+  async function loadMore() {
+    if (loading) return;
+
+    if (!expanded) {
+      // First expand: load more events if we don't have enough yet
+      if (!fullyLoaded) {
+        setLoading(true);
+        try {
+          const supabase = createClient();
+          const lastEvent = allEvents[allEvents.length - 1];
+          const { data } = await supabase
+            .from("activity_events")
+            .select("*")
+            .neq("type", "points")
+            .neq("type", "payment")
+            .order("created_at", { ascending: false })
+            .lt("created_at", lastEvent.created_at)
+            .limit(MAX_EVENTS - allEvents.length);
+
+          if (data && data.length > 0) {
+            setAllEvents((prev) => [...prev, ...data]);
+          }
+          setFullyLoaded(true);
+        } finally {
+          setLoading(false);
+        }
       }
-    } finally {
-      setLoading(false);
+      setExpanded(true);
+    } else {
+      setExpanded(false);
     }
   }
 
@@ -274,14 +283,14 @@ export default function ActivityFeed({
           ))}
         </div>
 
-        {/* Load more */}
-        {hasMore && (
+        {/* Load more / Show less */}
+        {(canExpand || expanded) && (
           <button
             onClick={loadMore}
             disabled={loading}
             className="w-full px-5 py-3 text-xs text-gray-500 hover:text-gray-400 border-t border-white/[0.04] transition-colors disabled:opacity-50"
           >
-            {loading ? "Laden..." : "Laad meer"}
+            {loading ? "Laden..." : expanded ? "Toon minder" : "Laad meer"}
           </button>
         )}
       </div>
