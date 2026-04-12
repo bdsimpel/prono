@@ -62,10 +62,21 @@ export default function LiveMatchHeader({
   // Choose goal events: DB events for finished, live events for in-progress
   const goalEvents = result ? (dbGoalEvents ?? []) : liveEvents
 
-  // For live events, match API team names against our DB team names
-  // API names like "Union St. Gilloise" must match DB names like "Union"
+  // For live events:
+  // - League matches: use positional teamId (0=home, 1=away) — API order matches DB order
+  // - Cup final: use team name matching since API order may differ from DB
+  const API_TO_DB: Record<string, string> = {
+    'union st. gilloise': 'Union',
+    'club brugge kv': 'Club Brugge',
+    'st. truiden': 'STVV',
+    'gent': 'Gent',
+    'kv mechelen': 'Mechelen',
+    'anderlecht': 'Anderlecht',
+  }
   const matchTeamName = useCallback((apiName: string | undefined, dbName: string) => {
     if (!apiName) return false
+    const mapped = API_TO_DB[apiName.toLowerCase()]
+    if (mapped) return mapped === dbName
     const api = apiName.toLowerCase()
     const db = dbName.toLowerCase()
     return api.includes(db) || db.includes(api)
@@ -73,13 +84,14 @@ export default function LiveMatchHeader({
 
   const homeGoals = goalEvents.filter(e => {
     if (result) return e.teamId === homeTeamId
-    if (e.teamName) return matchTeamName(e.teamName, homeTeamName)
-    return e.teamId === 0 // fallback
+    // Cup final: use name matching; league: use positional order
+    if (isCupFinal && e.teamName) return matchTeamName(e.teamName, homeTeamName)
+    return e.teamId === 0
   })
   const awayGoals = goalEvents.filter(e => {
     if (result) return e.teamId === awayTeamId
-    if (e.teamName) return matchTeamName(e.teamName, awayTeamName)
-    return e.teamId === 1 // fallback
+    if (isCupFinal && e.teamName) return matchTeamName(e.teamName, awayTeamName)
+    return e.teamId === 1
   })
 
   return (
