@@ -129,7 +129,7 @@ export default function LivePredictionList({
   // Stats
   const predictionCount = augmented.length
   const exactCount = augmented.filter(p => p.category === 'exact').length
-  const correctCount = augmented.filter(p => p.category === 'result' || p.category === 'goal_diff').length
+  const correctCount = augmented.filter(p => p.category === 'exact' || p.category === 'result' || p.category === 'goal_diff').length
 
   return (
     <>

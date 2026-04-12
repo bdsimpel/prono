@@ -20,19 +20,21 @@ Should haves:
 
 - [x] Built-in payment
 - [x] Add history of users as well: number of years presense, ere lijst
-- [ ] Add nice stats like total votes on extra vragen, votes per game, scores per community / per favorite team
-- [ ] Regular competition bot
+- [x] Add nice stats like total votes on extra vragen, votes per game, scores per community / per favorite team
 - [x] Add logos
-- [ ] Subcompetitions -> filter button under 2026, let them or me create a subcompetition? I think I can do it
+- [x] Subcompetitions -> filter button under 2026, let them or me create a subcompetition? I think I can do it
 
 Could haves:
 
-- [ ] Live leaderboard laatste speeldag
-- [ ] Live extra vragen leaderboard
+- [x] Live leaderboard laatste speeldag
+- [x] Live extra vragen leaderboard
 - [ ] Prediction of competition bot
+- [ ] Odds
 
 Won't do:
 
 - [ ] Potential email service
 - [ ] Add player images
-- [ ] Community feeling with activity log
+- [ ] Chat
+- [ ] Interactive preditions
+- [x] Community feeling with activity log

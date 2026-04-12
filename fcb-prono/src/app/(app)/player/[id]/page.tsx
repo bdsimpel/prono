@@ -567,7 +567,7 @@ export default async function PlayerDetailPage({
           <div className="stat-divider" />
           <div className="text-center">
             <div className="heading-display text-2xl md:text-3xl text-white font-bold">
-              {playerScore.correct_results}
+              {playerScore.exact_matches + playerScore.correct_goal_diffs + playerScore.correct_results}
             </div>
             <div className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-0.5">
               Correct
