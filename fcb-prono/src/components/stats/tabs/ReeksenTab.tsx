@@ -6,14 +6,14 @@ import PlayerStreakCard from "@/components/streaks/PlayerStreakCard";
 import InfoPopover from "@/components/streaks/InfoPopover";
 import type { Match, Result, Prediction, Team } from "@/lib/types";
 
-const DEFAULT_CAP = 15;
+const DEFAULT_CAP = 20;
 const FLAME_PATH = "M12.963 2.286a.75.75 0 0 0-1.071-.136 9.742 9.742 0 0 0-3.539 6.176 7.547 7.547 0 0 1-1.705-1.715.75.75 0 0 0-1.152-.082A9 9 0 1 0 15.68 4.534a7.46 7.46 0 0 1-2.717-2.248ZM15.75 14.25a3.75 3.75 0 1 1-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 0 1 1.925-3.546 3.75 3.75 0 0 1 3.255 3.718Z";
 
-function FlameInfo() {
+function StatsLegend() {
   return (
     <InfoPopover>
       <p className="text-[10px] text-gray-500 mb-1.5">Opeenvolgend punten gescoord</p>
-      <div className="space-y-1">
+      <div className="space-y-1 mb-2.5">
         <div className="flex items-center gap-1.5">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="#C9A84C" className="shrink-0">
             <path fillRule="evenodd" d={FLAME_PATH} clipRule="evenodd" />
@@ -27,24 +27,17 @@ function FlameInfo() {
           <span className="text-[11px] text-gray-300">Reeks &lt; 5</span>
         </div>
       </div>
-    </InfoPopover>
-  );
-}
-
-function CirclesInfo() {
-  return (
-    <InfoPopover>
-      <div className="space-y-1">
+      <div className="pt-2 border-t border-white/[0.06] space-y-1">
         <div className="flex items-center gap-1.5">
-          <span className="w-4 h-4 rounded-full bg-cb-gold/20 text-cb-gold text-[9px] font-bold flex items-center justify-center shrink-0">3</span>
+          <span className="w-4 h-4 rounded-full bg-cb-gold/20 text-cb-gold text-[9px] font-bold flex items-center justify-center shrink-0">N</span>
           <span className="text-[11px] text-gray-300">Exact</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-4 h-4 rounded-full bg-cb-blue/20 text-cb-blue text-[9px] font-bold flex items-center justify-center shrink-0">2</span>
+          <span className="w-4 h-4 rounded-full bg-cb-blue/20 text-cb-blue text-[9px] font-bold flex items-center justify-center shrink-0">N</span>
           <span className="text-[11px] text-gray-300">Goal verschil</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-400 text-[9px] font-bold flex items-center justify-center shrink-0">1</span>
+          <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-400 text-[9px] font-bold flex items-center justify-center shrink-0">N</span>
           <span className="text-[11px] text-gray-300">Juist resultaat</span>
         </div>
       </div>
@@ -94,8 +87,6 @@ export default function ReeksenTab({
   predictions,
 }: ReeksenTabProps) {
   const [search, setSearch] = useState("");
-  const [showAllActive, setShowAllActive] = useState(false);
-  const [showAllLongest, setShowAllLongest] = useState(false);
 
   const streakData = useMemo(
     () => computeAllStreaks(predictions, results, matches, players),
@@ -130,14 +121,10 @@ export default function ReeksenTab({
 
   const visibleActive = query
     ? activeStreaks
-    : showAllActive
-      ? activeStreaks
-      : capList(activeStreaks, (s) => s.currentStreak);
+    : capList(activeStreaks, (s) => s.currentStreak);
   const visibleLongest = query
     ? longestStreaks
-    : showAllLongest
-      ? longestStreaks
-      : capList(longestStreaks, (s) => s.longestStreak);
+    : capList(longestStreaks, (s) => s.longestStreak);
   return (
     <div className="space-y-8">
       {/* Search */}
@@ -168,8 +155,7 @@ export default function ReeksenTab({
           <h3 className="heading-display text-lg text-white flex-1">
             ACTIEVE REEKSEN
           </h3>
-          <CirclesInfo />
-          <FlameInfo />
+          <StatsLegend />
         </div>
         <div className="glass-card-subtle p-2 md:p-4">
           {visibleActive.length > 0 ? (
@@ -189,14 +175,6 @@ export default function ReeksenTab({
               {query ? "Geen resultaten" : "Geen actieve reeksen"}
             </p>
           )}
-          {!query && !showAllActive && activeStreaks.length > visibleActive.length && (
-            <button
-              onClick={() => setShowAllActive(true)}
-              className="w-full mt-2 py-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
-            >
-              Toon alle {activeStreaks.length} deelnemers
-            </button>
-          )}
         </div>
       </div>
 
@@ -207,8 +185,7 @@ export default function ReeksenTab({
           <h3 className="heading-display text-lg text-white flex-1">
             LANGSTE REEKSEN OOIT
           </h3>
-          <CirclesInfo />
-          <FlameInfo />
+          <StatsLegend />
         </div>
         <div className="glass-card-subtle p-2 md:p-4">
           {visibleLongest.length > 0 ? (
@@ -227,14 +204,6 @@ export default function ReeksenTab({
             <p className="text-center text-gray-600 text-sm py-8">
               {query ? "Geen resultaten" : "Nog geen reeksen"}
             </p>
-          )}
-          {!query && !showAllLongest && longestStreaks.length > visibleLongest.length && (
-            <button
-              onClick={() => setShowAllLongest(true)}
-              className="w-full mt-2 py-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
-            >
-              Toon alle {longestStreaks.length} deelnemers
-            </button>
           )}
         </div>
       </div>
