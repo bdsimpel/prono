@@ -32,7 +32,7 @@ export default async function KlassementPage() {
     supabase.from("editions").select("*").order("year", { ascending: false }),
     supabase.from("edition_scores").select("*"),
     supabase.from("alltime_scores").select("*"),
-    supabase.from("activity_events").select("*").neq("type", "points").order("created_at", { ascending: false }).limit(6),
+    supabase.from("activity_events").select("*").neq("type", "points").neq("type", "payment").order("created_at", { ascending: false }).limit(6),
     supabase.from("matches").select("id, api_football_fixture_id, match_datetime"),
     supabase.from("results").select("match_id"),
     fetchAll<{ user_id: string; match_id: number; home_score: number; away_score: number }>(supabase, "predictions", "user_id, match_id, home_score, away_score"),

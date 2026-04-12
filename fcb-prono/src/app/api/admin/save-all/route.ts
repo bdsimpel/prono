@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { recalculateScores } from '@/lib/recalculate'
+import { generateMetricEvents } from '@/lib/activity-metrics'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -128,7 +129,19 @@ export async function POST(request: Request) {
   }
 
   // Recalculate all scores
-  const { playersUpdated } = await recalculateScores(serviceClient)
+  const { playersUpdated, pointDeltas } = await recalculateScores(serviceClient)
+
+  // Generate and insert metric events (rare exact predictions, speeldag top scorer)
+  if (savedMatchIds.length > 0) {
+    const metricEvents = await generateMetricEvents({
+      savedMatchIds,
+      serviceClient,
+      pointDeltas,
+    })
+    if (metricEvents.length > 0) {
+      await serviceClient.from('activity_events').insert(metricEvents)
+    }
+  }
 
   revalidatePath('/', 'layout')
 

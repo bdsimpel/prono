@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 
 interface ActivityEvent {
   id: number;
-  type: "signup" | "result" | "payment" | "points" | "lock" | "extra_answer";
+  type: "signup" | "result" | "payment" | "points" | "lock" | "extra_answer" | "rare_exact" | "speeldag_top" | "standings_top3" | "standings_leader";
   message: string;
   metadata: Record<string, unknown>;
   created_at: string;
@@ -96,6 +96,48 @@ function TrendUpIcon() {
   );
 }
 
+function BullseyeIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="2" />
+    </svg>
+  );
+}
+
+function TrophyIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+      <path d="M4 22h16" />
+      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22" />
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22" />
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+    </svg>
+  );
+}
+
+function PodiumIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="14" width="6" height="8" rx="1" />
+      <rect x="9" y="8" width="6" height="14" rx="1" />
+      <rect x="16" y="11" width="6" height="11" rx="1" />
+    </svg>
+  );
+}
+
+function CrownIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 20h20" />
+      <path d="M4 17l2-12 6 5 6-5 2 12H4z" />
+    </svg>
+  );
+}
+
 const typeIcons: Record<ActivityEvent["type"], () => React.ReactNode> = {
   signup: () => <PersonPlusIcon />,
   result: () => <FootballIcon />,
@@ -103,6 +145,10 @@ const typeIcons: Record<ActivityEvent["type"], () => React.ReactNode> = {
   points: () => <TrendUpIcon />,
   lock: () => <LockIcon />,
   extra_answer: () => <CheckCircleIcon />,
+  rare_exact: () => <BullseyeIcon />,
+  speeldag_top: () => <TrophyIcon />,
+  standings_top3: () => <PodiumIcon />,
+  standings_leader: () => <CrownIcon />,
 };
 
 export default function ActivityFeed({
@@ -126,6 +172,7 @@ export default function ActivityFeed({
         .from("activity_events")
         .select("*")
         .neq("type", "points")
+        .neq("type", "payment")
         .order("created_at", { ascending: false })
         .lt("created_at", lastEvent.created_at)
         .limit(PAGE_SIZE + 1);
