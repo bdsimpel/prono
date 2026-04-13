@@ -19,6 +19,15 @@ function formatMinute(minute: number, extra: number | null): string {
   return `${minute}'`
 }
 
+function abbreviateName(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length <= 1) return name
+  // Keep last name, abbreviate all first/middle names
+  const lastName = parts[parts.length - 1]
+  const initials = parts.slice(0, -1).map(p => p[0] + '.').join(' ')
+  return `${initials} ${lastName}`
+}
+
 function getSuffix(detail: string): string {
   if (detail === 'Penalty') return ' (pen.)'
   if (detail === 'Own Goal') return ' (e.d.)'
@@ -39,14 +48,14 @@ function GoalRow({ goal, side }: { goal: GoalEvent; side: 'home' | 'away' }) {
 
   const nameAndMinute = (
     <>
-      <span className="text-xs text-white">{goal.playerName}</span>
+      <span className="text-xs text-white">{abbreviateName(goal.playerName)}</span>
       <span className="text-[10px] text-gray-500 ml-1">{minuteStr}</span>
     </>
   )
 
   // Show assist or penalty/own goal tag below the player name
   const subtitle = goal.assistName
-    ? <div className="text-[10px] text-gray-600 leading-tight">({goal.assistName})</div>
+    ? <div className="text-[10px] text-gray-600 leading-tight">({abbreviateName(goal.assistName)})</div>
     : suffix
       ? <div className="text-[10px] text-gray-600 leading-tight">{suffix.trim()}</div>
       : null
