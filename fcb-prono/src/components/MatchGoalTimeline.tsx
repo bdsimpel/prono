@@ -22,10 +22,19 @@ function formatMinute(minute: number, extra: number | null): string {
 function abbreviateName(name: string): string {
   const parts = name.trim().split(/\s+/)
   if (parts.length <= 1) return name
-  // Keep last name, abbreviate all first/middle names
-  const lastName = parts[parts.length - 1]
-  const initials = parts.slice(0, -1).map(p => p[0] + '.').join(' ')
-  return `${initials} ${lastName}`
+  // Detect surname prefixes (Dutch/Belgian: van, de, van der, etc.)
+  const prefixes = new Set(['van', 'de', 'den', 'der', 'het', 'ten', 'ter', 'le', 'la', 'el', 'al', 'di', 'du', 'von'])
+  // Find where the surname starts (first prefix or last word)
+  let surnameStart = parts.length - 1
+  for (let i = 1; i < parts.length - 1; i++) {
+    if (prefixes.has(parts[i].toLowerCase())) {
+      surnameStart = i
+      break
+    }
+  }
+  const initials = parts.slice(0, surnameStart).map(p => p[0] + '.').join(' ')
+  const surname = parts.slice(surnameStart).join(' ')
+  return initials ? `${initials} ${surname}` : surname
 }
 
 function getSuffix(detail: string): string {
