@@ -302,14 +302,15 @@ async function buildRareExactEvents(
 // BEFORE the earliest match of the speeldag so the feed (ordered newest first)
 // always shows all matches first, then the speeldag summary block below.
 // Within the summary block, offsets give a stable visual order:
-//   streak (+3ms) > top3 (+2ms) > speeldag_top (+1ms) > leader (+0ms)
+//   top3 (+3ms) > speeldag_top (+2ms) > leader (+1ms) > streak (+0ms)
+// — standings first, streak ("speciallekes") at the bottom.
 // ───────────────────────────────────────────────────────────────────────────
 
 const SUMMARY_OFFSETS = {
-  leader: 0,
-  speeldag_top: 1,
-  top3: 2,
-  streak: 3,
+  streak: 0,
+  leader: 1,
+  speeldag_top: 2,
+  top3: 3,
 } as const
 
 // Summaries sit 1 second before the earliest match of their speeldag. Large
