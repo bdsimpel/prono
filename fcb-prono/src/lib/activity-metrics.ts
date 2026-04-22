@@ -273,11 +273,10 @@ async function buildRareExactEvents(
 
     const home = teamMap[match.home_team_id] || '?'
     const away = teamMap[match.away_team_id] || '?'
-    // 1 ms before the match's entered_at so rare_exact always sits just BELOW
-    // its match in the DESC-ordered feed, regardless of whether the match's
-    // activity_event was auto-saved (later timestamp) or back-filled (same
-    // timestamp, which would otherwise tie-break via id and flip the order).
-    const timestamp = new Date(Date.parse(result.entered_at) - 1).toISOString()
+    // 1 ms AFTER the match's entered_at so rare_exact bubbles just ABOVE its
+    // match in the DESC-ordered feed — "new activity" reading: first the fresh
+    // rare_exact reaction, then the match result it's about.
+    const timestamp = new Date(Date.parse(result.entered_at) + 1).toISOString()
 
     if (exactPlayerIds.length === 0) {
       out.push({
@@ -306,12 +305,12 @@ async function buildRareExactEvents(
 // BEFORE the earliest match of the speeldag so the feed (ordered newest first)
 // always shows all matches first, then the speeldag summary block below.
 // Within the summary block, offsets give a stable visual order:
-//   top3 (+3ms) > speeldag_top (+2ms) > leader (+1ms) > streak (+0ms)
-// — standings first, streak ("speciallekes") at the bottom.
+//   top3 (+3ms) > speeldag_top (+2ms) > leader (+1ms)
+// (Streak is NOT a speeldag summary — it bubbles to the top of the feed on
+// its own, anchored to the latest completed match.)
 // ───────────────────────────────────────────────────────────────────────────
 
 const SUMMARY_OFFSETS = {
-  streak: 0,
   leader: 1,
   speeldag_top: 2,
   top3: 3,
@@ -600,11 +599,9 @@ function buildStreakEvents(
 
   const latestMatch = completed[completed.length - 1]
   const latestSpeeldag = latestMatch.speeldag
-  const latestSpeeldagResults = completed
-    .filter((m) => m.speeldag === latestSpeeldag)
-    .map((m) => resultMap[m.id])
-  const baseMs = speeldagSummaryBaseMs(latestSpeeldagResults)
-  const streakTs = new Date(baseMs + SUMMARY_OFFSETS.streak).toISOString()
+  // Place streak 1 second AFTER the latest completed match so it bubbles to
+  // the top of the feed whenever it updates — "new activity" = on top.
+  const streakTs = new Date(Date.parse(resultMap[latestMatch.id].entered_at) + 1000).toISOString()
 
   return [
     {

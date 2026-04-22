@@ -458,6 +458,10 @@ export async function POST(request: Request) {
             saveAway = score.awayPeriod1 + score.awayPeriod2
           }
 
+          // Single timestamp for both the result row and its activity event so
+          // downstream sort logic (rare_exact = entered_at + 1ms) is stable.
+          const enteredAt = new Date().toISOString()
+
           // Insert result (ON CONFLICT DO NOTHING via upsert)
           const { error } = await serviceClient
             .from('results')
@@ -467,6 +471,7 @@ export async function POST(request: Request) {
                 home_score: saveHome,
                 away_score: saveAway,
                 source: 'auto',
+                entered_at: enteredAt,
               },
               { onConflict: 'match_id', ignoreDuplicates: true }
             )
@@ -480,6 +485,7 @@ export async function POST(request: Request) {
                 type: 'result',
                 message: `${teamMap[matchRow.home_team_id] || '?'} ${saveHome} - ${saveAway} ${teamMap[matchRow.away_team_id] || '?'}`,
                 metadata: { match_id: matchRow.id, speeldag: matchRow.speeldag, auto_saved: true },
+                created_at: enteredAt,
               },
               { onConflict: 'dedup_key', ignoreDuplicates: true },
             )
