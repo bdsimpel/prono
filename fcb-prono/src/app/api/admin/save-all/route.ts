@@ -19,31 +19,48 @@ export async function POST(request: Request) {
   const { results, answers, sofascoreIds, fixtureIds } = await request.json()
   const serviceClient = await createServiceClient()
 
-  // Save match results — batch into bulk delete + bulk upsert. Share a single
-  // timestamp per match between results.entered_at and activity_events.created_at
-  // so rare_exact (entered_at + 1ms) orders above the match consistently.
-  const enteredAtByMatch = new Map<number, string>()
-  const batchBase = Date.now()
+  // Split new vs existing so entered_at on existing rows is preserved —
+  // overwriting it would re-shuffle the whole feed on every admin save.
   const toDelete: number[] = []
-  const toUpsert: { match_id: number; home_score: number; away_score: number; source: string; entered_at: string }[] = []
-  let batchIdx = 0
+  const batchInput: { match_id: number; home_score: number; away_score: number }[] = []
   for (const [matchId, score] of Object.entries(results) as [string, { home: string; away: string }][]) {
     const home = parseInt(score.home)
     const away = parseInt(score.away)
     if (isNaN(home) || isNaN(away)) {
       toDelete.push(parseInt(matchId))
     } else {
+      batchInput.push({ match_id: parseInt(matchId), home_score: home, away_score: away })
+    }
+  }
+
+  const inputIds = batchInput.map((r) => r.match_id)
+  const { data: existingRows } = inputIds.length > 0
+    ? await serviceClient.from('results').select('match_id').in('match_id', inputIds)
+    : { data: [] as { match_id: number }[] }
+  const existingIds = new Set((existingRows || []).map((r) => r.match_id))
+
+  const batchBase = Date.now()
+  let batchIdx = 0
+  const toInsert: { match_id: number; home_score: number; away_score: number; source: string; entered_at: string }[] = []
+  const toUpdate: { match_id: number; home_score: number; away_score: number }[] = []
+  for (const row of batchInput) {
+    if (existingIds.has(row.match_id)) {
+      toUpdate.push(row)
+    } else {
       const enteredAt = new Date(batchBase + batchIdx).toISOString()
-      enteredAtByMatch.set(parseInt(matchId), enteredAt)
-      toUpsert.push({ match_id: parseInt(matchId), home_score: home, away_score: away, source: 'manual', entered_at: enteredAt })
+      toInsert.push({ ...row, source: 'manual', entered_at: enteredAt })
       batchIdx++
     }
   }
+
   await Promise.all([
     toDelete.length > 0 ? serviceClient.from('results').delete().in('match_id', toDelete) : null,
-    toUpsert.length > 0 ? serviceClient.from('results').upsert(toUpsert, { onConflict: 'match_id' }) : null,
+    toInsert.length > 0 ? serviceClient.from('results').insert(toInsert) : null,
+    ...toUpdate.map((r) =>
+      serviceClient.from('results').update({ home_score: r.home_score, away_score: r.away_score }).eq('match_id', r.match_id)
+    ),
   ])
-  const resultsSaved = toUpsert.length
+  const resultsSaved = batchInput.length
 
   // Save SofaScore event IDs (legacy) + API-Football fixture IDs — parallel
   await Promise.all([
@@ -91,6 +108,15 @@ export async function POST(request: Request) {
 
     const teamMap: Record<number, string> = {}
     for (const t of teamRows || []) teamMap[t.id] = t.name
+
+    // Fetch final entered_at per match (preserved old value for updates, new
+    // value for inserts) so activity_event timestamps stay in lockstep.
+    const { data: finalRows } = await serviceClient
+      .from('results')
+      .select('match_id, entered_at')
+      .in('match_id', savedMatchIds)
+    const enteredAtByMatch = new Map<number, string>()
+    for (const r of finalRows || []) enteredAtByMatch.set(r.match_id, r.entered_at)
 
     const resultEvents = (matchRows || []).map(m => {
       const s = results[String(m.id)] as { home: string; away: string }
