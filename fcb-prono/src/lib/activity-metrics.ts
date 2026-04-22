@@ -302,12 +302,12 @@ async function buildRareExactEvents(
 // ───────────────────────────────────────────────────────────────────────────
 // Speeldag complete: emit speeldag_top, standings_top3, standings_leader when
 // every match of the given speeldag has a stored result. created_at sits just
-// BEFORE the earliest match of the speeldag so the feed (ordered newest first)
-// always shows all matches first, then the speeldag summary block below.
-// Within the summary block, offsets give a stable visual order:
-//   top3 (+3ms) > speeldag_top (+2ms) > leader (+1ms)
+// BELOW the LATEST match of the speeldag so the summaries land where the
+// speeldag actually ended (same day as the last match, not back-dated to the
+// first one). Feed order within the speeldag block:
+//   latest match → top3 (-1ms) → speeldag_top (-2ms) → leader (-3ms) → earlier matches
 // (Streak is NOT a speeldag summary — it bubbles to the top of the feed on
-// its own, anchored to the latest completed match.)
+// its own, anchored to the latest completed match across all speeldagen.)
 // ───────────────────────────────────────────────────────────────────────────
 
 const SUMMARY_OFFSETS = {
@@ -316,16 +316,16 @@ const SUMMARY_OFFSETS = {
   top3: 3,
 } as const
 
-// Summaries sit 1 second before the earliest match of their speeldag. Large
-// enough to survive clock drift; small enough to stay visually tied to the
-// speeldag block.
-const SUMMARY_OFFSET_BASE_MS = 1000
-
+// Summaries sit N ms below the latest match of their speeldag. Small enough
+// to stay visually tied to the speeldag's last match (same "3d geleden"
+// display bucket).
 function speeldagSummaryBaseMs(speeldagResults: ResultRow[]): number {
-  const earliest = speeldagResults
+  const latest = speeldagResults
     .map((r) => r.entered_at)
-    .sort()[0]
-  return Date.parse(earliest) - SUMMARY_OFFSET_BASE_MS
+    .sort()
+    .pop()!
+  // -4 so leader (+1) = latest-3ms, speeldag_top (+2) = -2ms, top3 (+3) = -1ms
+  return Date.parse(latest) - 4
 }
 
 function buildSpeeldagCompleteEvents(
