@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/server'
 import { recalculateScores } from '@/lib/recalculate'
-import { generateMetricEvents } from '@/lib/activity-metrics'
+import { generateMetricEvents, insertMetricEvents } from '@/lib/activity-metrics'
 import { processMatchEvents } from '@/lib/playoff-stats'
 import type { LiveScore } from '@/lib/live-scores'
 import type { GoalEvent } from '@/components/MatchGoalTimeline'
@@ -431,14 +431,16 @@ export async function POST(request: Request) {
         .in('api_football_fixture_id', eventIds)
 
       if (matchRows && matchRows.length > 0) {
-        // Check which already have results
+        // Check which already have results + fetch all teams (once, not per match)
         const matchIds = matchRows.map(m => m.id)
-        const { data: existingResults } = await serviceClient
-          .from('results')
-          .select('match_id')
-          .in('match_id', matchIds)
+        const [{ data: existingResults }, { data: allTeams }] = await Promise.all([
+          serviceClient.from('results').select('match_id').in('match_id', matchIds),
+          serviceClient.from('teams').select('id, name'),
+        ])
 
         const existingMatchIds = new Set((existingResults || []).map(r => r.match_id))
+        const teamMap: Record<number, string> = {}
+        for (const t of allTeams || []) teamMap[t.id] = t.name
 
         let needsRecalc = false
         for (const matchRow of matchRows) {
@@ -473,20 +475,14 @@ export async function POST(request: Request) {
             saved.push(matchRow.id)
             needsRecalc = true
 
-            // Insert activity event
-            const { data: teamRows } = await serviceClient
-              .from('teams')
-              .select('id, name')
-              .in('id', [matchRow.home_team_id, matchRow.away_team_id])
-
-            const teamMap: Record<number, string> = {}
-            for (const t of teamRows || []) teamMap[t.id] = t.name
-
-            await serviceClient.from('activity_events').insert({
-              type: 'result',
-              message: `${teamMap[matchRow.home_team_id] || '?'} ${saveHome} - ${saveAway} ${teamMap[matchRow.away_team_id] || '?'}`,
-              metadata: { match_id: matchRow.id, speeldag: matchRow.speeldag, auto_saved: true },
-            })
+            await serviceClient.from('activity_events').upsert(
+              {
+                type: 'result',
+                message: `${teamMap[matchRow.home_team_id] || '?'} ${saveHome} - ${saveAway} ${teamMap[matchRow.away_team_id] || '?'}`,
+                metadata: { match_id: matchRow.id, speeldag: matchRow.speeldag, auto_saved: true },
+              },
+              { onConflict: 'dedup_key', ignoreDuplicates: true },
+            )
 
             // Process match events (goals, assists, clean sheets) for timeline display
             if (matchRow.api_football_fixture_id) {
@@ -564,9 +560,7 @@ export async function POST(request: Request) {
               serviceClient,
               pointDeltas,
             })
-            if (metricEvents.length > 0) {
-              await serviceClient.from('activity_events').insert(metricEvents)
-            }
+            await insertMetricEvents(serviceClient, metricEvents)
           }
 
           revalidatePath('/', 'layout')

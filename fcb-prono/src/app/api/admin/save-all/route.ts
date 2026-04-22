@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { recalculateScores } from '@/lib/recalculate'
-import { generateMetricEvents } from '@/lib/activity-metrics'
+import { generateMetricEvents, insertMetricEvents } from '@/lib/activity-metrics'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -19,73 +19,53 @@ export async function POST(request: Request) {
   const { results, answers, sofascoreIds, fixtureIds } = await request.json()
   const serviceClient = await createServiceClient()
 
-  // Save match results
-  let resultsSaved = 0
+  // Save match results — batch into bulk delete + bulk upsert
+  const toDelete: number[] = []
+  const toUpsert: { match_id: number; home_score: number; away_score: number; source: string }[] = []
   for (const [matchId, score] of Object.entries(results) as [string, { home: string; away: string }][]) {
     const home = parseInt(score.home)
     const away = parseInt(score.away)
-
     if (isNaN(home) || isNaN(away)) {
-      // Empty/cleared score: delete the result if it exists
-      await serviceClient
-        .from('results')
-        .delete()
-        .eq('match_id', parseInt(matchId))
-      continue
-    }
-
-    const { error } = await serviceClient
-      .from('results')
-      .upsert(
-        { match_id: parseInt(matchId), home_score: home, away_score: away, source: 'manual' },
-        { onConflict: 'match_id' }
-      )
-    if (!error) resultsSaved++
-  }
-
-  // Save SofaScore event IDs (legacy)
-  if (sofascoreIds && typeof sofascoreIds === 'object') {
-    for (const [matchId, eventId] of Object.entries(sofascoreIds) as [string, string][]) {
-      const id = eventId ? parseInt(eventId) : null
-      await serviceClient
-        .from('matches')
-        .update({ sofascore_event_id: id || null })
-        .eq('id', parseInt(matchId))
+      toDelete.push(parseInt(matchId))
+    } else {
+      toUpsert.push({ match_id: parseInt(matchId), home_score: home, away_score: away, source: 'manual' })
     }
   }
+  await Promise.all([
+    toDelete.length > 0 ? serviceClient.from('results').delete().in('match_id', toDelete) : null,
+    toUpsert.length > 0 ? serviceClient.from('results').upsert(toUpsert, { onConflict: 'match_id' }) : null,
+  ])
+  const resultsSaved = toUpsert.length
 
-  // Save API-Football fixture IDs
-  if (fixtureIds && typeof fixtureIds === 'object') {
-    for (const [matchId, fId] of Object.entries(fixtureIds) as [string, string][]) {
-      const id = fId ? parseInt(fId) : null
-      await serviceClient
-        .from('matches')
-        .update({ api_football_fixture_id: id || null })
-        .eq('id', parseInt(matchId))
-    }
-  }
+  // Save SofaScore event IDs (legacy) + API-Football fixture IDs — parallel
+  await Promise.all([
+    ...(sofascoreIds && typeof sofascoreIds === 'object'
+      ? (Object.entries(sofascoreIds) as [string, string][]).map(([matchId, eventId]) => {
+          const id = eventId ? parseInt(eventId) : null
+          return serviceClient.from('matches').update({ sofascore_event_id: id || null }).eq('id', parseInt(matchId))
+        })
+      : []),
+    ...(fixtureIds && typeof fixtureIds === 'object'
+      ? (Object.entries(fixtureIds) as [string, string][]).map(([matchId, fId]) => {
+          const id = fId ? parseInt(fId) : null
+          return serviceClient.from('matches').update({ api_football_fixture_id: id || null }).eq('id', parseInt(matchId))
+        })
+      : []),
+  ])
 
-  // Save extra question answers
-  for (const [qId, answerList] of Object.entries(answers) as [string, string[]][]) {
-    const questionId = parseInt(qId)
-
-    // Delete existing answers for this question
-    await serviceClient
-      .from('extra_question_answers')
-      .delete()
-      .eq('question_id', questionId)
-
-    // Insert new answers
-    const rows = (answerList || [])
-      .filter(a => a.trim())
-      .map(a => ({ question_id: questionId, correct_answer: a.trim() }))
-
-    if (rows.length > 0) {
-      await serviceClient
-        .from('extra_question_answers')
-        .insert(rows)
-    }
-  }
+  // Save extra question answers — parallel per question (preserving per-question atomicity)
+  await Promise.all(
+    (Object.entries(answers) as [string, string[]][]).map(async ([qId, answerList]) => {
+      const questionId = parseInt(qId)
+      await serviceClient.from('extra_question_answers').delete().eq('question_id', questionId)
+      const rows = (answerList || [])
+        .filter(a => a.trim())
+        .map(a => ({ question_id: questionId, correct_answer: a.trim() }))
+      if (rows.length > 0) {
+        await serviceClient.from('extra_question_answers').insert(rows)
+      }
+    })
+  )
 
   // Insert result activity events only for newly saved matches (skip duplicates)
   const savedMatchIds = Object.entries(results)
@@ -96,35 +76,27 @@ export async function POST(request: Request) {
     .map(([matchId]) => parseInt(matchId))
 
   if (savedMatchIds.length > 0) {
-    const [{ data: matchRows }, { data: teamRows }, { data: existingEvents }] = await Promise.all([
+    const [{ data: matchRows }, { data: teamRows }] = await Promise.all([
       serviceClient.from('matches').select('id, speeldag, home_team_id, away_team_id, is_cup_final').in('id', savedMatchIds),
       serviceClient.from('teams').select('id, name'),
-      serviceClient.from('activity_events').select('metadata').eq('type', 'result'),
     ])
-
-    // Find which matches already have activity events
-    const existingMatchIds = new Set(
-      (existingEvents || [])
-        .map(e => (e.metadata as { match_id?: number })?.match_id)
-        .filter(Boolean)
-    )
 
     const teamMap: Record<number, string> = {}
     for (const t of teamRows || []) teamMap[t.id] = t.name
 
-    const resultEvents = (matchRows || [])
-      .filter(m => !existingMatchIds.has(m.id))
-      .map(m => {
-        const s = results[String(m.id)] as { home: string; away: string }
-        return {
-          type: 'result' as const,
-          message: `${teamMap[m.home_team_id]} ${s.home} - ${s.away} ${teamMap[m.away_team_id]}`,
-          metadata: { match_id: m.id, speeldag: m.speeldag },
-        }
-      })
+    const resultEvents = (matchRows || []).map(m => {
+      const s = results[String(m.id)] as { home: string; away: string }
+      return {
+        type: 'result' as const,
+        message: `${teamMap[m.home_team_id]} ${s.home} - ${s.away} ${teamMap[m.away_team_id]}`,
+        metadata: { match_id: m.id, speeldag: m.speeldag },
+      }
+    })
 
     if (resultEvents.length > 0) {
-      await serviceClient.from('activity_events').insert(resultEvents)
+      await serviceClient
+        .from('activity_events')
+        .upsert(resultEvents, { onConflict: 'dedup_key', ignoreDuplicates: true })
     }
   }
 
@@ -138,9 +110,7 @@ export async function POST(request: Request) {
       serviceClient,
       pointDeltas,
     })
-    if (metricEvents.length > 0) {
-      await serviceClient.from('activity_events').insert(metricEvents)
-    }
+    await insertMetricEvents(serviceClient, metricEvents)
   }
 
   revalidatePath('/', 'layout')

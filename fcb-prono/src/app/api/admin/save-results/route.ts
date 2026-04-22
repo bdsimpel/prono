@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { recalculateScores } from '@/lib/recalculate'
-import { generateMetricEvents } from '@/lib/activity-metrics'
+import { generateMetricEvents, insertMetricEvents } from '@/lib/activity-metrics'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -19,28 +19,23 @@ export async function POST(request: Request) {
   const { results } = await request.json()
   const serviceClient = await createServiceClient()
 
-  let saved = 0
+  // Batch into bulk delete + bulk upsert
+  const toDelete: number[] = []
+  const toUpsert: { match_id: number; home_score: number; away_score: number }[] = []
   for (const [matchId, score] of Object.entries(results) as [string, { home: string; away: string }][]) {
     const home = parseInt(score.home)
     const away = parseInt(score.away)
-
     if (isNaN(home) || isNaN(away)) {
-      // Empty/cleared score: delete the result if it exists
-      await serviceClient
-        .from('results')
-        .delete()
-        .eq('match_id', parseInt(matchId))
-      continue
+      toDelete.push(parseInt(matchId))
+    } else {
+      toUpsert.push({ match_id: parseInt(matchId), home_score: home, away_score: away })
     }
-
-    const { error } = await serviceClient
-      .from('results')
-      .upsert(
-        { match_id: parseInt(matchId), home_score: home, away_score: away },
-        { onConflict: 'match_id' }
-      )
-    if (!error) saved++
   }
+  await Promise.all([
+    toDelete.length > 0 ? serviceClient.from('results').delete().in('match_id', toDelete) : null,
+    toUpsert.length > 0 ? serviceClient.from('results').upsert(toUpsert, { onConflict: 'match_id' }) : null,
+  ])
+  const saved = toUpsert.length
 
   // Insert result activity events for saved matches
   const savedMatchIds = Object.entries(results)
@@ -51,22 +46,15 @@ export async function POST(request: Request) {
     .map(([matchId]) => parseInt(matchId))
 
   if (savedMatchIds.length > 0) {
-    const [{ data: matches }, { data: teams }, { data: existingEvents }] = await Promise.all([
+    const [{ data: matches }, { data: teams }] = await Promise.all([
       serviceClient.from('matches').select('id, speeldag, home_team_id, away_team_id, is_cup_final').in('id', savedMatchIds),
       serviceClient.from('teams').select('id, name'),
-      serviceClient.from('activity_events').select('metadata').eq('type', 'result'),
     ])
-
-    const existingMatchIds = new Set(
-      (existingEvents || [])
-        .map(e => (e.metadata as { match_id?: number })?.match_id)
-        .filter(Boolean)
-    )
 
     const teamMap: Record<number, string> = {}
     for (const t of teams || []) teamMap[t.id] = t.name
 
-    const resultEvents = (matches || []).filter(m => !existingMatchIds.has(m.id)).map(m => {
+    const resultEvents = (matches || []).map(m => {
       const s = results[String(m.id)] as { home: string; away: string }
       return {
         type: 'result' as const,
@@ -76,7 +64,9 @@ export async function POST(request: Request) {
     })
 
     if (resultEvents.length > 0) {
-      await serviceClient.from('activity_events').insert(resultEvents)
+      await serviceClient
+        .from('activity_events')
+        .upsert(resultEvents, { onConflict: 'dedup_key', ignoreDuplicates: true })
     }
   }
 
@@ -109,9 +99,7 @@ export async function POST(request: Request) {
       serviceClient,
       pointDeltas,
     })
-    if (metricEvents.length > 0) {
-      await serviceClient.from('activity_events').insert(metricEvents)
-    }
+    await insertMetricEvents(serviceClient, metricEvents)
   }
 
   revalidatePath('/', 'layout')
