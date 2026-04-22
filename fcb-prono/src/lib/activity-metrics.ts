@@ -298,10 +298,31 @@ async function buildRareExactEvents(
 
 // ───────────────────────────────────────────────────────────────────────────
 // Speeldag complete: emit speeldag_top, standings_top3, standings_leader when
-// every match of the given speeldag has a stored result. created_at uses the
-// latest entered_at of the speeldag's matches so the event sits where it
-// happened chronologically, not at "now".
+// every match of the given speeldag has a stored result. created_at sits just
+// BEFORE the earliest match of the speeldag so the feed (ordered newest first)
+// always shows all matches first, then the speeldag summary block below.
+// Within the summary block, offsets give a stable visual order:
+//   streak (+3ms) > top3 (+2ms) > speeldag_top (+1ms) > leader (+0ms)
 // ───────────────────────────────────────────────────────────────────────────
+
+const SUMMARY_OFFSETS = {
+  leader: 0,
+  speeldag_top: 1,
+  top3: 2,
+  streak: 3,
+} as const
+
+// Summaries sit 1 second before the earliest match of their speeldag. Large
+// enough to survive clock drift; small enough to stay visually tied to the
+// speeldag block.
+const SUMMARY_OFFSET_BASE_MS = 1000
+
+function speeldagSummaryBaseMs(speeldagResults: ResultRow[]): number {
+  const earliest = speeldagResults
+    .map((r) => r.entered_at)
+    .sort()[0]
+  return Date.parse(earliest) - SUMMARY_OFFSET_BASE_MS
+}
 
 function buildSpeeldagCompleteEvents(
   speeldag: number,
@@ -322,11 +343,10 @@ function buildSpeeldagCompleteEvents(
   const speeldagResults = speeldagMatchIds.map((id) => resultMap[id]).filter((r) => r != null) as ResultRow[]
   if (speeldagResults.length < speeldagMatchIds.length) return []
 
-  // Timestamp: latest entered_at within this speeldag
-  const speeldagTimestamp = speeldagResults
-    .map((r) => r.entered_at)
-    .sort()
-    .pop()!
+  const baseMs = speeldagSummaryBaseMs(speeldagResults)
+  const leaderTs = new Date(baseMs + SUMMARY_OFFSETS.leader).toISOString()
+  const speeldagTopTs = new Date(baseMs + SUMMARY_OFFSETS.speeldag_top).toISOString()
+  const top3Ts = new Date(baseMs + SUMMARY_OFFSETS.top3).toISOString()
 
   const upToIds = allMatches
     .filter((m) => m.speeldag != null && m.speeldag <= speeldag)
@@ -367,7 +387,7 @@ function buildSpeeldagCompleteEvents(
           player_ids: topPlayers.map(([id]) => id),
           points: maxPts,
         },
-        created_at: speeldagTimestamp,
+        created_at: speeldagTopTs,
       }
     }
   }
@@ -442,7 +462,7 @@ function buildSpeeldagCompleteEvents(
         speeldag,
         top3: ranked.map((r) => ({ player_id: r.user_id, total_score: r.total, rank: r.rank })),
       },
-      created_at: speeldagTimestamp,
+      created_at: top3Ts,
     }
   }
 
@@ -487,7 +507,7 @@ function buildSpeeldagCompleteEvents(
         type: 'standings_leader',
         message: `${joinNames(leaderNames)} ${verb} het all-time klassement!`,
         metadata: { speeldag, player_names: leaderNames },
-        created_at: speeldagTimestamp,
+        created_at: leaderTs,
       }
     }
   }
@@ -522,8 +542,8 @@ function buildNoZeroEventFromScores(
 
 // ───────────────────────────────────────────────────────────────────────────
 // streak: current set of players on a scoring streak. One row only (dedup_key
-// = 'streak'). created_at = entered_at of the most recent completed match, so
-// the streak event sits where that match finished rather than at "now".
+// = 'streak'). created_at is placed in the latest completed speeldag's summary
+// block (below all its matches) so the feed keeps matches first.
 // ───────────────────────────────────────────────────────────────────────────
 
 function buildStreakEvents(
@@ -574,17 +594,22 @@ function buildStreakEvents(
   )
 
   const latestMatch = completed[completed.length - 1]
-  const timestamp = resultMap[latestMatch.id].entered_at
+  const latestSpeeldag = latestMatch.speeldag
+  const latestSpeeldagResults = completed
+    .filter((m) => m.speeldag === latestSpeeldag)
+    .map((m) => resultMap[m.id])
+  const baseMs = speeldagSummaryBaseMs(latestSpeeldagResults)
+  const streakTs = new Date(baseMs + SUMMARY_OFFSETS.streak).toISOString()
 
   return [
     {
       type: 'streak',
       message: buildStreakMessage(streakPlayers, nameMap),
       metadata: {
-        speeldag: latestMatch.speeldag,
+        speeldag: latestSpeeldag,
         streaks: streakPlayers.map((s) => ({ player_id: s.user_id, streak: s.streak })),
       },
-      created_at: timestamp,
+      created_at: streakTs,
     },
   ]
 }
