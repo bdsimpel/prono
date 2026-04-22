@@ -301,31 +301,31 @@ async function buildRareExactEvents(
 
 // ───────────────────────────────────────────────────────────────────────────
 // Speeldag complete: emit speeldag_top, standings_top3, standings_leader when
-// every match of the given speeldag has a stored result. created_at sits just
-// BELOW the LATEST match of the speeldag so the summaries land where the
-// speeldag actually ended (same day as the last match, not back-dated to the
-// first one). Feed order within the speeldag block:
-//   latest match → top3 (-1ms) → speeldag_top (-2ms) → leader (-3ms) → earlier matches
-// (Streak is NOT a speeldag summary — it bubbles to the top of the feed on
-// its own, anchored to the latest completed match across all speeldagen.)
+// every match of the given speeldag has a stored result. Summaries fire AFTER
+// the speeldag ends (chronologically newer than the last match) and therefore
+// float ABOVE the last match in the DESC-ordered feed. Desired order within
+// the speeldag block (old → new, i.e. bottom → top of the feed):
+//   match 7 → match 8 → match 9 → leader → top3 → topscorers
+//
+// Offsets relative to the speeldag's latest match (max entered_at):
+//   leader (+1ms) → top3 (+2ms) → speeldag_top (+3ms, highest / on top)
+//
+// (Streak is NOT a speeldag summary — it bubbles further above, anchored to
+// the latest completed match across all speeldagen with a +1s offset.)
 // ───────────────────────────────────────────────────────────────────────────
 
 const SUMMARY_OFFSETS = {
   leader: 1,
-  speeldag_top: 2,
-  top3: 3,
+  top3: 2,
+  speeldag_top: 3,
 } as const
 
-// Summaries sit N ms below the latest match of their speeldag. Small enough
-// to stay visually tied to the speeldag's last match (same "3d geleden"
-// display bucket).
 function speeldagSummaryBaseMs(speeldagResults: ResultRow[]): number {
   const latest = speeldagResults
     .map((r) => r.entered_at)
     .sort()
     .pop()!
-  // -4 so leader (+1) = latest-3ms, speeldag_top (+2) = -2ms, top3 (+3) = -1ms
-  return Date.parse(latest) - 4
+  return Date.parse(latest)
 }
 
 function buildSpeeldagCompleteEvents(
