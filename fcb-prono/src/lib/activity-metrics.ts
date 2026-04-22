@@ -273,7 +273,11 @@ async function buildRareExactEvents(
 
     const home = teamMap[match.home_team_id] || '?'
     const away = teamMap[match.away_team_id] || '?'
-    const timestamp = result.entered_at
+    // 1 ms before the match's entered_at so rare_exact always sits just BELOW
+    // its match in the DESC-ordered feed, regardless of whether the match's
+    // activity_event was auto-saved (later timestamp) or back-filled (same
+    // timestamp, which would otherwise tie-break via id and flip the order).
+    const timestamp = new Date(Date.parse(result.entered_at) - 1).toISOString()
 
     if (exactPlayerIds.length === 0) {
       out.push({
