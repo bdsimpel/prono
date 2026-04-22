@@ -19,16 +19,24 @@ export async function POST(request: Request) {
   const { results, answers, sofascoreIds, fixtureIds } = await request.json()
   const serviceClient = await createServiceClient()
 
-  // Save match results — batch into bulk delete + bulk upsert
+  // Save match results — batch into bulk delete + bulk upsert. Share a single
+  // timestamp per match between results.entered_at and activity_events.created_at
+  // so rare_exact (entered_at + 1ms) orders above the match consistently.
+  const enteredAtByMatch = new Map<number, string>()
+  const batchBase = Date.now()
   const toDelete: number[] = []
-  const toUpsert: { match_id: number; home_score: number; away_score: number; source: string }[] = []
+  const toUpsert: { match_id: number; home_score: number; away_score: number; source: string; entered_at: string }[] = []
+  let batchIdx = 0
   for (const [matchId, score] of Object.entries(results) as [string, { home: string; away: string }][]) {
     const home = parseInt(score.home)
     const away = parseInt(score.away)
     if (isNaN(home) || isNaN(away)) {
       toDelete.push(parseInt(matchId))
     } else {
-      toUpsert.push({ match_id: parseInt(matchId), home_score: home, away_score: away, source: 'manual' })
+      const enteredAt = new Date(batchBase + batchIdx).toISOString()
+      enteredAtByMatch.set(parseInt(matchId), enteredAt)
+      toUpsert.push({ match_id: parseInt(matchId), home_score: home, away_score: away, source: 'manual', entered_at: enteredAt })
+      batchIdx++
     }
   }
   await Promise.all([
@@ -90,6 +98,7 @@ export async function POST(request: Request) {
         type: 'result' as const,
         message: `${teamMap[m.home_team_id]} ${s.home} - ${s.away} ${teamMap[m.away_team_id]}`,
         metadata: { match_id: m.id, speeldag: m.speeldag },
+        created_at: enteredAtByMatch.get(m.id),
       }
     })
 

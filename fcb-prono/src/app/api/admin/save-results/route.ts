@@ -19,16 +19,26 @@ export async function POST(request: Request) {
   const { results } = await request.json()
   const serviceClient = await createServiceClient()
 
-  // Batch into bulk delete + bulk upsert
+  // Batch into bulk delete + bulk upsert. Per-match timestamp is shared
+  // between results.entered_at and the matching activity_events.created_at so
+  // rare_exact (entered_at + 1ms) lands consistently above the match in the
+  // feed — without this, DB defaults would diverge by ~60ms across the two
+  // tables and flip the ordering.
+  const enteredAtByMatch = new Map<number, string>()
+  const batchBase = Date.now()
   const toDelete: number[] = []
-  const toUpsert: { match_id: number; home_score: number; away_score: number }[] = []
+  const toUpsert: { match_id: number; home_score: number; away_score: number; entered_at: string }[] = []
+  let batchIdx = 0
   for (const [matchId, score] of Object.entries(results) as [string, { home: string; away: string }][]) {
     const home = parseInt(score.home)
     const away = parseInt(score.away)
     if (isNaN(home) || isNaN(away)) {
       toDelete.push(parseInt(matchId))
     } else {
-      toUpsert.push({ match_id: parseInt(matchId), home_score: home, away_score: away })
+      const enteredAt = new Date(batchBase + batchIdx).toISOString()
+      enteredAtByMatch.set(parseInt(matchId), enteredAt)
+      toUpsert.push({ match_id: parseInt(matchId), home_score: home, away_score: away, entered_at: enteredAt })
+      batchIdx++
     }
   }
   await Promise.all([
@@ -60,6 +70,7 @@ export async function POST(request: Request) {
         type: 'result' as const,
         message: `${teamMap[m.home_team_id]} ${s.home} - ${s.away} ${teamMap[m.away_team_id]}`,
         metadata: { match_id: m.id, speeldag: m.speeldag },
+        created_at: enteredAtByMatch.get(m.id),
       }
     })
 
