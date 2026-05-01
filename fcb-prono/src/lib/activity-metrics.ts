@@ -160,6 +160,23 @@ export async function generateMetricEvents({
 
   const events: MetricEvent[] = []
 
+  // rare_exact runs over ALL saved matches (including bekerfinale, speeldag=null)
+  const allSavedMatches = savedMatchIds
+    .map((id) => matchesById[id])
+    .filter((m): m is NonNullable<typeof m> => m != null)
+
+  events.push(
+    ...(await buildRareExactEvents(
+      serviceClient,
+      allSavedMatches,
+      resultMap,
+      allPredictions,
+      teamMap,
+      nameMap,
+    )),
+  )
+
+  // Speeldag summaries (speeldag_top, top3, leader) only fire for league speeldagen.
   const uniqueSpeeldagen = [
     ...new Set(
       savedMatchIds
@@ -169,20 +186,6 @@ export async function generateMetricEvents({
   ].sort((a, b) => a - b)
 
   for (const speeldag of uniqueSpeeldagen) {
-    const speeldagSavedMatches = savedMatchIds
-      .map((id) => matchesById[id])
-      .filter((m): m is NonNullable<typeof m> => m != null && m.speeldag === speeldag)
-
-    events.push(
-      ...(await buildRareExactEvents(
-        serviceClient,
-        speeldagSavedMatches,
-        resultMap,
-        allPredictions,
-        teamMap,
-        nameMap,
-      )),
-    )
     events.push(
       ...buildSpeeldagCompleteEvents(
         speeldag,
@@ -560,7 +563,7 @@ function buildStreakEvents(
   // in play order, not by seq/id. entered_at is close enough to play order for
   // a Belgian playoff round where matches are entered shortly after they end.
   const completed = allMatches
-    .filter((m) => m.speeldag != null && resultMap[m.id])
+    .filter((m) => resultMap[m.id])
     .sort((a, b) => resultMap[a.id].entered_at.localeCompare(resultMap[b.id].entered_at))
 
   if (completed.length < 5) return []
