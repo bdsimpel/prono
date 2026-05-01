@@ -112,13 +112,9 @@ function parseApiFootballFixture(f: ApiFootballFixture): LiveScore | null {
       timeInitial,
       timeMax: timeInitial === 0 ? 2700 : 5400,
       timeExtra: 540,
-      // Period scores for cup final 90-min calculation
-      homePeriod1: f.score.halftime.home,
-      homePeriod2: f.score.fulltime.home !== null && f.score.halftime.home !== null
-        ? f.score.fulltime.home - f.score.halftime.home : null,
-      awayPeriod1: f.score.halftime.away,
-      awayPeriod2: f.score.fulltime.away !== null && f.score.halftime.away !== null
-        ? f.score.fulltime.away - f.score.halftime.away : null,
+      // 90-minute score for cup final (ignores ET/penalties)
+      homeFulltime: f.score.fulltime.home,
+      awayFulltime: f.score.fulltime.away,
       winnerCode,
       homeTeamName: f.teams.home.name,
       awayTeamName: f.teams.away.name,
@@ -141,7 +137,7 @@ function parseApiFootballFixture(f: ApiFootballFixture): LiveScore | null {
 let mockStartTime: number | null = null
 
 const MOCK_EXTRA_FIELDS = {
-  homePeriod1: null, homePeriod2: null, awayPeriod1: null, awayPeriod2: null,
+  homeFulltime: null, awayFulltime: null,
   winnerCode: null, homeTeamName: null, awayTeamName: null,
 } as const
 
@@ -449,14 +445,32 @@ export async function POST(request: Request) {
           const score = scores[matchRow.api_football_fixture_id!]
           if (!score || score.homeScore === null || score.awayScore === null) continue
 
-          // Cup final: use period1 + period2 (90-min score)
-          // Regular matches: use current score
-          let saveHome = score.homeScore
-          let saveAway = score.awayScore
-          if (matchRow.is_cup_final && score.homePeriod1 !== null && score.homePeriod2 !== null && score.awayPeriod1 !== null && score.awayPeriod2 !== null) {
-            saveHome = score.homePeriod1 + score.homePeriod2
-            saveAway = score.awayPeriod1 + score.awayPeriod2
+          // Cup final: use 90-minute score (excludes ET / penalties).
+          // Regular matches: use current score.
+          let apiHome: number = score.homeScore
+          let apiAway: number = score.awayScore
+          if (matchRow.is_cup_final && score.homeFulltime !== null && score.awayFulltime !== null) {
+            apiHome = score.homeFulltime
+            apiAway = score.awayFulltime
           }
+
+          // Orientation fix: API home/away may differ from DB (notably the cup
+          // final, where API has Union home / Anderlecht away while the DB has
+          // Anderlecht home / Union away). Detect via team-name matching and
+          // swap the scores so they line up with DB home/away_team_id.
+          const dbHomeName = (teamMap[matchRow.home_team_id] || '').toLowerCase()
+          const dbAwayName = (teamMap[matchRow.away_team_id] || '').toLowerCase()
+          const apiHomeName = (score.homeTeamName || '').toLowerCase()
+          const apiHomeMatchesDbHome =
+            !!apiHomeName && !!dbHomeName &&
+            (apiHomeName.includes(dbHomeName) || dbHomeName.includes(apiHomeName))
+          const apiHomeMatchesDbAway =
+            !!apiHomeName && !!dbAwayName &&
+            (apiHomeName.includes(dbAwayName) || dbAwayName.includes(apiHomeName))
+          const flipped = apiHomeMatchesDbAway && !apiHomeMatchesDbHome
+
+          const saveHome = flipped ? apiAway : apiHome
+          const saveAway = flipped ? apiHome : apiAway
 
           // Single timestamp for both the result row and its activity event so
           // downstream sort logic (rare_exact = entered_at + 1ms) is stable.

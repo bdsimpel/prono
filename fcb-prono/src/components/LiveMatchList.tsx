@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import TeamLogo from '@/components/TeamLogo'
 import LiveMatchBadge from '@/components/LiveMatchBadge'
-import { useLiveScores } from '@/lib/live-scores'
+import { useLiveScores, effectiveLiveScore } from '@/lib/live-scores'
 import type { LiveScore } from '@/lib/live-scores'
 
 export interface LiveMatchData {
@@ -78,7 +78,8 @@ function CurrentCard({ match, result, live }: { match: Props['matches'][0]; resu
 
   const isLive = live && live.statusType === 'inprogress'
   const isFinished = live && live.statusType === 'finished' && !result
-  const hasLiveScore = live && live.homeScore !== null && live.awayScore !== null && !result
+  const liveDisplay = live ? effectiveLiveScore(live, match.is_cup_final) : { home: null, away: null }
+  const hasLiveScore = !!live && liveDisplay.home !== null && liveDisplay.away !== null && !result
   const scoreColor = isLive ? 'text-red-400' : 'text-white'
   const scoreBgColor = isLive ? 'bg-red-500/10 text-red-400' : 'bg-white/[0.06] text-white'
 
@@ -103,13 +104,13 @@ function CurrentCard({ match, result, live }: { match: Props['matches'][0]; resu
             <TeamLogo name={match.home_team.name} />
             <span className="text-sm text-gray-200 truncate flex-1">{match.home_team.name}</span>
             {result && <span className="text-white font-bold text-sm tabular-nums shrink-0">{result.home_score}</span>}
-            {hasLiveScore && <span className={`${scoreColor} font-bold text-sm tabular-nums shrink-0`}>{live!.homeScore}</span>}
+            {hasLiveScore && <span className={`${scoreColor} font-bold text-sm tabular-nums shrink-0`}>{liveDisplay.home}</span>}
           </div>
           <div className="flex items-center gap-2">
             <TeamLogo name={match.away_team.name} />
             <span className="text-sm text-gray-200 truncate flex-1">{match.away_team.name}</span>
             {result && <span className="text-white font-bold text-sm tabular-nums shrink-0">{result.away_score}</span>}
-            {hasLiveScore && <span className={`${scoreColor} font-bold text-sm tabular-nums shrink-0`}>{live!.awayScore}</span>}
+            {hasLiveScore && <span className={`${scoreColor} font-bold text-sm tabular-nums shrink-0`}>{liveDisplay.away}</span>}
           </div>
         </div>
         <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -137,7 +138,7 @@ function CurrentCard({ match, result, live }: { match: Props['matches'][0]; resu
               </span>
             ) : hasLiveScore ? (
               <span className={`${scoreBgColor} px-2 py-0.5 rounded font-bold text-xs shrink-0`}>
-                {live!.homeScore}-{live!.awayScore}
+                {liveDisplay.home}-{liveDisplay.away}
               </span>
             ) : (
               <span className="text-gray-600 text-xs shrink-0">-</span>
@@ -161,7 +162,8 @@ function UpcomingCard({ match, live }: { match: Props['matches'][0]; live?: Live
       ? formatMatchDate(match.match_datetime)
       : { day: '', date: '', time: '' }
 
-  const hasLiveScore = live && live.homeScore !== null && live.awayScore !== null
+  const liveDisplay = live ? effectiveLiveScore(live, match.is_cup_final) : { home: null, away: null }
+  const hasLiveScore = !!live && liveDisplay.home !== null && liveDisplay.away !== null
   const isLive = live && live.statusType === 'inprogress'
   const scoreColor = isLive ? 'text-red-400' : 'text-white'
   const scoreBgColor = isLive ? 'bg-red-500/10 text-red-400' : 'bg-white/[0.06] text-white'
@@ -186,12 +188,12 @@ function UpcomingCard({ match, live }: { match: Props['matches'][0]; live?: Live
           <div className="flex items-center gap-2">
             <TeamLogo name={match.home_team.name} />
             <span className="text-sm text-gray-200 truncate flex-1">{match.home_team.name}</span>
-            {hasLiveScore && <span className={`${scoreColor} font-bold text-sm tabular-nums shrink-0`}>{live!.homeScore}</span>}
+            {hasLiveScore && <span className={`${scoreColor} font-bold text-sm tabular-nums shrink-0`}>{liveDisplay.home}</span>}
           </div>
           <div className="flex items-center gap-2">
             <TeamLogo name={match.away_team.name} />
             <span className="text-sm text-gray-200 truncate flex-1">{match.away_team.name}</span>
-            {hasLiveScore && <span className={`${scoreColor} font-bold text-sm tabular-nums shrink-0`}>{live!.awayScore}</span>}
+            {hasLiveScore && <span className={`${scoreColor} font-bold text-sm tabular-nums shrink-0`}>{liveDisplay.away}</span>}
           </div>
         </div>
         <div className="text-[10px] text-gray-600 shrink-0 text-right">
@@ -216,7 +218,7 @@ function UpcomingCard({ match, live }: { match: Props['matches'][0]; live?: Live
             <span className="truncate">{match.home_team.name}</span>
             {hasLiveScore ? (
               <span className={`${scoreBgColor} px-2 py-0.5 rounded font-bold text-xs shrink-0`}>
-                {live!.homeScore}-{live!.awayScore}
+                {liveDisplay.home}-{liveDisplay.away}
               </span>
             ) : (
               <span className="text-gray-600 text-xs shrink-0">-</span>

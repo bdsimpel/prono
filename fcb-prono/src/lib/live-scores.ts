@@ -13,15 +13,28 @@ export interface LiveScore {
   timeInitial: number // 0 for 1st half, 2700 (45min) for 2nd half
   timeMax: number
   timeExtra: number
-  // Period scores for 90-min calculation (cup final)
-  homePeriod1: number | null
-  homePeriod2: number | null
-  awayPeriod1: number | null
-  awayPeriod2: number | null
+  // 90-minute score (regulation time) — used for cup final to ignore ET/penalties.
+  // Sourced from API-Football's `score.fulltime`.
+  homeFulltime: number | null
+  awayFulltime: number | null
   // Winner determination
   winnerCode: number | null // 1 = home wins, 2 = away wins
   homeTeamName: string | null
   awayTeamName: string | null
+}
+
+// For cup final, once `score.fulltime` populates (the moment the match leaves
+// regulation), use it for both display and provisional grading so the score
+// doesn't shift on ET / penalty goals. Falls back to the running score during
+// regulation and for non-cup-final matches.
+export function effectiveLiveScore(
+  live: LiveScore,
+  isCupFinal: boolean,
+): { home: number | null; away: number | null } {
+  if (isCupFinal && live.homeFulltime !== null && live.awayFulltime !== null) {
+    return { home: live.homeFulltime, away: live.awayFulltime }
+  }
+  return { home: live.homeScore, away: live.awayScore }
 }
 
 const POLL_INTERVAL = 30_000

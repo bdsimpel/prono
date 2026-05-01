@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import TeamLogo from '@/components/TeamLogo'
 import LiveMatchBadge from '@/components/LiveMatchBadge'
-import { useLiveScores } from '@/lib/live-scores'
+import { useLiveScores, effectiveLiveScore } from '@/lib/live-scores'
 import { useLiveEvents } from '@/lib/live-events'
 import MatchGoalTimeline from '@/components/MatchGoalTimeline'
 import type { GoalEvent } from '@/components/MatchGoalTimeline'
@@ -49,7 +49,8 @@ export default function LiveMatchHeader({
 
   const liveScores = useLiveScores(eventIdMap)
   const live = liveScores[matchId]
-  const hasLiveScore = live && live.homeScore !== null && live.awayScore !== null && !result
+  const liveDisplay = live ? effectiveLiveScore(live, isCupFinal) : { home: null, away: null }
+  const hasLiveScore = !!live && liveDisplay.home !== null && liveDisplay.away !== null && !result
   const isLive = hasLiveScore && live.statusType === 'inprogress'
   const liveScoreColor = isLive ? 'text-red-400' : 'text-white'
 
@@ -59,8 +60,13 @@ export default function LiveMatchHeader({
     shouldFetchLiveEvents ? fixtureId : null,
   )
 
-  // Choose goal events: DB events for finished, live events for in-progress
-  const goalEvents = result ? (dbGoalEvents ?? []) : liveEvents
+  // Choose goal events: DB events for finished, live events for in-progress.
+  // For the cup final, drop ET goals (minute > 90) so the timeline lines up
+  // with the saved 90-min score.
+  const rawGoalEvents = result ? (dbGoalEvents ?? []) : liveEvents
+  const goalEvents = isCupFinal
+    ? rawGoalEvents.filter(e => e.minute <= 90)
+    : rawGoalEvents
 
   // For live events:
   // - League matches: use positional teamId (0=home, 1=away) — API order matches DB order
@@ -117,7 +123,7 @@ export default function LiveMatchHeader({
               <>
                 <LiveMatchBadge score={live} />
                 <span className={`heading-display text-3xl ${liveScoreColor} mt-0.5`}>
-                  {live.homeScore} - {live.awayScore}
+                  {liveDisplay.home} - {liveDisplay.away}
                 </span>
               </>
             ) : (
@@ -153,7 +159,7 @@ export default function LiveMatchHeader({
             <div className="flex flex-col items-center shrink-0">
               <LiveMatchBadge score={live} />
               <span className={`heading-display text-3xl ${liveScoreColor}`}>
-                {live.homeScore} - {live.awayScore}
+                {liveDisplay.home} - {liveDisplay.away}
               </span>
             </div>
           ) : (

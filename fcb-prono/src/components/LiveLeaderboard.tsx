@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useLiveScores } from '@/lib/live-scores'
+import { useLiveScores, effectiveLiveScore } from '@/lib/live-scores'
 import { calculateMatchPoints } from '@/lib/scoring'
 import YearSelector from '@/components/YearSelector'
 import type { Edition, EditionScore, AlltimeScore, Subgroup, PlayerSubgroup } from '@/lib/types'
@@ -22,6 +22,7 @@ interface MatchForLive {
   id: number
   api_football_fixture_id: number | null
   match_datetime: string | null
+  is_cup_final: boolean
 }
 
 interface PredictionForLive {
@@ -74,15 +75,24 @@ export default function LiveLeaderboard({
 
   const liveScores = useLiveScores(eventIdMap)
 
+  const isCupFinalById = useMemo(() => {
+    const m = new Map<number, boolean>()
+    for (const match of matches) m.set(match.id, match.is_cup_final)
+    return m
+  }, [matches])
+
   // Calculate provisional standings
   const augmentedStandings = useMemo(() => {
     const liveMatchIds = Object.keys(liveScores).map(Number)
     if (liveMatchIds.length === 0) return currentStandings
 
-    // Only consider matches with actual score data
+    // Only consider matches with actual score data (using effective score so the
+    // cup final freezes at its 90-min value once ET starts).
     const scoredMatches = liveMatchIds.filter(mid => {
       const ls = liveScores[mid]
-      return ls && ls.homeScore !== null && ls.awayScore !== null && ls.statusType !== 'notstarted'
+      if (!ls || ls.statusType === 'notstarted') return false
+      const eff = effectiveLiveScore(ls, isCupFinalById.get(mid) ?? false)
+      return eff.home !== null && eff.away !== null
     })
 
     if (scoredMatches.length === 0) return currentStandings
@@ -105,13 +115,15 @@ export default function LiveLeaderboard({
 
       for (const pred of userPreds) {
         const ls = liveScores[pred.match_id]
-        if (!ls || ls.homeScore === null || ls.awayScore === null) continue
+        if (!ls) continue
+        const eff = effectiveLiveScore(ls, isCupFinalById.get(pred.match_id) ?? false)
+        if (eff.home === null || eff.away === null) continue
 
         const { points, category } = calculateMatchPoints(
           pred.home_score,
           pred.away_score,
-          ls.homeScore,
-          ls.awayScore
+          eff.home,
+          eff.away
         )
 
         provisionalPoints += points
@@ -146,7 +158,7 @@ export default function LiveLeaderboard({
       previousScore = row.total_score
       return { ...row, rank: currentRank }
     })
-  }, [currentStandings, liveScores, predictions])
+  }, [currentStandings, liveScores, predictions, isCupFinalById])
 
   const hasLiveData = Object.keys(liveScores).length > 0
   const hasInProgressMatch = Object.values(liveScores).some(s => s.statusType === 'inprogress')
