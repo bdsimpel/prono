@@ -564,6 +564,20 @@ export async function POST(request: Request) {
                   await serviceClient
                     .from('extra_question_answers')
                     .insert({ question_id: bekerQuestion.id, correct_answer: winnerDbName })
+
+                  // Surface in the activity feed, 1s after the result event so
+                  // it bubbles above the cup final's result row.
+                  const winnerTs = new Date(Date.parse(enteredAt) + 1000).toISOString()
+                  await serviceClient.from('activity_events').insert({
+                    type: 'extra_answer',
+                    message: `Bekerwinnaar bekend: ${winnerDbName}`,
+                    metadata: {
+                      question_key: 'bekerwinnaar',
+                      correct_answer: winnerDbName,
+                      match_id: matchRow.id,
+                    },
+                    created_at: winnerTs,
+                  })
                 }
               }
             }
