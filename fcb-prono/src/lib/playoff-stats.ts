@@ -95,16 +95,25 @@ function matchPlayerName(
   const exact = allPlayers.find(p => p.name.toLowerCase() === apiLower)
   if (exact) return { id: exact.id, name: exact.name }
 
-  // DB name contains API last name
-  const apiParts = apiName.split(' ')
+  // API last name appears as a whole token in DB name. Whole-token is critical:
+  // substring matching wrongly paired API "R. Ito" with DB "Rihito Yamamoto"
+  // because "rihito" contains "ito" — and STVV's roster also has Ryotaro Ito.
+  const apiParts = apiName.split(/\s+/)
   const apiLast = apiParts[apiParts.length - 1].toLowerCase()
   if (apiLast.length >= 3) {
-    const lastNameMatch = allPlayers.find(p => p.name.toLowerCase().includes(apiLast))
+    const lastNameMatch = allPlayers.find(p =>
+      p.name.toLowerCase().split(/[\s-]+/).includes(apiLast),
+    )
     if (lastNameMatch) return { id: lastNameMatch.id, name: lastNameMatch.name }
   }
 
-  // API name contains DB name
-  const containsMatch = allPlayers.find(p => apiLower.includes(p.name.toLowerCase()))
+  // Every DB token appears as a whole token in the API name (handles cases
+  // where API has the full name but DB stores a shorter form).
+  const containsMatch = allPlayers.find(p => {
+    const dbTokens = p.name.toLowerCase().split(/[\s-]+/)
+    const apiTokens = apiLower.split(/[\s.-]+/).filter(Boolean)
+    return dbTokens.every(dt => apiTokens.includes(dt))
+  })
   if (containsMatch) return { id: containsMatch.id, name: containsMatch.name }
 
   return null
