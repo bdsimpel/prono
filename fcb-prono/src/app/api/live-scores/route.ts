@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { recalculateScores } from '@/lib/recalculate'
 import { generateMetricEvents, insertMetricEvents } from '@/lib/activity-metrics'
 import { processMatchEvents } from '@/lib/playoff-stats'
+import { setExtraAnswerWithActivity } from '@/lib/extra-answers'
 import type { LiveScore } from '@/lib/live-scores'
 import type { GoalEvent } from '@/components/MatchGoalTimeline'
 
@@ -538,47 +539,19 @@ export async function POST(request: Request) {
               )
             }
 
-            // Cup final: auto-set bekerwinnaar extra question
+            // Cup final: auto-set bekerwinnaar extra question (idempotent —
+            // helper short-circuits if the answer + event already exist).
             if (matchRow.is_cup_final && score.winnerCode) {
               const winnerName = score.winnerCode === 1 ? score.homeTeamName : score.awayTeamName
               if (winnerName) {
-                // Match against DB team names (contains check)
                 const dbTeamNames = Object.values(teamMap)
                 const winnerDbName = dbTeamNames.find(
                   name => winnerName.toLowerCase().includes(name.toLowerCase())
                 ) || winnerName
-
-                // Find bekerwinnaar question and set answer
-                const { data: bekerQuestion } = await serviceClient
-                  .from('extra_questions')
-                  .select('id')
-                  .eq('question_key', 'bekerwinnaar')
-                  .single()
-
-                if (bekerQuestion) {
-                  await serviceClient
-                    .from('extra_question_answers')
-                    .delete()
-                    .eq('question_id', bekerQuestion.id)
-
-                  await serviceClient
-                    .from('extra_question_answers')
-                    .insert({ question_id: bekerQuestion.id, correct_answer: winnerDbName })
-
-                  // Surface in the activity feed, 1s after the result event so
-                  // it bubbles above the cup final's result row.
-                  const winnerTs = new Date(Date.parse(enteredAt) + 1000).toISOString()
-                  await serviceClient.from('activity_events').insert({
-                    type: 'extra_answer',
-                    message: `Bekerwinnaar bekend: ${winnerDbName}`,
-                    metadata: {
-                      question_key: 'bekerwinnaar',
-                      correct_answer: winnerDbName,
-                      match_id: matchRow.id,
-                    },
-                    created_at: winnerTs,
-                  })
-                }
+                await setExtraAnswerWithActivity(serviceClient, 'bekerwinnaar', [winnerDbName], {
+                  baseTimestamp: enteredAt,
+                  matchId: matchRow.id,
+                })
               }
             }
           }

@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { recalculateScores } from './recalculate'
 import { fetchAll } from './supabase/fetch-all'
+import { setExtraAnswerWithActivity } from './extra-answers'
 
 const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
 const TOTAL_LEAGUE_MATCHES = 30
@@ -358,14 +359,12 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
     { data: allMatches },
     { data: allResults },
     { data: allTeams },
-    { data: allQuestions },
     allEvents,
     { data: allFootballPlayers },
   ] = await Promise.all([
     serviceClient.from('matches').select('id, home_team_id, away_team_id, is_cup_final').eq('is_cup_final', false),
     serviceClient.from('results').select('match_id, home_score, away_score'),
     serviceClient.from('teams').select('id, name, standing_rank, points_half'),
-    serviceClient.from('extra_questions').select('id, question_key'),
     fetchAll<{ match_id: number; event_type: string; player_name: string; football_player_id: number | null; team_id: number; detail: string | null }>(serviceClient, 'match_events', 'match_id, event_type, player_name, football_player_id, team_id, detail'),
     serviceClient.from('football_players').select('id, name'),
   ])
@@ -373,7 +372,6 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
   const matches = allMatches || []
   const results = allResults || []
   const teams = allTeams || []
-  const questions = allQuestions || []
   // Only count league match events for stats (exclude cup final)
   const leagueMatchIds = new Set(matches.map(m => m.id))
   const events = allEvents.filter(e => leagueMatchIds.has(e.match_id))
@@ -443,17 +441,10 @@ async function checkAndUpdateExtraAnswers(serviceClient: SupabaseClient) {
     teamIdByName[t.name] = t.id
   }
 
-  const questionMap: Record<string, number> = {}
-  for (const q of questions) questionMap[q.question_key] = q.id
-
-  // Helper to set answer(s) for a question
+  // Helper: idempotent set + activity event emission. Delegates to the shared
+  // helper so the route.ts bekerwinnaar path can share the same semantics.
   async function setAnswers(questionKey: string, answers: string[]) {
-    const qId = questionMap[questionKey]
-    if (!qId || answers.length === 0) return
-
-    await serviceClient.from('extra_question_answers').delete().eq('question_id', qId)
-    const rows = answers.map(a => ({ question_id: qId, correct_answer: a }))
-    await serviceClient.from('extra_question_answers').upsert(rows, { onConflict: 'question_id,correct_answer', ignoreDuplicates: true })
+    await setExtraAnswerWithActivity(serviceClient, questionKey, answers)
   }
 
   // === TOPSCORER (only after all matches) ===
