@@ -278,16 +278,17 @@ export default async function PlayerDetailPage({
       es.player_name === historicalName ||
       es.player_name.toLowerCase() === player.display_name.toLowerCase(),
   );
+  const editionMap = new Map((editions || []).map((e) => [e.id, e]));
   const playerMedals = playerEditionScores
     .filter((es) => es.rank <= 3)
     .map((es) => {
-      const edition = (editions || []).find((e) => e.id === es.edition_id);
+      const edition = editionMap.get(es.edition_id);
       return { year: edition?.year ?? 0, label: edition?.label ?? "", rank: es.rank };
     })
     .sort((a, b) => b.year - a.year);
   const playerHistory = playerEditionScores
     .map((es) => {
-      const edition = (editions || []).find((e) => e.id === es.edition_id);
+      const edition = editionMap.get(es.edition_id);
       return {
         year: edition?.year ?? 0,
         rank: es.rank,
@@ -342,7 +343,7 @@ export default async function PlayerDetailPage({
   type PredRound = {
     label: string;
     key: string;
-    predictions: { id: number; match_id: number; home_score: number; away_score: number; home_team_name: string; away_team_name: string; match_datetime: string | null; api_football_fixture_id: number | null }[];
+    predictions: { id: number; match_id: number; home_score: number; away_score: number; home_team_name: string; away_team_name: string; match_datetime: string | null; api_football_fixture_id: number | null; is_cup_final: boolean }[];
     firstDatetime: number;
   };
   const roundsMap = new Map<string, PredRound>();
@@ -378,6 +379,7 @@ export default async function PlayerDetailPage({
       away_team_name: match.away_team.name,
       match_datetime: match.match_datetime,
       api_football_fixture_id: match.api_football_fixture_id,
+      is_cup_final: match.is_cup_final,
     });
     if (match.match_datetime) {
       const t = new Date(match.match_datetime).getTime();
@@ -566,7 +568,7 @@ export default async function PlayerDetailPage({
         gamesPlayed={gamesPlayed}
         streakData={streakData}
         predictions={(predictions || []).map((p) => {
-          const m = p.matches as { speeldag: number | null; match_datetime: string | null; api_football_fixture_id: number | null };
+          const m = p.matches as { speeldag: number | null; match_datetime: string | null; api_football_fixture_id: number | null; is_cup_final: boolean };
           return {
             match_id: p.match_id,
             home_score: p.home_score,
@@ -574,6 +576,7 @@ export default async function PlayerDetailPage({
             api_football_fixture_id: m.api_football_fixture_id,
             match_datetime: m.match_datetime,
             speeldag: m.speeldag,
+            is_cup_final: m.is_cup_final,
           };
         })}
         resultMap={resultMap}

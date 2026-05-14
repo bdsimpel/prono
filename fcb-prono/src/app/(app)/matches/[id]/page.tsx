@@ -314,6 +314,7 @@ export default async function MatchDetailPage({
           matchId={match.id}
           fixtureId={match.api_football_fixture_id}
           matchDatetime={match.match_datetime}
+          isCupFinal={match.is_cup_final}
           hasResult={false}
           shouldHide={shouldHide}
         />

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useLiveScores } from '@/lib/live-scores'
+import { useLiveScores, effectiveLiveScore } from '@/lib/live-scores'
 import { calculateMatchPoints } from '@/lib/scoring'
 import LiveMatchBadge from '@/components/LiveMatchBadge'
 
@@ -21,6 +21,7 @@ interface Props {
   matchId: number
   fixtureId: number | null
   matchDatetime: string | null
+  isCupFinal: boolean
   hasResult: boolean
   shouldHide: boolean
 }
@@ -80,6 +81,7 @@ export default function LivePredictionList({
   matchId,
   fixtureId,
   matchDatetime,
+  isCupFinal,
   hasResult,
   shouldHide,
 }: Props) {
@@ -95,7 +97,8 @@ export default function LivePredictionList({
 
   const liveScores = useLiveScores(eventIdMap)
   const live = liveScores[matchId]
-  const hasLiveScore = live && live.homeScore !== null && live.awayScore !== null && live.statusType !== 'notstarted'
+  const eff = live ? effectiveLiveScore(live, isCupFinal) : { home: null, away: null }
+  const hasLiveScore = live && eff.home !== null && eff.away !== null && live.statusType !== 'notstarted'
   const isLive = hasLiveScore && live.statusType === 'inprogress'
 
   const augmented = useMemo(() => {
@@ -111,14 +114,14 @@ export default function LivePredictionList({
     const withPoints = predictions.map(p => {
       const { points, category } = calculateMatchPoints(
         p.home_score, p.away_score,
-        live.homeScore!, live.awayScore!
+        eff.home!, eff.away!
       )
       return { ...p, points, category: category as Category, isLive }
     })
 
     withPoints.sort((a, b) => b.points - a.points || a.rank - b.rank)
     return withPoints
-  }, [predictions, hasLiveScore, live])
+  }, [predictions, hasLiveScore, eff.home, eff.away, isLive])
 
   const filtered = useMemo(() => {
     if (!search) return augmented
@@ -222,7 +225,7 @@ export default function LivePredictionList({
                       <span>
                         <span className="text-gray-500">{isLive ? 'Live: ' : 'Uitslag: '}</span>
                         <span className={`font-bold ${isLive ? 'text-red-400' : 'text-gray-300'}`}>
-                          {live.homeScore}-{live.awayScore}
+                          {eff.home}-{eff.away}
                         </span>
                       </span>
                     )}

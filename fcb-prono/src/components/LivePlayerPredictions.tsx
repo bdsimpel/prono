@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useLiveScores } from '@/lib/live-scores'
+import { useLiveScores, effectiveLiveScore } from '@/lib/live-scores'
 import { calculateMatchPoints } from '@/lib/scoring'
 import TeamLogo from '@/components/TeamLogo'
 
@@ -16,6 +16,7 @@ interface PredictionData {
   away_team_name: string
   match_datetime: string | null
   api_football_fixture_id: number | null
+  is_cup_final: boolean
 }
 
 interface Props {
@@ -105,7 +106,8 @@ export default function LivePlayerPredictions({
       {predictions.map((pred) => {
         const result = resultMap[pred.match_id]
         const live = liveScores[pred.match_id]
-        const hasLiveScore = live && live.homeScore !== null && live.awayScore !== null && live.statusType !== 'notstarted' && !result
+        const eff = live ? effectiveLiveScore(live, pred.is_cup_final) : { home: null, away: null }
+        const hasLiveScore = live && eff.home !== null && eff.away !== null && live.statusType !== 'notstarted' && !result
 
         let points = 0
         let category: Category = 'pending'
@@ -116,13 +118,13 @@ export default function LivePlayerPredictions({
           points = calc.points
           category = calc.category
         } else if (hasLiveScore) {
-          const calc = calculateMatchPoints(pred.home_score, pred.away_score, live.homeScore!, live.awayScore!)
+          const calc = calculateMatchPoints(pred.home_score, pred.away_score, eff.home!, eff.away!)
           points = calc.points
           category = calc.category
           isLive = live.statusType === 'inprogress'
         }
 
-        const displayResult = result || (hasLiveScore ? { home_score: live.homeScore!, away_score: live.awayScore! } : undefined)
+        const displayResult = result || (hasLiveScore ? { home_score: eff.home!, away_score: eff.away! } : undefined)
         const hasPoints = !!result || hasLiveScore
 
         return (
@@ -200,7 +202,7 @@ export default function LivePlayerPredictions({
                     <span>
                       <span className="text-gray-500">{isLive ? 'Live: ' : 'Uitslag: '}</span>
                       <span className={`font-bold ${isLive ? 'text-red-400' : 'text-gray-300'}`}>
-                        {live.homeScore}-{live.awayScore}
+                        {eff.home}-{eff.away}
                       </span>
                     </span>
                   )}

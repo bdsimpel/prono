@@ -13,6 +13,7 @@ interface PredictionItem {
   away_team_name: string
   match_datetime: string | null
   api_football_fixture_id: number | null
+  is_cup_final: boolean
 }
 
 export interface PredRound {

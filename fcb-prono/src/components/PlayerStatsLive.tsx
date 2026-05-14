@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useLiveScores } from '@/lib/live-scores'
+import { useLiveScores, effectiveLiveScore } from '@/lib/live-scores'
 import { calculateMatchPoints } from '@/lib/scoring'
 import { computePlayerStreak, type PlayerStreakData, type MatchResult } from '@/lib/streaks'
 import StreakDots from '@/components/streaks/StreakDots'
@@ -16,6 +16,7 @@ interface PredictionForLive {
   api_football_fixture_id: number | null
   match_datetime: string | null
   speeldag: number | null
+  is_cup_final: boolean
 }
 
 interface Props {
@@ -79,11 +80,15 @@ export default function PlayerStatsLive({
       }
     }
 
-    // Build augmented result map
+    // Build augmented result map. Cup final freezes at 90-min via effectiveLiveScore.
+    const isCupFinalById = new Map<number, boolean>()
+    for (const p of predictions) isCupFinalById.set(p.match_id, p.is_cup_final)
     const augResultMap: Record<number, { home_score: number; away_score: number }> = { ...resultMap }
     for (const matchId of liveMatchIds) {
       const live = liveScores[matchId]
-      augResultMap[matchId] = { home_score: live.homeScore!, away_score: live.awayScore! }
+      const eff = effectiveLiveScore(live, isCupFinalById.get(matchId) ?? false)
+      if (eff.home === null || eff.away === null) continue
+      augResultMap[matchId] = { home_score: eff.home, away_score: eff.away }
     }
 
     // Recompute stats
