@@ -295,7 +295,9 @@ async function fetchLiveEvents(
       if (!res.ok) continue
       const data = await res.json()
       const events: ApiFootballEvent[] = data.response || []
-      const goals = events.filter(e => e.type === 'Goal')
+      // type: 'Goal' includes Missed Penalty and (post-VAR) Cancelled Goal — keep
+      // only details that represent actual goals on the board.
+      const goals = events.filter(e => e.type === 'Goal' && (e.detail === 'Normal Goal' || e.detail === 'Penalty' || e.detail === 'Own Goal'))
 
       // Get home team ID from fixture data to determine home/away
       const fixture = fixtureData[fixtureId]

@@ -122,13 +122,18 @@ interface MatchGoal {
   _teamName: string
 }
 
+// API-Football's `type: 'Goal'` includes non-goals like "Missed Penalty" and
+// (when VAR disallows a goal) variants like "Cancelled Goal". Whitelist the
+// detail values we count as actual goals so they can't slip into match_events.
+const SCORED_GOAL_DETAILS = new Set(['Normal Goal', 'Penalty', 'Own Goal'])
+
 async function fetchMatchEvents(fixtureId: number): Promise<MatchGoal[]> {
   try {
     const res = await fetchApiFootball(`/fixtures/events?fixture=${fixtureId}`)
     if (!res) return []
     const data = await res.json()
     const goals = (data.response || []).filter(
-      (e: { type: string }) => e.type === 'Goal'
+      (e: { type: string; detail?: string }) => e.type === 'Goal' && SCORED_GOAL_DETAILS.has(e.detail || ''),
     )
     return goals.map((g: { player?: { name?: string }; assist?: { name?: string | null }; time?: { elapsed?: number; extra?: number | null }; team?: { name?: string }; detail?: string; comments?: string }, idx: number) => ({
       playerName: g.player?.name || 'Unknown',
@@ -554,6 +559,14 @@ export async function resyncAllMatchEvents(serviceClient: SupabaseClient) {
 
   const resultMatchIds = new Set((results || []).map(r => r.match_id))
   const finishedMatches = (matches || []).filter(m => resultMatchIds.has(m.id))
+
+  // Authoritative resync: drop existing events for these matches so stale rows
+  // (e.g. disallowed-goal phantoms from earlier API states) can't survive.
+  // processMatchEvents below re-inserts from the current API response.
+  const finishedMatchIds = finishedMatches.map(m => m.id)
+  if (finishedMatchIds.length > 0) {
+    await serviceClient.from('match_events').delete().in('match_id', finishedMatchIds)
+  }
 
   for (const match of finishedMatches) {
     await processMatchEvents(
