@@ -379,7 +379,49 @@ export async function POST(request: Request) {
           console.error('[live-scores] API-Football fetch failed:', e)
         }
 
-        // Update cache
+        // Orient parsed scores to DB home/away. API-Football may list teams in
+        // a different home/away order than our DB (cup final: API has Union
+        // home, DB has Anderlecht home). Flip per-fixture so every client read
+        // can treat homeScore/homeFulltime/homeTeamName as the DB home team's
+        // value. Done before caching so cache stores oriented data.
+        const apiFixtureIds = Object.keys(scores).map(Number)
+        if (apiFixtureIds.length > 0) {
+          const orientClient = await createServiceClient()
+          const { data: orientMatches } = await orientClient
+            .from('matches')
+            .select('api_football_fixture_id, home_team:home_team_id(name), away_team:away_team_id(name)')
+            .in('api_football_fixture_id', apiFixtureIds)
+          for (const m of (orientMatches || []) as unknown as Array<{
+            api_football_fixture_id: number | null
+            home_team: { name: string } | { name: string }[] | null
+            away_team: { name: string } | { name: string }[] | null
+          }>) {
+            if (!m.api_football_fixture_id) continue
+            const score = scores[m.api_football_fixture_id]
+            if (!score?.homeTeamName) continue
+            const hTeam = Array.isArray(m.home_team) ? m.home_team[0] : m.home_team
+            const aTeam = Array.isArray(m.away_team) ? m.away_team[0] : m.away_team
+            const dbHome = (hTeam?.name || '').toLowerCase()
+            const dbAway = (aTeam?.name || '').toLowerCase()
+            const apiHome = score.homeTeamName.toLowerCase()
+            const matchesHome = !!dbHome && (apiHome.includes(dbHome) || dbHome.includes(apiHome))
+            const matchesAway = !!dbAway && (apiHome.includes(dbAway) || dbAway.includes(apiHome))
+            if (matchesAway && !matchesHome) {
+              scores[m.api_football_fixture_id] = {
+                ...score,
+                homeScore: score.awayScore,
+                awayScore: score.homeScore,
+                homeFulltime: score.awayFulltime,
+                awayFulltime: score.homeFulltime,
+                homeTeamName: score.awayTeamName,
+                awayTeamName: score.homeTeamName,
+                winnerCode: score.winnerCode === 1 ? 2 : score.winnerCode === 2 ? 1 : score.winnerCode,
+              }
+            }
+          }
+        }
+
+        // Update cache with oriented data
         cache = { key: cacheKey, data: { ...scores }, fixtures: { ...fixtureData }, timestamp: now }
       }
     }
@@ -444,32 +486,14 @@ export async function POST(request: Request) {
           const score = scores[matchRow.api_football_fixture_id!]
           if (!score || score.homeScore === null || score.awayScore === null) continue
 
+          // Score is already in DB orientation (oriented at parse time above).
           // Cup final: use 90-minute score (excludes ET / penalties).
-          // Regular matches: use current score.
-          let apiHome: number = score.homeScore
-          let apiAway: number = score.awayScore
+          let saveHome: number = score.homeScore
+          let saveAway: number = score.awayScore
           if (matchRow.is_cup_final && score.homeFulltime !== null && score.awayFulltime !== null) {
-            apiHome = score.homeFulltime
-            apiAway = score.awayFulltime
+            saveHome = score.homeFulltime
+            saveAway = score.awayFulltime
           }
-
-          // Orientation fix: API home/away may differ from DB (notably the cup
-          // final, where API has Union home / Anderlecht away while the DB has
-          // Anderlecht home / Union away). Detect via team-name matching and
-          // swap the scores so they line up with DB home/away_team_id.
-          const dbHomeName = (teamMap[matchRow.home_team_id] || '').toLowerCase()
-          const dbAwayName = (teamMap[matchRow.away_team_id] || '').toLowerCase()
-          const apiHomeName = (score.homeTeamName || '').toLowerCase()
-          const apiHomeMatchesDbHome =
-            !!apiHomeName && !!dbHomeName &&
-            (apiHomeName.includes(dbHomeName) || dbHomeName.includes(apiHomeName))
-          const apiHomeMatchesDbAway =
-            !!apiHomeName && !!dbAwayName &&
-            (apiHomeName.includes(dbAwayName) || dbAwayName.includes(apiHomeName))
-          const flipped = apiHomeMatchesDbAway && !apiHomeMatchesDbHome
-
-          const saveHome = flipped ? apiAway : apiHome
-          const saveAway = flipped ? apiHome : apiAway
 
           // Single timestamp for both the result row and its activity event so
           // downstream sort logic (rare_exact = entered_at + 1ms) is stable.
