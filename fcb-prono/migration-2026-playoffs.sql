@@ -76,4 +76,4 @@ INSERT INTO matches (home_team_id, away_team_id, speeldag, match_datetime, is_cu
 
 -- Cup final (Anderlecht vs Union)
 INSERT INTO matches (home_team_id, away_team_id, speeldag, match_datetime, is_cup_final) VALUES
-  (4, 1, NULL, '2026-05-14T15:00:00Z', true);
+  (4, 1, NULL, '2026-05-14T13:00:00Z', true);

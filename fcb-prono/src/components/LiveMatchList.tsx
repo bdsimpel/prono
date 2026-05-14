@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import TeamLogo from '@/components/TeamLogo'
 import LiveMatchBadge from '@/components/LiveMatchBadge'
-import { useLiveScores, effectiveLiveScore } from '@/lib/live-scores'
+import { useLiveScores } from '@/lib/live-scores'
 import type { LiveScore } from '@/lib/live-scores'
 
 export interface LiveMatchData {
@@ -78,7 +78,8 @@ function CurrentCard({ match, result, live }: { match: Props['matches'][0]; resu
 
   const isLive = live && live.statusType === 'inprogress'
   const isFinished = live && live.statusType === 'finished' && !result
-  const liveDisplay = live ? effectiveLiveScore(live, match.is_cup_final) : { home: null, away: null }
+  // Match list shows the running score; per-player scoring stays frozen in LiveLeaderboard.
+  const liveDisplay = live ? { home: live.homeScore, away: live.awayScore } : { home: null, away: null }
   const hasLiveScore = !!live && liveDisplay.home !== null && liveDisplay.away !== null && !result
   const scoreColor = isLive ? 'text-red-400' : 'text-white'
   const scoreBgColor = isLive ? 'bg-red-500/10 text-red-400' : 'bg-white/[0.06] text-white'
@@ -162,7 +163,7 @@ function UpcomingCard({ match, live }: { match: Props['matches'][0]; live?: Live
       ? formatMatchDate(match.match_datetime)
       : { day: '', date: '', time: '' }
 
-  const liveDisplay = live ? effectiveLiveScore(live, match.is_cup_final) : { home: null, away: null }
+  const liveDisplay = live ? { home: live.homeScore, away: live.awayScore } : { home: null, away: null }
   const hasLiveScore = !!live && liveDisplay.home !== null && liveDisplay.away !== null
   const isLive = live && live.statusType === 'inprogress'
   const scoreColor = isLive ? 'text-red-400' : 'text-white'

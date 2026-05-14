@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import TeamLogo from '@/components/TeamLogo'
 import LiveMatchBadge from '@/components/LiveMatchBadge'
-import { useLiveScores, effectiveLiveScore } from '@/lib/live-scores'
+import { useLiveScores } from '@/lib/live-scores'
 import { useLiveEvents } from '@/lib/live-events'
 import MatchGoalTimeline from '@/components/MatchGoalTimeline'
 import type { GoalEvent } from '@/components/MatchGoalTimeline'
@@ -49,7 +49,9 @@ export default function LiveMatchHeader({
 
   const liveScores = useLiveScores(eventIdMap)
   const live = liveScores[matchId]
-  const liveDisplay = live ? effectiveLiveScore(live, isCupFinal) : { home: null, away: null }
+  // Match views show the running score (incl. ET goals). Per-player scoring is
+  // locked to the 90-min snapshot in LiveLeaderboard via effectiveLiveScore().
+  const liveDisplay = live ? { home: live.homeScore, away: live.awayScore } : { home: null, away: null }
   const hasLiveScore = !!live && liveDisplay.home !== null && liveDisplay.away !== null && !result
   const isLive = hasLiveScore && live.statusType === 'inprogress'
   const liveScoreColor = isLive ? 'text-red-400' : 'text-white'
@@ -61,12 +63,10 @@ export default function LiveMatchHeader({
   )
 
   // Choose goal events: DB events for finished, live events for in-progress.
-  // For the cup final, drop ET goals (minute > 90) so the timeline lines up
-  // with the saved 90-min score.
+  // Cup final: hide the timeline entirely — scorers don't feed any extra
+  // question, so showing them is noise.
   const rawGoalEvents = result ? (dbGoalEvents ?? []) : liveEvents
-  const goalEvents = isCupFinal
-    ? rawGoalEvents.filter(e => e.minute <= 90)
-    : rawGoalEvents
+  const goalEvents = isCupFinal ? [] : rawGoalEvents
 
   // For live events:
   // - League matches: use positional teamId (0=home, 1=away) — API order matches DB order
