@@ -301,24 +301,21 @@ async function fetchLiveEvents(
       const fixture = fixtureData[fixtureId]
       const homeApiTeamId = fixture?.teams.home.id
 
-      // Include team name so client can match against DB home/away
-      // Own goals: flip to benefiting team's side
+      // API-Football's `team` is the team CREDITED with the goal — for own
+      // goals that's the benefiting team, not the scorer's team. Use it
+      // directly as the side the goal should appear on.
       result[fixtureId] = goals.map((g, idx) => {
         const isHome = g.team.id === homeApiTeamId
         const isOwnGoal = g.detail === 'Own Goal'
-        // For own goals, the benefiting team is the opposite
-        const effectiveTeamName = isOwnGoal
-          ? (isHome ? fixture?.teams.away.name : fixture?.teams.home.name)
-          : g.team.name
         return {
           playerName: g.player?.name || 'Unknown',
           assistName: isOwnGoal ? null : (g.assist?.name || null),
           minute: g.time.elapsed || 0,
           extraMinute: g.time.extra || null,
           detail: g.detail || 'Normal Goal',
-          teamId: (isHome !== isOwnGoal) ? 0 : 1,
+          teamId: isHome ? 0 : 1,
           seq: idx + 1,
-          teamName: effectiveTeamName || undefined,
+          teamName: g.team.name || undefined,
         }
       })
     } catch {

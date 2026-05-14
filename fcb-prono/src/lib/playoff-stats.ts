@@ -119,6 +119,7 @@ interface MatchGoal {
   isHome: boolean
   isOwnGoal: boolean
   detail: string
+  _teamName: string
 }
 
 async function fetchMatchEvents(fixtureId: number): Promise<MatchGoal[]> {
@@ -226,26 +227,27 @@ export async function processMatchEvents(
   }[] = []
 
   for (const goal of goals) {
-    // Determine which team the API says scored
-    const goalObj = goal as MatchGoal & { _teamName?: string }
-    const goalTeamName = goalObj._teamName || ''
+    // API-Football's `team` field is the team CREDITED with the goal — for own
+    // goals that's the benefiting team, not the scorer's team. Use it directly
+    // as the side the goal should appear on.
+    const goalTeamName = goal._teamName || ''
     const mappedTeam = mapApiTeamName(goalTeamName)
-    let apiTeamId: number
+    let displayTeamId: number
     if (mappedTeam === homeTeamName) {
-      apiTeamId = homeTeamId
+      displayTeamId = homeTeamId
     } else if (mappedTeam === awayTeamName) {
-      apiTeamId = awayTeamId
+      displayTeamId = awayTeamId
     } else {
-      // Fallback: use contains matching
-      apiTeamId = goalTeamName.toLowerCase().includes(homeTeamName.toLowerCase()) ? homeTeamId : awayTeamId
+      displayTeamId = goalTeamName.toLowerCase().includes(homeTeamName.toLowerCase()) ? homeTeamId : awayTeamId
     }
 
-    // Own goals: display on the benefiting team's side (the opposing team)
-    const scorerTeamId = goal.isOwnGoal
-      ? (apiTeamId === homeTeamId ? awayTeamId : homeTeamId)
-      : apiTeamId
-    // Always look up the player in their actual team (apiTeamId), not the benefiting team
-    const scorerTeamDbName = teamMap[apiTeamId] || ''
+    // For the player lookup we need the scorer's actual team. That's the same
+    // as displayTeamId for regular goals, and the opposite for own goals (the
+    // scorer plays for the team that conceded).
+    const scorerActualTeamId = goal.isOwnGoal
+      ? (displayTeamId === homeTeamId ? awayTeamId : homeTeamId)
+      : displayTeamId
+    const scorerTeamDbName = teamMap[scorerActualTeamId] || ''
 
     const playerMatch = matchPlayerName(goal.playerName, dbPlayers, scorerTeamDbName)
     events.push({
@@ -253,7 +255,7 @@ export async function processMatchEvents(
       event_type: 'goal',
       player_name: playerMatch?.name ?? goal.playerName,
       football_player_id: playerMatch?.id ?? null,
-      team_id: scorerTeamId,
+      team_id: displayTeamId,
       minute: goal.minute || null,
       extra_minute: goal.extraMinute || null,
       seq: goal.seq,
@@ -268,7 +270,7 @@ export async function processMatchEvents(
         event_type: 'assist',
         player_name: assistMatch?.name ?? goal.assistName,
         football_player_id: assistMatch?.id ?? null,
-        team_id: scorerTeamId,
+        team_id: displayTeamId,
         minute: goal.minute || null,
         extra_minute: goal.extraMinute || null,
         seq: goal.seq,
